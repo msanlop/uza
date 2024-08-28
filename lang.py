@@ -2,14 +2,14 @@ from __future__ import annotations
 import string
 from collections import namedtuple
 import sys
-from typing import Callable, Optional
+from typing import Callable, Optional, TypeVar, List
 from collections import deque
 from collections.abc import Sequence
 from abc import ABC
 from dataclasses import dataclass
 
 
-@dataclass
+@dataclass(frozen=True)
 class TokenKind:
     repr: str
     _token_dict: dict
@@ -32,7 +32,7 @@ class TokenKind:
         return f"TokenKind('{self.repr}')"
 
 
-@dataclass
+@dataclass(frozen=True)
 class Token:
     kind: TokenKind
     start: int
@@ -41,7 +41,7 @@ class Token:
 
     def __post_init__(self):
         if self.repr == "":
-            self.repr = self.kind.repr
+            object.__setattr__(self, "repr", self.kind.repr)  # bypass frozen=True
 
     def __eq__(self, value: object) -> bool:
         if not isinstance(value, Token):
@@ -211,8 +211,21 @@ class Number(Node):
 
 
 @dataclass
+class Identifier(Node):
+    name: str
+    
+    def __init__(self, identifier : Token | str) -> None:
+        if isinstance(identifier, Token):
+            self.name = identifier.repr
+        else:
+            self.name = identifier
+
+    def visit(self, that):
+        return that.visit_identifier(self)
+    
+@dataclass
 class Application(Node):
-    func_id: Token
+    func_id: Identifier
     params: list[Node]
 
     def __init__(self, func_id: Token, *args) -> None:
@@ -226,7 +239,7 @@ class Application(Node):
 @dataclass
 class InfixApplication(Node):
     lhs: Node
-    func_id: Token
+    func_id: Identifier
     rhs: Node
 
     def visit(self, that):
@@ -236,7 +249,7 @@ class InfixApplication(Node):
 @dataclass
 class PrefixApplication(Node):
     expr: Node
-    func_id: Token
+    func_id: Identifier
 
     def visit(self, that):
         return that.visit_prefix_application(self)
@@ -252,6 +265,8 @@ class varDef(Node):
     def visit(self, that):
         return that.visit_var_def(self)
 
+
+Program = List[Node]
 
 class Parser:
     def __init__(self, source: str):
@@ -327,15 +342,20 @@ class Parser:
             return self._get_infix(node)
 
         if tok.kind == token_identifier:
-            identifier = self._expect(token_identifier)
-            self._expect(token_paren_l)
-            arguments = self._get_function_args()
-            self._expect(token_paren_r)
-            return Application(identifier, *arguments)
+            identifier_tok = self._expect(token_identifier)
+            identifier = Identifier(identifier_tok)
+            tok = self._peek()
+            if tok.kind == token_paren_l:
+                self._expect(token_paren_l)
+                arguments = self._get_function_args()
+                self._expect(token_paren_r)
+                return Application(identifier, *arguments)
+            else:
+                return self._get_infix(identifier)
 
         if tok.kind.is_op():
-            identifier = self._expect(tok.kind)
-            return PrefixApplication(self._get_expr(), identifier)
+            prefix_tok = self._expect(tok.kind)
+            return PrefixApplication(self._get_expr(), Identifier(prefix_tok))
         if tok.kind == token_NUM:
             return self._get_infix(Number(self._expect(token_NUM)))
 
@@ -371,12 +391,12 @@ class Parser:
                     curr_op_precedence + 1
                 )
 
-            lhs = InfixApplication(lhs, op, rhs)
+            lhs = InfixApplication(lhs, Identifier(op), rhs)
             valid_op, curr_op_precedence = self._peek_valid_op(precedence)
 
         return lhs
 
-    def parse(self) -> list[Node]:
+    def parse(self) -> Program:
         if not self._peek():
             return []
         expressions = []
@@ -387,74 +407,135 @@ class Parser:
         return expressions
 
 
-class BuiltIns:
-    _defined = {
-        "+": "bi_add",
-        "-": "bi_minus",
-        "*": "bi_mult",
-        "/": "bi_div",
-        "**": "bi_pow",
-        "print": "bi_print",
-        "println": "bi_println",
-        "max": "bi_max",
-        "min": "bi_min",
-    }
+@dataclass(frozen=True)
+class BuiltIn:
+    identifier: str
+    _builtins_dict: dict[BuiltIn]
 
-    def get(tok: Token) -> str:
-        """Returns the identifier string corresponding to the Token operation if exists
+    def __post_init__(self):
+        self._builtins_dict[self.identifier] = self
+
+    def __repr__(self) -> str:
+        return f"BuiltIn({self.identifier})"
+
+
+_builtins = {}
+bi_add = BuiltIn("+", _builtins)
+bi_minus = BuiltIn("-", _builtins)
+bi_mult = BuiltIn("*", _builtins)
+bi_div = BuiltIn("/", _builtins)
+bi_pow = BuiltIn("**", _builtins)
+bi_print = BuiltIn("print", _builtins)
+bi_println = BuiltIn("println", _builtins)
+bi_max = BuiltIn("max", _builtins)
+bi_min = BuiltIn("min", _builtins)
+
+def get_builtin(id : Identifier) -> Optional[BuiltIn]:
+    return _builtins.get(id.name)
+
+
+@dataclass
+class Value:
+    name: str
+    value: any
+    immutable: bool = False
+    
+    
+class Context: #TODO change to allow functions
+    def __init__(self, frames: deque[tuple[str, dict[str, Value]]] = None) -> None:
+        """Excetution context that containts the stack frames. Each frame has a context name and the local definitions.
 
         Args:
-            tok (Token): token that has a builtin function
-
-        Returns:
-            str: the built-in function name identifier
+            frames (deque[tuple[str, dict[str, Value]]], optional): TODO: redo this whole docstr
+                Defaults to deque().
         """
-        key = tok.repr
-        assert key is not None
-        return BuiltIns._defined.get(key)
+        if not frames:
+            self.frames = deque()
+            self.frames.appendleft(["", {}])
+        else:
+            self.frames = frames
+        
+    def with_new_frame(self, context_name: str, frame: dict[str, Value]) -> Context:
+        new_frames = deque((*self.frames, [context_name, frame]))
+        return Context(new_frames)
+    
+    def define(self, variable_name : str, value: Value) -> None:
+        top_frame = self.frames[0]
+        frame_locals = top_frame[1]
+        frame_locals[variable_name] = value
+
+    def get(self, identifier: str) -> any:
+        for frame in self.frames:
+            frame_locals = frame[1]
+            value = frame_locals.get(identifier)
+            if value:
+                return value
+        raise NameError(f'"{identifier}" has not been defined')
 
 
 class Interpreter:
-    def __init__(self, ast: Node):
-        self._ast = ast
+    def __init__(self, ast: Program | Node):
+        self._context = Context()
+        if isinstance(ast, Node):
+            self._program = [ast]
+        else:
+            self._program = ast
 
-    def visit_built_in_application(self, func_id, *params):
-        if func_id == "bi_add":
+    T = TypeVar("T")
+    R = TypeVar("R")
+    def _in_scope(self, scope_name : str, locals : dict[str, Value], func: Callable[[], R]) -> R:
+        saved = self._context
+        self._context = saved.with_new_frame(scope_name, locals)
+        res = func()
+        self._context = saved
+        return res
+
+    def visit_built_in_application(self, func_id, *params) -> Optional[int | float]:
+        if func_id == bi_add:
             return params[0] + params[1]
-        elif func_id == "bi_minus":
+        elif func_id == bi_minus:
             if len(params) == 1:
                 return -params[0]
             return params[0] + params[1]
-        elif func_id == "bi_mult":
+        elif func_id == bi_mult:
             return params[0] * params[1]
-        elif func_id == "bi_div":
+        elif func_id == bi_div:
             return params[0] / params[1]
-        elif func_id == "bi_pow":
+        elif func_id == bi_pow:
             return params[0] ** params[1]
-        elif func_id == "bi_print":
+        elif func_id == bi_print:
             print(*params, end="")
             return None
-        elif func_id == "bi_println":
+        elif func_id == bi_println:
             print(*params)
             return None
-        elif func_id == "bi_max":
+        elif func_id == bi_max:
             return max(params[0], params[1])
-        elif func_id == "bi_min":
+        elif func_id == bi_min:
             return min(params[0], params[1])
+        
+        raise ValueError()
+    
+    def visit_var_def(self, definition: varDef):
+        value = definition.value.visit(self)
+        self._context.define(definition.identifier, value)
 
+    def visit_identifier(self, identifier: Identifier):
+        return self._context.get(identifier.name)
+    
     def visit_number(self, number: Number):
         return number.number
 
     def visit_application(self, application: Application):
         evaluated = [param.visit(self) for param in application.params]
-        build_in_id = BuiltIns.get(application.func_id)
+        build_in_id = get_builtin(application.func_id)
         if build_in_id:
             return self.visit_built_in_application(build_in_id, *evaluated)
         raise NotImplementedError("no user functions yet, something went wrong")
 
     def visit_prefix_application(self, prefix_app: PrefixApplication):
         evaluated = prefix_app.expr.visit(self)
-        build_in_id = BuiltIns.get(prefix_app.func_id)
+        build_in_id = get_builtin(prefix_app.func_id)
         if build_in_id:
             return self.visit_built_in_application(build_in_id, evaluated)
         raise NotImplementedError("no user functions yet, something went wrong")
@@ -463,10 +544,11 @@ class Interpreter:
         left = infix_app.lhs.visit(self)
         right = infix_app.rhs.visit(self)
         id = infix_app.func_id
-        built_in_id = BuiltIns.get(id)
+        built_in_id = get_builtin(id)
         if built_in_id:
             return self.visit_built_in_application(built_in_id, left, right)
         raise NotImplementedError("no user functions yet, something went wrong")
 
     def evaluate(self) -> Optional[int | float]:
-        return self._ast.visit(self)  # TODO read program and not just node
+        lines = [node.visit(self) for node in self._program]
+        return lines[-1]

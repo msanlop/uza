@@ -2,23 +2,23 @@
 from lang import *
 
 
-def test_simple():
+def test_infix_add():
     source = "123 + 99"
     actual = Parser(source).parse()[0]
     expected = InfixApplication(
         Number(Token(token_NUM, 0, 4, "123")),
-        (Token(token_plus, 5, 7)),
+        (Identifier(Token(token_plus, 5, 7))),
         Number(Token(token_NUM, 7, 9, "99")),
     )
     assert actual == expected
 
 
-def test_paren():
+def test_paren_infix_add():
     source = "(123 + 99)"
     actual = Parser(source).parse()[0]
     expected = InfixApplication(
         Number(Token(token_NUM, 0, 4, "123")),
-        (Token(token_plus, 5, 7)),
+        (Identifier(Token(token_plus, 5, 7))),
         Number(Token(token_NUM, 7, 9, "99")),
     )
     assert actual == expected
@@ -31,10 +31,10 @@ def test_mult_precedence():
     # actual = parser._get_infix(parser._get_expr())
     expected = InfixApplication(
         Number(Token(token_NUM, 0, 4, "123")),
-        (Token(token_plus, 5, 7)),
+        (Identifier(Token(token_plus, 5, 7))),
         InfixApplication(
             Number(Token(token_NUM, 7, 9, "99")),
-            Token(token_star, 1, 1),
+            Identifier(Token(token_star, 1, 1)),
             Number(Token(token_NUM, 1, 1, "2")),
         ),
     )
@@ -47,10 +47,10 @@ def test_mult_precedence_paren():
     expected = InfixApplication(
         InfixApplication(
             Number(Token(token_NUM, 1, 1, "123")),
-            (Token(token_plus, 1, 1)),
+            (Identifier(Token(token_plus, 1, 1))),
             Number(Token(token_NUM, 1, 1, "99")),
         ),
-        Token(token_star, 1, 1),
+        Identifier(Token(token_star, 1, 1)),
         Number(Token(token_NUM, 1, 1, "2")),
     )
     assert actual == expected
@@ -61,10 +61,10 @@ def test_pow_precedence_right_associative():
     actual = Parser(source).parse()[0]
     expected = InfixApplication(
         Number(Token(token_NUM, 1, 1, "2")),
-        Token(token_star_double, 1, 1),
+        Identifier(Token(token_star_double, 1, 1)),
         InfixApplication(
             Number(Token(token_NUM, 1, 1, "3")),
-            (Token(token_star_double, 1, 1)),
+            (Identifier(Token(token_star_double, 1, 1))),
             Number(Token(token_NUM, 1, 1, "2")),
         ),
     )
@@ -79,7 +79,7 @@ def test_declarations():
         "float",
         InfixApplication(
             Number(Token(token_NUM, 1, 1, "123.53")),
-            Token(token_star_double, 1, 1),
+            Identifier(Token(token_star_double, 1, 1)),
             Number(Token(token_NUM, 1, 1, "2")),
         ),
         True,
@@ -107,10 +107,10 @@ def test_builtin_application_parse():
     source = "println(123 + 99)"
     actual = Parser(source).parse()[0]
     expected = Application(
-        Token(token_identifier, 1, 1, "println"),
+        Identifier("println"),
         InfixApplication(
             Number(Token(token_NUM, 0, 4, "123")),
-            (Token(token_plus, 5, 7)),
+            (Identifier(Token(token_plus, 5, 7))),
             Number(Token(token_NUM, 7, 9, "99")),
         ),
     )
@@ -138,3 +138,22 @@ def test_builtin_application_function_as_arg(capsys):
     Interpreter(Parser(source_lang).parse()[0]).evaluate()
     captured = capsys.readouterr()
     assert captured.out == str(eval(source))
+
+def test_print_val(capsys):
+    expr = "123.43 * 2.0"
+    source = f"""val foo float = {expr}
+    print(foo)
+    """
+    actual = Interpreter(Parser(source).parse()).evaluate()
+    captured = capsys.readouterr()
+    assert captured.out == str(eval(expr))
+    
+def test_print_infix_val_application(capsys):
+    source = f"""
+    val foo float = 1.5
+    val bar float = 1.5
+    print(foo + bar)
+    """
+    actual = Interpreter(Parser(source).parse()).evaluate()
+    captured = capsys.readouterr()
+    assert captured.out == '3.0'
