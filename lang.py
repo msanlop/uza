@@ -8,10 +8,6 @@ from collections.abc import Sequence
 from abc import ABC
 from dataclasses import dataclass
 
-OP_PREFIX = {"MINUS"}
-
-NUM_TOK = "NUM"
-
 
 @dataclass
 class TokenKind:
@@ -75,6 +71,8 @@ token_var = TokenKind("var", token_types)
 token_eq = TokenKind("=", token_types)
 token_eq_double = TokenKind("==", token_types)
 token_identifier = TokenKind("identifier", token_types)
+token_def = TokenKind("def", token_types)
+token_comma = TokenKind("comma", token_types)
 
 
 class Lexer:
@@ -94,7 +92,7 @@ class Lexer:
     def _consume_white_space(self):
         i = self._start
         # while i < self._source_len and self._source[i] in string.whitespace:
-        while i < self._source_len and self._source[i] is " ":
+        while i < self._source_len and self._source[i] == " ":
             i += 1
         self._start = i
 
@@ -114,12 +112,15 @@ class Lexer:
             return None
 
         char = self._char_at(self._start)
-        if char is "\n":
+        if char == "\n":
             end = self._start + 1
             type = token_new_line
         elif char in string.digits:
             end = self._next_numeral()
             type = token_NUM
+        elif char == ",":
+            end = self._start + 1
+            type = token_comma
         elif char in string.ascii_letters:
             word, end = self._get_next_word()
             match word:
@@ -210,22 +211,35 @@ class Number(Node):
 
 
 @dataclass
-class Op(Node):
-    lhs: Node
-    op: Token
-    rhs: Node
+class Application(Node):
+    func_id: Token
+    params: list[Node]
+
+    def __init__(self, func_id: Token, *args) -> None:
+        self.func_id = func_id
+        self.params = list(args)
 
     def visit(self, that):
-        return that.visit_op(self)
+        return that.visit_application(self)
 
 
 @dataclass
-class PrefixOp(Node):
-    expr: Node
-    op: Token
+class InfixApplication(Node):
+    lhs: Node
+    func_id: Token
+    rhs: Node
 
     def visit(self, that):
-        return that.visit_prefix_op(self)
+        return that.visit_infix_application(self)
+
+
+@dataclass
+class PrefixApplication(Node):
+    expr: Node
+    func_id: Token
+
+    def visit(self, that):
+        return that.visit_prefix_application(self)
 
 
 @dataclass
@@ -287,6 +301,21 @@ class Parser:
 
         return varDef(identifier.repr, tpe.repr, value, immutable=immutable)
 
+    def _get_function_args(self) -> list[Node]:
+        next = self._peek()
+        args = []
+        while next.kind != token_paren_r:
+            arg = self._get_expr()
+            next = self._peek()
+            if next.kind == token_comma:
+                self._expect(token_comma)
+            elif next.kind != token_paren_r:
+                raise SyntaxError(f"Expected ',' or ')' but got {next}")
+            args.append(arg)
+            next = self._peek()
+
+        return args
+
     def _get_expr(self) -> Node:
         tok = self._peek()
 
@@ -297,9 +326,16 @@ class Parser:
             self._expect(token_paren_r)
             return self._get_infix(node)
 
+        if tok.kind == token_identifier:
+            identifier = self._expect(token_identifier)
+            self._expect(token_paren_l)
+            arguments = self._get_function_args()
+            self._expect(token_paren_r)
+            return Application(identifier, *arguments)
+
         if tok.kind.is_op():
-            operation_token = self._expect(tok.kind)
-            return PrefixOp(self._get_expr(), operation_token)
+            identifier = self._expect(tok.kind)
+            return PrefixApplication(self._get_expr(), identifier)
         if tok.kind == token_NUM:
             return self._get_infix(Number(self._expect(token_NUM)))
 
@@ -335,7 +371,7 @@ class Parser:
                     curr_op_precedence + 1
                 )
 
-            lhs = Op(lhs, op, rhs)
+            lhs = InfixApplication(lhs, op, rhs)
             valid_op, curr_op_precedence = self._peek_valid_op(precedence)
 
         return lhs
@@ -349,42 +385,88 @@ class Parser:
             expressions.append(expr)
 
         return expressions
-        # node = self._get_expr()
-        # if not node:
-        #     return None
-        # head = self._get_infix(node)
-        # if self._peek() is not None:
-        #     tok: Token = self._peek()
-        #     raise SyntaxError(f"Did not expect character {tok} at {tok.start}")
-        # return head
+
+
+class BuiltIns:
+    _defined = {
+        "+": "bi_add",
+        "-": "bi_minus",
+        "*": "bi_mult",
+        "/": "bi_div",
+        "**": "bi_pow",
+        "print": "bi_print",
+        "println": "bi_println",
+        "max": "bi_max",
+        "min": "bi_min",
+    }
+
+    def get(tok: Token) -> str:
+        """Returns the identifier string corresponding to the Token operation if exists
+
+        Args:
+            tok (Token): token that has a builtin function
+
+        Returns:
+            str: the built-in function name identifier
+        """
+        key = tok.repr
+        assert key is not None
+        return BuiltIns._defined.get(key)
 
 
 class Interpreter:
     def __init__(self, ast: Node):
         self._ast = ast
 
+    def visit_built_in_application(self, func_id, *params):
+        if func_id == "bi_add":
+            return params[0] + params[1]
+        elif func_id == "bi_minus":
+            if len(params) == 1:
+                return -params[0]
+            return params[0] + params[1]
+        elif func_id == "bi_mult":
+            return params[0] * params[1]
+        elif func_id == "bi_div":
+            return params[0] / params[1]
+        elif func_id == "bi_pow":
+            return params[0] ** params[1]
+        elif func_id == "bi_print":
+            print(*params, end="")
+            return None
+        elif func_id == "bi_println":
+            print(*params)
+            return None
+        elif func_id == "bi_max":
+            return max(params[0], params[1])
+        elif func_id == "bi_min":
+            return min(params[0], params[1])
+
     def visit_number(self, number: Number):
         return number.number
 
-    def visit_prefix_op(self, prefix_op: PrefixOp):
-        evaluated = prefix_op.expr.visit(self)
-        assert prefix_op.op.kind == token_minus  # add more
-        return -evaluated
+    def visit_application(self, application: Application):
+        evaluated = [param.visit(self) for param in application.params]
+        build_in_id = BuiltIns.get(application.func_id)
+        if build_in_id:
+            return self.visit_built_in_application(build_in_id, *evaluated)
+        raise NotImplementedError("no user functions yet, something went wrong")
 
-    def visit_op(self, operation: Op):
-        left = operation.lhs.visit(self)
-        right = operation.rhs.visit(self)
-        op = operation.op
-        if op.kind == token_star_double:
-            return left**right
-        elif op.kind == token_plus:
-            return left + right
-        elif op.kind == token_star:
-            return left * right
-        elif op.kind == token_slash:
-            return left / right
-        elif op.kind == token_minus:
-            return left - right
+    def visit_prefix_application(self, prefix_app: PrefixApplication):
+        evaluated = prefix_app.expr.visit(self)
+        build_in_id = BuiltIns.get(prefix_app.func_id)
+        if build_in_id:
+            return self.visit_built_in_application(build_in_id, evaluated)
+        raise NotImplementedError("no user functions yet, something went wrong")
 
-    def evaluate(self) -> int | float:
-        return self._ast.visit(self)
+    def visit_infix_application(self, infix_app: InfixApplication):
+        left = infix_app.lhs.visit(self)
+        right = infix_app.rhs.visit(self)
+        id = infix_app.func_id
+        built_in_id = BuiltIns.get(id)
+        if built_in_id:
+            return self.visit_built_in_application(built_in_id, left, right)
+        raise NotImplementedError("no user functions yet, something went wrong")
+
+    def evaluate(self) -> Optional[int | float]:
+        return self._ast.visit(self)  # TODO read program and not just node
