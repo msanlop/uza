@@ -1,12 +1,9 @@
 from __future__ import annotations
 import string
-from collections import namedtuple
-import sys
 from typing import Callable, Optional, TypeVar, List
 from collections import deque
-from collections.abc import Sequence
 from abc import ABC
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass(frozen=True)
@@ -48,7 +45,6 @@ class Token:
             return NotImplemented
         if self.kind != value.kind:
             return False
-
         if self.kind.is_user_value:
             return self.repr == value.repr
         else:
@@ -65,7 +61,6 @@ token_slash = TokenKind("/", token_types, 3)
 token_star_double = TokenKind("**", token_types, 9, right_assoc=True)
 token_paren_l = TokenKind("(", token_types)
 token_paren_r = TokenKind(")", token_types)
-token_NUM = TokenKind("NUM", token_types, is_user_value=True)
 token_val = TokenKind("val", token_types)
 token_var = TokenKind("var", token_types)
 token_eq = TokenKind("=", token_types)
@@ -73,6 +68,12 @@ token_eq_double = TokenKind("==", token_types)
 token_identifier = TokenKind("identifier", token_types)
 token_def = TokenKind("def", token_types)
 token_comma = TokenKind("comma", token_types)
+token_and = TokenKind("and", token_types, 1)
+token_false = TokenKind("false", token_types)
+token_quote = TokenKind('"', token_types)
+token_string = TokenKind("STR", token_types, is_user_value=True)
+token_number = TokenKind("NUM", token_types, is_user_value=True)
+token_boolean = TokenKind("BOOL", token_types, is_user_value=True)
 
 
 class Lexer:
@@ -106,6 +107,12 @@ class Lexer:
 
         return self._source[self._start : end], end
 
+    def _get_next_string(self, delimiter="") -> tuple[str, int]:
+        end = self._start + 1
+        while self._char_at(end) != '"':
+            end += 1
+        return self._source[self._start : end], end
+
     def _next_token(self) -> Optional[Token]:
         self._consume_white_space()
         if self._overflows():
@@ -117,10 +124,21 @@ class Lexer:
             type = token_new_line
         elif char in string.digits:
             end = self._next_numeral()
-            type = token_NUM
+            type = token_number
         elif char == ",":
             end = self._start + 1
             type = token_comma
+        elif char == '"':
+            word, end = self._get_next_string()
+            end += 1
+            type = token_string
+            str_start = self._start + 1
+            str_end = end - 1
+            new_string_token = Token(
+                type, str_start, str_end, self._source[str_start:str_end]
+            )
+            self._start = end
+            return new_string_token
         elif char in string.ascii_letters:
             word, end = self._get_next_word()
             match word:
@@ -128,6 +146,8 @@ class Lexer:
                     type = token_val  # TODO: test type()
                 case "var":
                     type = token_var
+                case "and":
+                    type = token_and
                 case _:
                     type = token_identifier
         elif char == "*":
@@ -197,24 +217,36 @@ class Node(ABC):
 
 
 @dataclass
-class Number(Node):
+class Literal(Node):
     token: Token
+    value: bool | str | int | float = field(init=False)
 
     def __post_init__(self) -> None:
-        try:
-            self.number: int | float = int(self.token.repr)
-        except ValueError:
-            self.number = float(self.token.repr)
+        kind = self.token.kind
+        if kind == token_boolean:
+            if self.token.repr == "false":
+                self.value = False
+            elif self.token.repr == "true":
+                self.value = True
+            else:
+                raise ValueError("Invalid boolean token")
+        elif kind == token_string:
+            self.value = self.token.repr
+        elif kind == token_number:
+            try:
+                self.value: int | float = int(self.token.repr)
+            except ValueError:
+                self.value = float(self.token.repr)
 
     def visit(self, that):
-        return that.visit_number(self)
+        return that.visit_literal(self)
 
 
 @dataclass
 class Identifier(Node):
     name: str
-    
-    def __init__(self, identifier : Token | str) -> None:
+
+    def __init__(self, identifier: Token | str) -> None:
         if isinstance(identifier, Token):
             self.name = identifier.repr
         else:
@@ -222,13 +254,14 @@ class Identifier(Node):
 
     def visit(self, that):
         return that.visit_identifier(self)
-    
+
+
 @dataclass
 class Application(Node):
     func_id: Identifier
     params: list[Node]
 
-    def __init__(self, func_id: Token, *args) -> None:
+    def __init__(self, func_id: Identifier, *args) -> None:
         self.func_id = func_id
         self.params = list(args)
 
@@ -267,6 +300,7 @@ class varDef(Node):
 
 
 Program = List[Node]
+
 
 class Parser:
     def __init__(self, source: str):
@@ -345,30 +379,31 @@ class Parser:
             identifier_tok = self._expect(token_identifier)
             identifier = Identifier(identifier_tok)
             tok = self._peek()
-            if tok.kind == token_paren_l:
-                self._expect(token_paren_l)
-                arguments = self._get_function_args()
-                self._expect(token_paren_r)
-                return Application(identifier, *arguments)
-            else:
+            if tok.kind != token_paren_l:
                 return self._get_infix(identifier)
+
+            self._expect(token_paren_l)
+            arguments = self._get_function_args()
+            self._expect(token_paren_r)
+            return Application(identifier, *arguments)
 
         if tok.kind.is_op():
             prefix_tok = self._expect(tok.kind)
             return PrefixApplication(self._get_expr(), Identifier(prefix_tok))
-        if tok.kind == token_NUM:
-            return self._get_infix(Number(self._expect(token_NUM)))
+        if tok.kind.is_user_value:
+            val = Literal(self._expect(tok.kind))
+            return self._get_infix(val)
 
         raise RuntimeError(
             f"did not expect '{tok.repr}' at '{self._source[max(tok.start - 2, 0): min(tok.end + 2, len(self._source))]}'"
         )
 
     def _peek_valid_op(self, precedence: int):
-        next = self._peek()
-        if next is None:
+        next_tok = self._peek()
+        if next_tok is None:
             return False, None
-        op_prec = next.kind.precedence
-        if next.kind.right_assoc:
+        op_prec = next_tok.kind.precedence
+        if next_tok.kind.right_assoc:
             return (
                 op_prec + 1 >= precedence,
                 op_prec,
@@ -410,7 +445,7 @@ class Parser:
 @dataclass(frozen=True)
 class BuiltIn:
     identifier: str
-    _builtins_dict: dict[BuiltIn]
+    _builtins_dict: dict[str, BuiltIn]
 
     def __post_init__(self):
         self._builtins_dict[self.identifier] = self
@@ -419,30 +454,34 @@ class BuiltIn:
         return f"BuiltIn({self.identifier})"
 
 
-_builtins = {}
+_builtins: dict[str, BuiltIn] = {}
 bi_add = BuiltIn("+", _builtins)
 bi_minus = BuiltIn("-", _builtins)
 bi_mult = BuiltIn("*", _builtins)
 bi_div = BuiltIn("/", _builtins)
 bi_pow = BuiltIn("**", _builtins)
+bi_land = BuiltIn("and", _builtins)
 bi_print = BuiltIn("print", _builtins)
 bi_println = BuiltIn("println", _builtins)
 bi_max = BuiltIn("max", _builtins)
 bi_min = BuiltIn("min", _builtins)
 
-def get_builtin(id : Identifier) -> Optional[BuiltIn]:
-    return _builtins.get(id.name)
+
+def get_builtin(identifier: Identifier) -> Optional[BuiltIn]:
+    return _builtins.get(identifier.name)
 
 
 @dataclass
 class Value:
     name: str
-    value: any
+    value: Literal
     immutable: bool = False
-    
-    
-class Context: #TODO change to allow functions
-    def __init__(self, frames: deque[tuple[str, dict[str, Value]]] = None) -> None:
+
+
+class Context:  # TODO change to allow functions
+    def __init__(
+        self, frames: deque[tuple[str, dict[str, Value]]] | None = None
+    ) -> None:
         """Excetution context that containts the stack frames. Each frame has a context name and the local definitions.
 
         Args:
@@ -450,27 +489,30 @@ class Context: #TODO change to allow functions
                 Defaults to deque().
         """
         if not frames:
-            self.frames = deque()
-            self.frames.appendleft(["", {}])
+            self.frames: deque[tuple[str, dict[str, Value]]] = deque()
+            self.frames.appendleft(("", {}))
         else:
             self.frames = frames
-        
+
     def with_new_frame(self, context_name: str, frame: dict[str, Value]) -> Context:
-        new_frames = deque((*self.frames, [context_name, frame]))
+        new_frames = deque((*self.frames, (context_name, frame)))
         return Context(new_frames)
-    
-    def define(self, variable_name : str, value: Value) -> None:
+
+    def define(self, variable_name: str, value: Value) -> None:
         top_frame = self.frames[0]
         frame_locals = top_frame[1]
         frame_locals[variable_name] = value
 
-    def get(self, identifier: str) -> any:
+    def get(self, identifier: str) -> Value:
         for frame in self.frames:
             frame_locals = frame[1]
             value = frame_locals.get(identifier)
             if value:
                 return value
         raise NameError(f'"{identifier}" has not been defined')
+
+    def reassign(self, identifier: str, new_value: Value) -> None:
+        pass  # immutable check in the parser
 
 
 class Interpreter:
@@ -483,48 +525,55 @@ class Interpreter:
 
     T = TypeVar("T")
     R = TypeVar("R")
-    def _in_scope(self, scope_name : str, locals : dict[str, Value], func: Callable[[], R]) -> R:
+
+    def _in_scope(
+        self, scope_name: str, locals_vals: dict[str, Value], func: Callable[[], R]
+    ) -> R:
         saved = self._context
-        self._context = saved.with_new_frame(scope_name, locals)
+        self._context = saved.with_new_frame(scope_name, locals_vals)
         res = func()
         self._context = saved
         return res
 
-    def visit_built_in_application(self, func_id, *params) -> Optional[int | float]:
+    def visit_built_in_application(self, func_id, *params) -> Optional[Value]:
+        ret = None
         if func_id == bi_add:
-            return params[0] + params[1]
+            ret = params[0] + params[1]
         elif func_id == bi_minus:
             if len(params) == 1:
-                return -params[0]
-            return params[0] + params[1]
+                ret = -params[0]
+            else:
+                ret = params[0] + params[1]
         elif func_id == bi_mult:
-            return params[0] * params[1]
+            ret = params[0] * params[1]
         elif func_id == bi_div:
-            return params[0] / params[1]
+            ret = params[0] / params[1]
+        elif func_id == bi_land:
+            ret = params[0] and params[1]
         elif func_id == bi_pow:
-            return params[0] ** params[1]
+            ret = params[0] ** params[1]
         elif func_id == bi_print:
             print(*params, end="")
-            return None
+            ret = None
         elif func_id == bi_println:
             print(*params)
-            return None
+            ret = None
         elif func_id == bi_max:
-            return max(params[0], params[1])
+            ret = max(params[0], params[1])
         elif func_id == bi_min:
-            return min(params[0], params[1])
-        
-        raise ValueError()
-    
+            ret = min(params[0], params[1])
+
+        return ret
+
     def visit_var_def(self, definition: varDef):
         value = definition.value.visit(self)
         self._context.define(definition.identifier, value)
 
     def visit_identifier(self, identifier: Identifier):
         return self._context.get(identifier.name)
-    
-    def visit_number(self, number: Number):
-        return number.number
+
+    def visit_literal(self, literal: Literal):
+        return literal.value
 
     def visit_application(self, application: Application):
         evaluated = [param.visit(self) for param in application.params]
@@ -543,8 +592,8 @@ class Interpreter:
     def visit_infix_application(self, infix_app: InfixApplication):
         left = infix_app.lhs.visit(self)
         right = infix_app.rhs.visit(self)
-        id = infix_app.func_id
-        built_in_id = get_builtin(id)
+        identifier = infix_app.func_id
+        built_in_id = get_builtin(identifier)
         if built_in_id:
             return self.visit_built_in_application(built_in_id, left, right)
         raise NotImplementedError("no user functions yet, something went wrong")
