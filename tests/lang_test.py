@@ -6,9 +6,9 @@ def test_infix_add():
     source = "123 + 99"
     actual = Parser(source).parse()[0]
     expected = InfixApplication(
-        Number(Token(token_NUM, 0, 4, "123")),
+        Literal(Token(token_number, 0, 4, "123")),
         (Identifier(Token(token_plus, 5, 7))),
-        Number(Token(token_NUM, 7, 9, "99")),
+        Literal(Token(token_number, 7, 9, "99")),
     )
     assert actual == expected
 
@@ -17,9 +17,9 @@ def test_paren_infix_add():
     source = "(123 + 99)"
     actual = Parser(source).parse()[0]
     expected = InfixApplication(
-        Number(Token(token_NUM, 0, 4, "123")),
+        Literal(Token(token_number, 0, 4, "123")),
         (Identifier(Token(token_plus, 5, 7))),
-        Number(Token(token_NUM, 7, 9, "99")),
+        Literal(Token(token_number, 7, 9, "99")),
     )
     assert actual == expected
 
@@ -30,12 +30,12 @@ def test_mult_precedence():
     # parser = Parser(source)
     # actual = parser._get_infix(parser._get_expr())
     expected = InfixApplication(
-        Number(Token(token_NUM, 0, 4, "123")),
+        Literal(Token(token_number, 0, 4, "123")),
         (Identifier(Token(token_plus, 5, 7))),
         InfixApplication(
-            Number(Token(token_NUM, 7, 9, "99")),
+            Literal(Token(token_number, 7, 9, "99")),
             Identifier(Token(token_star, 1, 1)),
-            Number(Token(token_NUM, 1, 1, "2")),
+            Literal(Token(token_number, 1, 1, "2")),
         ),
     )
     assert actual == expected
@@ -46,12 +46,12 @@ def test_mult_precedence_paren():
     actual = Parser(source).parse()[0]
     expected = InfixApplication(
         InfixApplication(
-            Number(Token(token_NUM, 1, 1, "123")),
+            Literal(Token(token_number, 1, 1, "123")),
             (Identifier(Token(token_plus, 1, 1))),
-            Number(Token(token_NUM, 1, 1, "99")),
+            Literal(Token(token_number, 1, 1, "99")),
         ),
         Identifier(Token(token_star, 1, 1)),
-        Number(Token(token_NUM, 1, 1, "2")),
+        Literal(Token(token_number, 1, 1, "2")),
     )
     assert actual == expected
 
@@ -60,12 +60,12 @@ def test_pow_precedence_right_associative():
     source = "2 ** 3 ** 2"
     actual = Parser(source).parse()[0]
     expected = InfixApplication(
-        Number(Token(token_NUM, 1, 1, "2")),
+        Literal(Token(token_number, 1, 1, "2")),
         Identifier(Token(token_star_double, 1, 1)),
         InfixApplication(
-            Number(Token(token_NUM, 1, 1, "3")),
+            Literal(Token(token_number, 1, 1, "3")),
             (Identifier(Token(token_star_double, 1, 1))),
-            Number(Token(token_NUM, 1, 1, "2")),
+            Literal(Token(token_number, 1, 1, "2")),
         ),
     )
     assert actual == expected
@@ -78,9 +78,9 @@ def test_declarations():
         "my_val",
         "float",
         InfixApplication(
-            Number(Token(token_NUM, 1, 1, "123.53")),
+            Literal(Token(token_number, 1, 1, "123.53")),
             Identifier(Token(token_star_double, 1, 1)),
-            Number(Token(token_NUM, 1, 1, "2")),
+            Literal(Token(token_number, 1, 1, "2")),
         ),
         True,
     )
@@ -92,7 +92,9 @@ def test_math_expressions():
     source = """(5 + 10) * 85 / 3
     --(5 + 10) + 85
     (5 + 10) + 85
-    2 ** 4 ** 5"""
+    2 ** 4 ** 5
+    1 and 1
+    0 and 1"""
 
     expressions = Parser(source).parse()
     outputs = [Interpreter(expr).evaluate() for expr in expressions]
@@ -109,9 +111,9 @@ def test_builtin_application_parse():
     expected = Application(
         Identifier("println"),
         InfixApplication(
-            Number(Token(token_NUM, 0, 4, "123")),
+            Literal(Token(token_number, 0, 4, "123")),
             (Identifier(Token(token_plus, 5, 7))),
-            Number(Token(token_NUM, 7, 9, "99")),
+            Literal(Token(token_number, 7, 9, "99")),
         ),
     )
     print(repr(expected))
@@ -125,6 +127,12 @@ def test_builtin_application_interpret(capsys):
     captured = capsys.readouterr()
     assert captured.out == str(eval(source))
 
+def test_print_string(capsys):
+    source = "Hello world!"
+    source_lang = f'print("{source}")'
+    Interpreter(Parser(source_lang).parse()[0]).evaluate()
+    captured = capsys.readouterr()
+    assert captured.out == source
 
 def test_builtin_application_interpret_multiple_args():
     source = "min(123, 99)"

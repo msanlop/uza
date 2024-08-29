@@ -6,7 +6,7 @@ from typing import Callable, Optional, TypeVar, List
 from collections import deque
 from collections.abc import Sequence
 from abc import ABC
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass(frozen=True)
@@ -48,7 +48,6 @@ class Token:
             return NotImplemented
         if self.kind != value.kind:
             return False
-
         if self.kind.is_user_value:
             return self.repr == value.repr
         else:
@@ -65,7 +64,6 @@ token_slash = TokenKind("/", token_types, 3)
 token_star_double = TokenKind("**", token_types, 9, right_assoc=True)
 token_paren_l = TokenKind("(", token_types)
 token_paren_r = TokenKind(")", token_types)
-token_NUM = TokenKind("NUM", token_types, is_user_value=True)
 token_val = TokenKind("val", token_types)
 token_var = TokenKind("var", token_types)
 token_eq = TokenKind("=", token_types)
@@ -73,6 +71,12 @@ token_eq_double = TokenKind("==", token_types)
 token_identifier = TokenKind("identifier", token_types)
 token_def = TokenKind("def", token_types)
 token_comma = TokenKind("comma", token_types)
+token_and = TokenKind("and", token_types, 1)
+token_false = TokenKind("false", token_types)
+token_quote = TokenKind('"', token_types)
+token_string = TokenKind("STR", token_types, is_user_value=True)
+token_number = TokenKind("NUM", token_types, is_user_value=True)
+token_boolean = TokenKind("BOOL", token_types, is_user_value=True)
 
 
 class Lexer:
@@ -105,6 +109,12 @@ class Lexer:
             end += 1
 
         return self._source[self._start : end], end
+    
+    def _get_next_string(self, delimiter = "") -> tuple[str, int]:
+        end = self._start + 1
+        while self._char_at(end) != '"':
+            end += 1
+        return self._source[self._start : end], end
 
     def _next_token(self) -> Optional[Token]:
         self._consume_white_space()
@@ -117,10 +127,19 @@ class Lexer:
             type = token_new_line
         elif char in string.digits:
             end = self._next_numeral()
-            type = token_NUM
+            type = token_number
         elif char == ",":
             end = self._start + 1
             type = token_comma
+        elif char == '"':
+            word, end = self._get_next_string()
+            end += 1
+            type = token_string
+            str_start = self._start + 1
+            str_end = end - 1
+            new_string_token = Token(type, str_start, str_end, self._source[str_start: str_end])
+            self._start = end
+            return new_string_token
         elif char in string.ascii_letters:
             word, end = self._get_next_word()
             match word:
@@ -128,6 +147,8 @@ class Lexer:
                     type = token_val  # TODO: test type()
                 case "var":
                     type = token_var
+                case "and":
+                    type = token_and
                 case _:
                     type = token_identifier
         elif char == "*":
@@ -197,17 +218,30 @@ class Node(ABC):
 
 
 @dataclass
-class Number(Node):
+class Literal(Node):
     token: Token
+    value: bool | str | int | float = field(init=False)
 
     def __post_init__(self) -> None:
-        try:
-            self.number: int | float = int(self.token.repr)
-        except ValueError:
-            self.number = float(self.token.repr)
+        kind = self.token.kind
+        if kind == token_boolean:
+            if self.token.repr == "false":
+                self.value = False
+            elif self.token.repr == "true":
+                self.value = True
+            else:
+                raise ValueError("Invalid boolean token")
+        elif kind == token_string:
+            self.value = self.token.repr
+        elif kind == token_number:
+            try:
+                self.value: int | float = int(self.token.repr)
+            except ValueError:
+                self.value = float(self.token.repr)
+            
 
     def visit(self, that):
-        return that.visit_number(self)
+        return that.visit_literal(self)
 
 
 @dataclass
@@ -228,7 +262,7 @@ class Application(Node):
     func_id: Identifier
     params: list[Node]
 
-    def __init__(self, func_id: Token, *args) -> None:
+    def __init__(self, func_id: Identifier, *args) -> None:
         self.func_id = func_id
         self.params = list(args)
 
@@ -356,8 +390,9 @@ class Parser:
         if tok.kind.is_op():
             prefix_tok = self._expect(tok.kind)
             return PrefixApplication(self._get_expr(), Identifier(prefix_tok))
-        if tok.kind == token_NUM:
-            return self._get_infix(Number(self._expect(token_NUM)))
+        if tok.kind.is_user_value:
+            val = Literal(self._expect(tok.kind))
+            return self._get_infix(val)
 
         raise RuntimeError(
             f"did not expect '{tok.repr}' at '{self._source[max(tok.start - 2, 0): min(tok.end + 2, len(self._source))]}'"
@@ -410,7 +445,7 @@ class Parser:
 @dataclass(frozen=True)
 class BuiltIn:
     identifier: str
-    _builtins_dict: dict[BuiltIn]
+    _builtins_dict: dict[str, BuiltIn]
 
     def __post_init__(self):
         self._builtins_dict[self.identifier] = self
@@ -419,12 +454,13 @@ class BuiltIn:
         return f"BuiltIn({self.identifier})"
 
 
-_builtins = {}
+_builtins : dict[str, BuiltIn] = {}
 bi_add = BuiltIn("+", _builtins)
 bi_minus = BuiltIn("-", _builtins)
 bi_mult = BuiltIn("*", _builtins)
 bi_div = BuiltIn("/", _builtins)
 bi_pow = BuiltIn("**", _builtins)
+bi_land = BuiltIn("and", _builtins)
 bi_print = BuiltIn("print", _builtins)
 bi_println = BuiltIn("println", _builtins)
 bi_max = BuiltIn("max", _builtins)
@@ -437,12 +473,12 @@ def get_builtin(id : Identifier) -> Optional[BuiltIn]:
 @dataclass
 class Value:
     name: str
-    value: any
+    value: Literal
     immutable: bool = False
     
     
 class Context: #TODO change to allow functions
-    def __init__(self, frames: deque[tuple[str, dict[str, Value]]] = None) -> None:
+    def __init__(self, frames: deque[tuple[str, dict[str, Value]]] | None = None) -> None:
         """Excetution context that containts the stack frames. Each frame has a context name and the local definitions.
 
         Args:
@@ -450,13 +486,13 @@ class Context: #TODO change to allow functions
                 Defaults to deque().
         """
         if not frames:
-            self.frames = deque()
-            self.frames.appendleft(["", {}])
+            self.frames: deque[tuple[str, dict[str, Value]]] = deque()
+            self.frames.appendleft(("", {}))
         else:
             self.frames = frames
         
     def with_new_frame(self, context_name: str, frame: dict[str, Value]) -> Context:
-        new_frames = deque((*self.frames, [context_name, frame]))
+        new_frames = deque((*self.frames, (context_name, frame)))
         return Context(new_frames)
     
     def define(self, variable_name : str, value: Value) -> None:
@@ -464,13 +500,16 @@ class Context: #TODO change to allow functions
         frame_locals = top_frame[1]
         frame_locals[variable_name] = value
 
-    def get(self, identifier: str) -> any:
+    def get(self, identifier: str) -> Value:
         for frame in self.frames:
             frame_locals = frame[1]
             value = frame_locals.get(identifier)
             if value:
                 return value
         raise NameError(f'"{identifier}" has not been defined')
+
+    def reassign(self, identifier: str, new_value: Value) -> None:
+        pass #immutable check in the parser
 
 
 class Interpreter:
@@ -501,6 +540,8 @@ class Interpreter:
             return params[0] * params[1]
         elif func_id == bi_div:
             return params[0] / params[1]
+        elif func_id == bi_land:
+            return params[0] and params[1]
         elif func_id == bi_pow:
             return params[0] ** params[1]
         elif func_id == bi_print:
@@ -523,8 +564,8 @@ class Interpreter:
     def visit_identifier(self, identifier: Identifier):
         return self._context.get(identifier.name)
     
-    def visit_number(self, number: Number):
-        return number.number
+    def visit_literal(self, literal: Literal):
+        return literal.value
 
     def visit_application(self, application: Application):
         evaluated = [param.visit(self) for param in application.params]
