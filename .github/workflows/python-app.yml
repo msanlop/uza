@@ -1,0 +1,38 @@
+# This workflow will install Python dependencies, run tests, lint and format with a single version of Python
+
+name: Python application
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v5
+      with:
+        python-version: "pypy3.10"
+    - name: Install dependencies
+      run: |
+        pypy3 -m pip install --upgrade pip
+        pip install pytest pytest pylint
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+    - name: Run pylint
+      run: |
+        #TODO: set higher score threshold :)
+        pylint --fail-under=8.5 lang.py
+        pylint --fail-under=6 $(find ./tests -type f -name "*.py")
+    - name: Run ruff for formatting
+      run: ruff format
+    - name: Run pytest
+      run: pypy3 -m pytest
