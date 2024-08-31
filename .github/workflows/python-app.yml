@@ -25,14 +25,11 @@ jobs:
     - name: Install dependencies
       run: |
         pypy3 -m pip install --upgrade pip
-        pip install pytest pytest pylint
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - name: Run pylint
       run: |
-        #TODO: set higher score threshold :)
-        pylint --fail-under=8.5 lang.py
-        pylint --fail-under=6 $(find ./tests -type f -name "*.py")
+        pylint --fail-under=9 src/
     - name: Run ruff for formatting
-      run: ruff format
+      run: pypy3 -m ruff format
     - name: Run pytest
       run: pypy3 -m pytest

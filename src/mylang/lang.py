@@ -30,10 +30,19 @@ class TokenKind:
 
 
 @dataclass(frozen=True)
-class Token:
-    kind: TokenKind
+class Span:
     start: int
     end: int
+    
+    def __add__(self, that: object) -> Span:
+        if not isinstance(that, Span):
+            return NotImplemented
+        return Span(self.start, that.end)
+        
+@dataclass(frozen=True)
+class Token:
+    kind: TokenKind
+    span: Span
     repr: str = ""
 
     def __post_init__(self):
@@ -101,13 +110,15 @@ class Lexer:
         end = self._start + 1
         while not self._overflows(end):
             char = self._char_at(end)
-            if char not in string.ascii_letters and char not in "_-":
+            if not (
+                char in string.ascii_letters or char in string.digits or char in "_-"
+            ):
                 break
             end += 1
 
         return self._source[self._start : end], end
 
-    def _get_next_string(self, delimiter="") -> tuple[str, int]:
+    def _get_next_string(self) -> tuple[str, int]:
         end = self._start + 1
         while self._char_at(end) != '"':
             end += 1
@@ -135,7 +146,7 @@ class Lexer:
             str_start = self._start + 1
             str_end = end - 1
             new_string_token = Token(
-                type, str_start, str_end, self._source[str_start:str_end]
+                type, Span(str_start, str_end), self._source[str_start:str_end]
             )
             self._start = end
             return new_string_token
@@ -148,6 +159,10 @@ class Lexer:
                     type = token_var
                 case "and":
                     type = token_and
+                case "true":
+                    type = token_boolean
+                case "false":
+                    type = token_boolean
                 case _:
                     type = token_identifier
         elif char == "*":
@@ -169,7 +184,7 @@ class Lexer:
             end = self._start + 1
 
         assert self._start <= end
-        new_token = Token(type, self._start, end, self._source[self._start : end])
+        new_token = Token(type, Span(self._start, end), self._source[self._start : end])
         self._start = end
         return new_token
 
@@ -200,26 +215,30 @@ class Lexer:
 
 
 class Node(ABC):
-    pass
+    span: Span
 
     def visit(self, that):
-        """The Node passes it self to the appropriately named function in the _that_ class.
-        Using a visitor pattern to move the step-specific logic to a different class.
+        """
+        The Node passes itself to the apropriate function in the _that_ object.
+
+        Using a visitor lets the compiler step specific logic in that class or
+        module and not int the Node objects.
 
         Args:
-            that : A function that defined a _visit_X where X is self
+            that : A module that defines a that.visit_X(X), where X is self.
 
         Raises:
-            NotImplementedError: The abstract base class Node does not define visit.
-            If the subclass Node does not define it's visit function, it defaults to this one via inheritance.
+            NotImplementedError: The abstract base class Node does not define
+            visit.
         """
-        raise NotImplementedError(f"visit not implemented for {self.__repr__()}")
+        raise NotImplementedError(f"visit not implemented for {self}")
 
 
 @dataclass
 class Literal(Node):
     token: Token
     value: bool | str | int | float = field(init=False)
+    span: Span = field(compare=False, init=False)
 
     def __post_init__(self) -> None:
         kind = self.token.kind
@@ -237,6 +256,7 @@ class Literal(Node):
                 self.value: int | float = int(self.token.repr)
             except ValueError:
                 self.value = float(self.token.repr)
+        self.span = self.token.span
 
     def visit(self, that):
         return that.visit_literal(self)
@@ -245,12 +265,14 @@ class Literal(Node):
 @dataclass
 class Identifier(Node):
     name: str
+    span: Span = field(compare=False)
 
-    def __init__(self, identifier: Token | str) -> None:
+    def __init__(self, identifier: Token | str, span: Span) -> None:
         if isinstance(identifier, Token):
             self.name = identifier.repr
         else:
             self.name = identifier
+        self.span = span
 
     def visit(self, that):
         return that.visit_identifier(self)
@@ -260,10 +282,12 @@ class Identifier(Node):
 class Application(Node):
     func_id: Identifier
     params: list[Node]
+    span: Span = field(compare=False)
 
     def __init__(self, func_id: Identifier, *args) -> None:
         self.func_id = func_id
         self.params = list(args)
+        self.span = func_id.span + self.params[-1].span
 
     def visit(self, that):
         return that.visit_application(self)
@@ -274,7 +298,11 @@ class InfixApplication(Node):
     lhs: Node
     func_id: Identifier
     rhs: Node
+    span: Span = field(init=False, compare=False)
 
+    def __post_init__(self) -> None:
+        self.span = self.lhs.span + self.rhs.span
+        
     def visit(self, that):
         return that.visit_infix_application(self)
 
@@ -283,16 +311,21 @@ class InfixApplication(Node):
 class PrefixApplication(Node):
     expr: Node
     func_id: Identifier
+    span: Span = field(compare=False, init=False)
+
+    def __post_init__(self) -> None:
+        self.span = self.func_id.span + self.expr.span
 
     def visit(self, that):
         return that.visit_prefix_application(self)
 
 
 @dataclass
-class varDef(Node):
+class VarDef(Node):
     identifier: str
     tpe: str
     value: Node
+    span: Span = field(compare=False)
     immutable: bool = True
 
     def visit(self, that):
@@ -303,6 +336,10 @@ Program = List[Node]
 
 
 class Parser:
+    """
+    A parser parses it source code into a Program, i.e. a list of AST Nodes.
+    """
+
     def __init__(self, source: str):
         self._tokens = deque(Lexer(source))
         self._source = source
@@ -312,23 +349,24 @@ class Parser:
             return None
         return self._tokens[0]
 
-    def _expect(self, *type: TokenKind, op=False) -> Token:
+    def _expect(self, *type_: TokenKind, op=False) -> Token:
         if self._peek() is None:
-            raise RuntimeError(f"expected {type} \n   but no more tokens left")
-        elif op and not self._peek().kind.is_op():
+            raise RuntimeError(f"expected {type_} \n   but no more tokens left")
+
+        if op and not self._peek().kind.is_op():
             raise RuntimeError(f"expected operator\n    but got {self._peek()}")
-        elif self._peek().kind not in type and not op:
-            raise RuntimeError(f"expected {type}\n    but got {self._peek()}")
+        elif self._peek().kind not in type_ and not op:
+            raise RuntimeError(f"expected {type_}\n    but got {self._peek()}")
         else:
             return self._tokens.popleft()
 
     def _get_top_level(self) -> Node:
-        next = self._peek()
-        while next.kind == token_new_line:
-            next = self._expect(token_new_line)
-            next = self._peek()
+        next_ = self._peek()
+        while next_.kind == token_new_line:
+            next_ = self._expect(token_new_line)
+            next_ = self._peek()
 
-        if next.kind == token_val or next.kind == token_var:
+        if next_.kind in (token_val, token_var):
             res = self._get_var_def()
         else:
             res = self._get_expr()
@@ -339,29 +377,26 @@ class Parser:
 
     def _get_var_def(self) -> Node:
         decl_token = self._expect(token_var, token_val)
-        if decl_token.kind == token_val:
-            immutable = True
-        else:
-            immutable = True
+        immutable = decl_token.kind == token_val
         identifier = self._expect(token_identifier)
         tpe = self._expect(token_identifier)
         self._expect(token_eq)
         value = self._get_infix(self._get_expr())
 
-        return varDef(identifier.repr, tpe.repr, value, immutable=immutable)
+        return VarDef(identifier.repr, tpe.repr, value, Span(1,1), immutable=immutable)
 
     def _get_function_args(self) -> list[Node]:
-        next = self._peek()
+        next_ = self._peek()
         args = []
-        while next.kind != token_paren_r:
+        while next_.kind != token_paren_r:
             arg = self._get_expr()
-            next = self._peek()
-            if next.kind == token_comma:
+            next_ = self._peek()
+            if next_.kind == token_comma:
                 self._expect(token_comma)
-            elif next.kind != token_paren_r:
-                raise SyntaxError(f"Expected ',' or ')' but got {next}")
+            elif next_.kind != token_paren_r:
+                raise SyntaxError(f"Expected ',' or ')' but got {next_}")
             args.append(arg)
-            next = self._peek()
+            next_ = self._peek()
 
         return args
 
@@ -377,7 +412,7 @@ class Parser:
 
         if tok.kind == token_identifier:
             identifier_tok = self._expect(token_identifier)
-            identifier = Identifier(identifier_tok)
+            identifier = Identifier(identifier_tok, identifier_tok.span)
             tok = self._peek()
             if tok.kind != token_paren_l:
                 return self._get_infix(identifier)
@@ -385,18 +420,20 @@ class Parser:
             self._expect(token_paren_l)
             arguments = self._get_function_args()
             self._expect(token_paren_r)
-            return Application(identifier, *arguments)
+            func_call = Application(identifier, *arguments)
+            return self._get_infix(func_call)
 
         if tok.kind.is_op():
             prefix_tok = self._expect(tok.kind)
-            return PrefixApplication(self._get_expr(), Identifier(prefix_tok))
+            return PrefixApplication(self._get_expr(), Identifier(prefix_tok, Span(1,1)))
         if tok.kind.is_user_value:
             val = Literal(self._expect(tok.kind))
             return self._get_infix(val)
 
-        raise RuntimeError(
-            f"did not expect '{tok.repr}' at '{self._source[max(tok.start - 2, 0): min(tok.end + 2, len(self._source))]}'"
-        )
+        source_excerp = self._source[
+            max(tok.start - 2, 0) : min(tok.end + 2, len(self._source))
+        ]
+        raise RuntimeError(f"did not expect '{tok.repr}' at '{source_excerp}'")
 
     def _peek_valid_op(self, precedence: int):
         next_tok = self._peek()
@@ -426,7 +463,7 @@ class Parser:
                     curr_op_precedence + 1
                 )
 
-            lhs = InfixApplication(lhs, Identifier(op), rhs)
+            lhs = InfixApplication(lhs, Identifier(op, op.span), rhs)
             valid_op, curr_op_precedence = self._peek_valid_op(precedence)
 
         return lhs
@@ -444,10 +481,15 @@ class Parser:
 
 @dataclass(frozen=True)
 class BuiltIn:
+    """
+    A BuiltIn is a function that is part of the standard library.
+    """
+
     identifier: str
     _builtins_dict: dict[str, BuiltIn]
 
     def __post_init__(self):
+        """adds itself to the dict that holds all the builtins"""
         self._builtins_dict[self.identifier] = self
 
     def __repr__(self) -> str:
@@ -468,24 +510,41 @@ bi_min = BuiltIn("min", _builtins)
 
 
 def get_builtin(identifier: Identifier) -> Optional[BuiltIn]:
+    """
+    Returns a _BuiltIn_ with the given who's name matches the _identifier_
+    if it exists.
+    """
     return _builtins.get(identifier.name)
 
 
 @dataclass
 class Value:
+    """
+    Defines a value.
+    """
+
     name: str
     value: Literal
     immutable: bool = False
 
 
-class Context:  # TODO change to allow functions
+class Context:
+    """Excetution context that containts the stack frames.
+
+    _frames_ is queue of locals, a tuple with the context name and a dict with
+    the (variable name, value) pairs.
+    """
+
+    frames: deque[tuple[str, dict[str, Value]]]
+
     def __init__(
         self, frames: deque[tuple[str, dict[str, Value]]] | None = None
     ) -> None:
-        """Excetution context that containts the stack frames. Each frame has a context name and the local definitions.
+        """Excetution context that containts the stack frames. Each frame has a
+        context name and the local definitions.
 
         Args:
-            frames (deque[tuple[str, dict[str, Value]]], optional): TODO: redo this whole docstr
+            frames (deque[tuple[str, dict[str, Value]]], optional):
                 Defaults to deque().
         """
         if not frames:
@@ -507,7 +566,7 @@ class Context:  # TODO change to allow functions
         for frame in self.frames:
             frame_locals = frame[1]
             value = frame_locals.get(identifier)
-            if value:
+            if value is not None:
                 return value
         raise NameError(f'"{identifier}" has not been defined')
 
@@ -516,6 +575,14 @@ class Context:  # TODO change to allow functions
 
 
 class Interpreter:
+    """
+    A class that takes in a program and interprets it by walking the AST.
+
+    Uses the visitor pattern by calling node.visit(self). Performance is not a
+    concern in this implementation. It's main use is to ensure parity with the
+    VM interpretation and to more easily test ideas.
+    """
+
     def __init__(self, ast: Program | Node):
         self._context = Context()
         if isinstance(ast, Node):
@@ -565,7 +632,7 @@ class Interpreter:
 
         return ret
 
-    def visit_var_def(self, definition: varDef):
+    def visit_var_def(self, definition: VarDef):
         value = definition.value.visit(self)
         self._context.define(definition.identifier, value)
 
@@ -599,5 +666,11 @@ class Interpreter:
         raise NotImplementedError("no user functions yet, something went wrong")
 
     def evaluate(self) -> Optional[int | float]:
+        """
+        The main _Interpreter_ function that evaluates the top level nodes.
+
+        Returns:
+            Optional[int | float]: return the evaluated result of the last line
+        """
         lines = [node.visit(self) for node in self._program]
         return lines[-1]
