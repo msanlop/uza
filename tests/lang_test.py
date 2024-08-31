@@ -1,5 +1,5 @@
 # pylint: disable=wildcard-import
-from lang import *  # TODO: split tests by compiling step
+from src.mylang.lang import *  # TODO: split tests by compiling step
 
 
 def test_infix_add():

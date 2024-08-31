@@ -101,7 +101,7 @@ class Lexer:
         end = self._start + 1
         while not self._overflows(end):
             char = self._char_at(end)
-            if char not in string.ascii_letters and char not in "_-":
+            if not (char in string.ascii_letters or char in "_-" or char in string.digits):
                 break
             end += 1
 
@@ -148,6 +148,10 @@ class Lexer:
                     type = token_var
                 case "and":
                     type = token_and
+                case "true":
+                    type = token_boolean
+                case "false":
+                    type = token_boolean
                 case _:
                     type = token_identifier
         elif char == "*":
@@ -601,3 +605,23 @@ class Interpreter:
     def evaluate(self) -> Optional[int | float]:
         lines = [node.visit(self) for node in self._program]
         return lines[-1]
+
+
+source = """
+val foo float = 1.5
+val bar float = 1.5
+val something string = "LETTTSSSS GOOOOOO "
+val ttwoo string = "I THINK"
+print(something)
+println(ttwoo)
+println(foo + bar)
+println(foo ** bar)
+println(foo ** bar)
+println(foo ** bar)
+println(foo ** bar)
+println(foo ** bar)
+println(foo ** bar)
+println(foo * bar * foo * bar / 2)
+val t3 bool = true
+"""
+actual = Interpreter(Parser(source).parse()).evaluate()
