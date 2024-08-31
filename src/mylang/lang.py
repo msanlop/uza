@@ -30,10 +30,19 @@ class TokenKind:
 
 
 @dataclass(frozen=True)
-class Token:
-    kind: TokenKind
+class Span:
     start: int
     end: int
+    
+    def __add__(self, that: object) -> Span:
+        if not isinstance(that, Span):
+            return NotImplemented
+        return Span(self.start, that.end)
+        
+@dataclass(frozen=True)
+class Token:
+    kind: TokenKind
+    span: Span
     repr: str = ""
 
     def __post_init__(self):
@@ -135,7 +144,7 @@ class Lexer:
             str_start = self._start + 1
             str_end = end - 1
             new_string_token = Token(
-                type, str_start, str_end, self._source[str_start:str_end]
+                type, Span(str_start, str_end), self._source[str_start:str_end]
             )
             self._start = end
             return new_string_token
@@ -173,7 +182,7 @@ class Lexer:
             end = self._start + 1
 
         assert self._start <= end
-        new_token = Token(type, self._start, end, self._source[self._start : end])
+        new_token = Token(type, Span(self._start, end), self._source[self._start : end])
         self._start = end
         return new_token
 
@@ -204,7 +213,7 @@ class Lexer:
 
 
 class Node(ABC):
-    pass
+    span: Span
 
     def visit(self, that):
         """The Node passes it self to the appropriately named function in the _that_ class.
@@ -224,6 +233,7 @@ class Node(ABC):
 class Literal(Node):
     token: Token
     value: bool | str | int | float = field(init=False)
+    span: Span = field(compare=False, init=False)
 
     def __post_init__(self) -> None:
         kind = self.token.kind
@@ -241,6 +251,7 @@ class Literal(Node):
                 self.value: int | float = int(self.token.repr)
             except ValueError:
                 self.value = float(self.token.repr)
+        self.span = self.token.span
 
     def visit(self, that):
         return that.visit_literal(self)
@@ -249,12 +260,14 @@ class Literal(Node):
 @dataclass
 class Identifier(Node):
     name: str
+    span: Span = field(compare=False)
 
-    def __init__(self, identifier: Token | str) -> None:
+    def __init__(self, identifier: Token | str, span: Span) -> None:
         if isinstance(identifier, Token):
             self.name = identifier.repr
         else:
             self.name = identifier
+        self.span = span
 
     def visit(self, that):
         return that.visit_identifier(self)
@@ -264,10 +277,12 @@ class Identifier(Node):
 class Application(Node):
     func_id: Identifier
     params: list[Node]
+    span: Span = field(compare=False)
 
     def __init__(self, func_id: Identifier, *args) -> None:
         self.func_id = func_id
         self.params = list(args)
+        self.span = func_id.span + self.params[-1].span
 
     def visit(self, that):
         return that.visit_application(self)
@@ -278,7 +293,11 @@ class InfixApplication(Node):
     lhs: Node
     func_id: Identifier
     rhs: Node
+    span: Span = field(init=False, compare=False)
 
+    def __post_init__(self) -> None:
+        self.span = self.lhs.span + self.rhs.span
+        
     def visit(self, that):
         return that.visit_infix_application(self)
 
@@ -287,6 +306,10 @@ class InfixApplication(Node):
 class PrefixApplication(Node):
     expr: Node
     func_id: Identifier
+    span: Span = field(compare=False, init=False)
+
+    def __post_init__(self) -> None:
+        self.span = self.func_id.span + self.expr.span
 
     def visit(self, that):
         return that.visit_prefix_application(self)
@@ -297,6 +320,7 @@ class varDef(Node):
     identifier: str
     tpe: str
     value: Node
+    span: Span = field(compare=False)
     immutable: bool = True
 
     def visit(self, that):
@@ -352,7 +376,7 @@ class Parser:
         self._expect(token_eq)
         value = self._get_infix(self._get_expr())
 
-        return varDef(identifier.repr, tpe.repr, value, immutable=immutable)
+        return varDef(identifier.repr, tpe.repr, value, decl_token.span + value.span, immutable=immutable)
 
     def _get_function_args(self) -> list[Node]:
         next = self._peek()
@@ -381,7 +405,7 @@ class Parser:
 
         if tok.kind == token_identifier:
             identifier_tok = self._expect(token_identifier)
-            identifier = Identifier(identifier_tok)
+            identifier = Identifier(identifier_tok, identifier_tok.span)
             tok = self._peek()
             if tok.kind != token_paren_l:
                 return self._get_infix(identifier)
@@ -393,7 +417,8 @@ class Parser:
 
         if tok.kind.is_op():
             prefix_tok = self._expect(tok.kind)
-            return PrefixApplication(self._get_expr(), Identifier(prefix_tok))
+            expr = self._get_expr()
+            return PrefixApplication(expr, Identifier(prefix_tok, Span(1,1)))
         if tok.kind.is_user_value:
             val = Literal(self._expect(tok.kind))
             return self._get_infix(val)
@@ -430,7 +455,7 @@ class Parser:
                     curr_op_precedence + 1
                 )
 
-            lhs = InfixApplication(lhs, Identifier(op), rhs)
+            lhs = InfixApplication(lhs, Identifier(op, op.span), rhs)
             valid_op, curr_op_precedence = self._peek_valid_op(precedence)
 
         return lhs
