@@ -2,7 +2,7 @@
 CC = gcc            # Compiler to use
 CFLAGS = -Wall -g   # Compiler flags: -Wall enables all warnings, -g includes debugging info
 TARGET = vm # The name of the output executable
-SRC = vm.c chunk.c memory.c value.c   # Source file
+SRC = vm.c chunk.c memory.c value.c serializer.c   # Source file
 OBJ = $(SRC:.c=.o)  # Object file derived from source file
 
 # Default target
@@ -21,4 +21,4 @@ clean:
 	rm -f $(TARGET) $(OBJ)
 
 # Phony targets
-.PHONY: all clean
+.PHONY: clean

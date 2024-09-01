@@ -1,7 +1,6 @@
 # pylint: disable=wildcard-import
 from src.mylang.lang import *  # TODO: split tests by compiling step
 
-
 def test_infix_add():
     source = "123 + 99"
     actual = Parser(source).parse()[0]
