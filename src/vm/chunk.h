@@ -4,8 +4,6 @@
 #include "common.h"
 #include "value.h"
 
-
-
 typedef enum {
     OP_RETURN,
     OP_CONSTANT,
@@ -22,6 +20,7 @@ typedef struct {
 int print_opcode(Chunk* chunk, int offset);
 void print_constant(char* code_str, Chunk* chunk, int offset);
 
+Chunk* init_chunk_create();
 
 void init_chunk(Chunk* chunk);
 void free_chunk(Chunk* chunk);

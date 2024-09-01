@@ -1,14 +1,14 @@
 # Define variables
 CC = gcc            # Compiler to use
-CFLAGS = -Wall -g   # Compiler flags: -Wall enables all warnings, -g includes debugging info
-TARGET = vm # The name of the output executable
-SRC = vm.c chunk.c memory.c value.c serializer.c   # Source file
+CFLAGS = -Wall -g  # Compiler flags: -Wall enables all warnings, -g includes debugging info
+TARGET = main   # The name of the output shared library
+SRC = vm.c chunk.c memory.c value.c serializer.c main.c  # Source file
 OBJ = $(SRC:.c=.o)  # Object file derived from source file
 
 # Default target
 all: $(TARGET)
 
-# Link object files to create the executable
+# Link object files to create the shared library
 $(TARGET): $(OBJ)
 	$(CC) $(CFLAGS) -o $@ $^
 

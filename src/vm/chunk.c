@@ -43,6 +43,16 @@ void init_chunk(Chunk* chunk) {
     init_valueArray(&chunk->constants);
 }
 
+Chunk* init_chunk_create() {
+    Chunk _chunk = {0};
+    Chunk* chunk = &_chunk;
+    chunk->capacity = 0;
+    chunk->count = 0;
+    chunk->code = NULL;
+    init_valueArray(&chunk->constants);
+    return chunk;
+}
+
 void write_chunk(Chunk* chunk, OpCode opcode, uint16_t line) {
     size_t capacity_new = 0;
     if(chunk->count + 1 > chunk->capacity) {
@@ -74,7 +84,6 @@ void print_chunk(Chunk* chunk) {
         printf("\n");
     }
     
-    printf("/////////////\n");
 }
 
 int add_constant(Chunk* chunk, Value constant) {

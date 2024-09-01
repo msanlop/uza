@@ -1,16 +1,16 @@
 #include "serializer.h"
 
-void load_chunk(FILE* file, Chunk* chunk) {
-    load_constants(file, &chunk->constants);
+void load_chunk(Chunk* chunk, FILE* file) {
+    load_constants(&chunk->constants, file);
     uint16_t line = 0;
     size_t read = fread(&line, sizeof(uint8_t), 2, file);
     while(read != 0) {
-        load_op(file, chunk, line);
+        load_op(chunk, line, file);
         read = fread(&line, sizeof(uint8_t), 2, file);
     }
 }
 
-void load_constants(FILE* file, ValueArray *array){
+void load_constants(ValueArray *array, FILE* file){
     uint8_t constants_count = 0;
     fread(&constants_count, sizeof(uint8_t), 1, file);
     for (size_t i = 0; i < constants_count; i++) {
@@ -20,7 +20,7 @@ void load_constants(FILE* file, ValueArray *array){
     }
     
 }
-void load_op(FILE* file, Chunk* chunk, uint16_t line) {
+void load_op(Chunk* chunk, uint16_t line, FILE* file) {
     OpCode opcode = OP_RETURN;
     fread(&opcode, sizeof(uint8_t), 1, file);
     switch (opcode)
