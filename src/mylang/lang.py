@@ -632,21 +632,21 @@ class Interpreter:
         return lines[-1]
 
 
-source = """
-val foo float = 1.5
-val bar float = 1.5
-val something string = "LETTTSSSS GOOOOOO "
-val ttwoo string = "I THINK"
-print(something)
-println(ttwoo)
-println(foo + bar)
-println(foo ** bar)
-println(foo ** bar)
-println(foo ** bar)
-println(foo ** bar)
-println(foo ** bar)
-println(foo ** bar)
-println(foo * bar * foo * bar / 2)
-val t3 bool = true
-"""
-actual = Interpreter(Parser(source).parse()).evaluate()
+# source = """
+# val foo float = 1.5
+# val bar float = 1.5
+# val something string = "LETTTSSSS GOOOOOO "
+# val ttwoo string = "I THINK"
+# print(something)
+# println(ttwoo)
+# println(foo + bar)
+# println(foo ** bar)
+# println(foo ** bar)
+# println(foo ** bar)
+# println(foo ** bar)
+# println(foo ** bar)
+# println(foo ** bar)
+# println(foo * bar * foo * bar / 2)
+# val t3 bool = true
+# """
+# actual = Interpreter(Parser(source).parse()).evaluate()
