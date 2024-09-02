@@ -1,12 +1,18 @@
 from __future__ import annotations
 from abc import ABC
 from dataclasses import dataclass, field
+from __future__ import annotations
+from abc import ABC
+from dataclasses import dataclass, field
 from io import BufferedReader, BufferedWriter
 from pprint import pprint
 from typing import Optional
 from . import __version_tuple__
 from .lang import Literal, Parser, Program, Span
+from . import __version_tuple__
+from .lang import Literal, Parser, Program, Span
 import os
+import struct
 import struct
 
 BYTE_ORDER = "big"

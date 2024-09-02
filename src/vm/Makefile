@@ -31,3 +31,4 @@ clean:
 
 # Phony targets
 .PHONY: clean
+.PHONY: clean
