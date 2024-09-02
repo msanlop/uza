@@ -5,7 +5,7 @@ TARGET = main   # The name of the output shared library
 SRC = vm.c chunk.c memory.c value.c serializer.c main.c # Source file
 OBJ = $(SRC:.c=.o)  # Object file derived from source file
 
-DEBUG = 1
+DEBUG ?= 1
 
 ifeq ($(DEBUG), 1)
     CFLAGS += -DDEBUG -g
