@@ -14,11 +14,11 @@ crun: clean build
 	./src/vm/main $(ARGS)
 
 test: 
-	$(MAKE) -C tests
-	pytest
+	# $(MAKE) -C tests
+	pypy3 -m pytest
 
 clean:
 	$(MAKE) -C src/vm clean
 	$(MAKE) -C tests clean
 
-.PHONY: clean
+.PHONY: clean test

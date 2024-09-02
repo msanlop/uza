@@ -6,9 +6,9 @@ def test_infix_add():
     source = "123 + 99"
     actual = Parser(source).parse()[0]
     expected = InfixApplication(
-        Literal(Token(token_number, 0, 4, "123")),
-        (Identifier(Token(token_plus, 5, 7))),
-        Literal(Token(token_number, 7, 9, "99")),
+        Literal(Token(token_number, Span(0, 4), "123")),
+        (Identifier(Token(token_plus, Span(5, 7)), Span(1,1))),
+        Literal(Token(token_number, Span(7, 9), "99")),
     )
     assert actual == expected
 
@@ -17,9 +17,9 @@ def test_paren_infix_add():
     source = "(123 + 99)"
     actual = Parser(source).parse()[0]
     expected = InfixApplication(
-        Literal(Token(token_number, 0, 4, "123")),
-        (Identifier(Token(token_plus, 5, 7))),
-        Literal(Token(token_number, 7, 9, "99")),
+        Literal(Token(token_number, Span(0, 4), "123")),
+        (Identifier(Token(token_plus, Span(5, 7)), Span(1,1))),
+        Literal(Token(token_number, Span(7, 9), "99")),
     )
     assert actual == expected
 
@@ -30,12 +30,12 @@ def test_mult_precedence():
     # parser = Parser(source)
     # actual = parser._get_infix(parser._get_expr())
     expected = InfixApplication(
-        Literal(Token(token_number, 0, 4, "123")),
-        (Identifier(Token(token_plus, 5, 7))),
+        Literal(Token(token_number, Span(0, 4), "123")),
+        (Identifier(Token(token_plus, Span(5, 7)), Span(1,1))),
         InfixApplication(
-            Literal(Token(token_number, 7, 9, "99")),
-            Identifier(Token(token_star, 1, 1)),
-            Literal(Token(token_number, 1, 1, "2")),
+            Literal(Token(token_number, Span(7, 9), "99")),
+            Identifier(Token(token_star, Span(1, 1)), Span(1,1)),
+            Literal(Token(token_number, Span(1, 1), "2")),
         ),
     )
     assert actual == expected
@@ -46,12 +46,12 @@ def test_mult_precedence_paren():
     actual = Parser(source).parse()[0]
     expected = InfixApplication(
         InfixApplication(
-            Literal(Token(token_number, 1, 1, "123")),
-            (Identifier(Token(token_plus, 1, 1))),
-            Literal(Token(token_number, 1, 1, "99")),
+            Literal(Token(token_number, Span(1, 1), "123")),
+            (Identifier(Token(token_plus, Span(1, 1)), Span(1,1))),
+            Literal(Token(token_number, Span(1, 1), "99")),
         ),
-        Identifier(Token(token_star, 1, 1)),
-        Literal(Token(token_number, 1, 1, "2")),
+        Identifier(Token(token_star, Span(1, 1)), Span(1,1)),
+        Literal(Token(token_number, Span(1, 1), "2")),
     )
     assert actual == expected
 
@@ -60,12 +60,12 @@ def test_pow_precedence_right_associative():
     source = "2 ** 3 ** 2"
     actual = Parser(source).parse()[0]
     expected = InfixApplication(
-        Literal(Token(token_number, 1, 1, "2")),
-        Identifier(Token(token_star_double, 1, 1)),
+        Literal(Token(token_number, Span(1, 1), "2")),
+        Identifier(Token(token_star_double, Span(1, 1)), Span(1,1)),
         InfixApplication(
-            Literal(Token(token_number, 1, 1, "3")),
-            (Identifier(Token(token_star_double, 1, 1))),
-            Literal(Token(token_number, 1, 1, "2")),
+            Literal(Token(token_number, Span(1, 1), "3")),
+            (Identifier(Token(token_star_double, Span(1, 1)), Span(1,1))),
+            Literal(Token(token_number, Span(1, 1), "2")),
         ),
     )
     assert actual == expected
@@ -78,9 +78,9 @@ def test_declarations():
         "my_val",
         "float",
         InfixApplication(
-            Literal(Token(token_number, 1, 1, "123.53")),
-            Identifier(Token(token_star_double, 1, 1)),
-            Literal(Token(token_number, 1, 1, "2")),
+            Literal(Token(token_number, Span(1, 1), "123.53")),
+            Identifier(Token(token_star_double, Span(1, 1)), Span(1,1)),
+            Literal(Token(token_number, Span(1, 1), "2")),
         ),
         True,
     )
@@ -107,11 +107,11 @@ def test_builtin_application_parse():
     source = "println(123 + 99)"
     actual = Parser(source).parse()[0]
     expected = Application(
-        Identifier("println"),
+        Identifier("println", Span(1,1)),
         InfixApplication(
-            Literal(Token(token_number, 0, 4, "123")),
-            (Identifier(Token(token_plus, 5, 7))),
-            Literal(Token(token_number, 7, 9, "99")),
+            Literal(Token(token_number, Span(0, 4), "123")),
+            (Identifier(Token(token_plus, Span(5, 7)), Span(1,1))),
+            Literal(Token(token_number, Span(7, 9), "99")),
         ),
     )
     print(repr(expected))

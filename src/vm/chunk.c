@@ -81,10 +81,6 @@ void write_chunk(Chunk* chunk, OpCode opcode, uint16_t line) {
         uint16_t* lines_new = GROW_ARRAY(uint16_t, chunk->lines, chunk->capacity, capacity_new);
         chunk->code = code_new;
         chunk->lines = lines_new;
-        uint16_t* lines_new = GROW_ARRAY(uint16_t, chunk->lines, chunk->capacity, capacity_new);
-        chunk->code = code_new;
-        chunk->lines = lines_new;
-        chunk->capacity = capacity_new;
     }
     chunk->code[chunk->count] = opcode;
     chunk->lines[chunk->count] = line;
@@ -104,8 +100,6 @@ void print_chunk(Chunk* chunk) {
     for (size_t offset = 0; offset < chunk->count;)
     {
         printf("%04zu  ", offset);
-        int incr = print_opcode(chunk, offset);
-        offset+=incr;
         int incr = print_opcode(chunk, offset);
         offset+=incr;
         printf("\n");
