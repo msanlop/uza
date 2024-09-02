@@ -1,5 +1,5 @@
-# pylint: disable=wildcard-import
-from lang import *  # TODO: split tests by compiling step
+# pylint: disable=wildcard-import unused-import missing-function-docstring
+from src.mylang.lang import *
 
 
 def test_infix_add():
@@ -74,7 +74,7 @@ def test_pow_precedence_right_associative():
 def test_declarations():
     source = "val my_val float = 123.53 ** 2"
     actual = Parser(source).parse()[0]
-    expected = varDef(
+    expected = VarDef(
         "my_val",
         "float",
         InfixApplication(
@@ -116,54 +116,3 @@ def test_builtin_application_parse():
     )
     print(repr(expected))
     assert actual == expected
-
-
-def test_builtin_application_interpret(capsys):
-    source = "(123 + 99)"
-    source_lang = f"print({source})"
-    Interpreter(Parser(source_lang).parse()[0]).evaluate()
-    captured = capsys.readouterr()
-    assert captured.out == str(eval(source))
-
-
-def test_print_string(capsys):
-    source = "Hello world!"
-    source_lang = f'print("{source}")'
-    Interpreter(Parser(source_lang).parse()[0]).evaluate()
-    captured = capsys.readouterr()
-    assert captured.out == source
-
-
-def test_builtin_application_interpret_multiple_args():
-    source = "min(123, 99)"
-    actual = Interpreter(Parser(source).parse()[0]).evaluate()
-    assert actual == eval(source)
-
-
-def test_builtin_application_function_as_arg(capsys):
-    source = "min(123, 99)"
-    source_lang = f"print({source})"
-    Interpreter(Parser(source_lang).parse()[0]).evaluate()
-    captured = capsys.readouterr()
-    assert captured.out == str(eval(source))
-
-
-def test_print_val(capsys):
-    expr = "123.43 * 2.0"
-    source = f"""val foo float = {expr}
-    print(foo)
-    """
-    actual = Interpreter(Parser(source).parse()).evaluate()
-    captured = capsys.readouterr()
-    assert captured.out == str(eval(expr))
-
-
-def test_print_infix_val_application(capsys):
-    source = f"""
-    val foo float = 1.5
-    val bar float = 1.5
-    print(foo + bar)
-    """
-    actual = Interpreter(Parser(source).parse()).evaluate()
-    captured = capsys.readouterr()
-    assert captured.out == "3.0"
