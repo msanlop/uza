@@ -12,15 +12,32 @@ int print_opcode(Chunk* chunk, int offset) {
     } else {
         printf("%5d  ", line);
     }
+    
+
+    
     switch (chunk->code[offset])
     {
     case OP_RETURN:
         printf("OP_RETURN");
         return 1;
         break;
-    case OP_CONSTANT:
-        print_constant("OP_CONSTANT", chunk, offset);
+    case OP_LOAD_CONST:
+        print_constant("OP_LOAD_CONST", chunk, offset);
         return 2;
+        break;
+    case OP_ADD:
+        printf("OP_ADD");
+        return 1;
+        break;
+    case OP_SUB:
+        printf("OP_SUB");
+        return 1;
+    case OP_MUL:
+        printf("OP_MUL");
+        return 1;
+    case OP_DIV:
+        printf("OP_DIV");
+        return 1;
         break;
     default:
         break;

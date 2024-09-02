@@ -28,11 +28,23 @@ void load_op(Chunk* chunk, uint16_t line, FILE* file) {
     case OP_RETURN:
         write_chunk(chunk, OP_RETURN, line);
         break;
-    case OP_CONSTANT:
-        write_chunk(chunk, OP_CONSTANT, line);
+    case OP_LOAD_CONST:
+        write_chunk(chunk, OP_LOAD_CONST, line);
         uint8_t constant_idx = 0;
         fread(&constant_idx, sizeof(uint8_t), 1, file);
         write_chunk(chunk, constant_idx, line);
+        break;
+    case OP_ADD:
+        write_chunk(chunk, OP_ADD, line);
+        break;
+    case OP_SUB:
+        write_chunk(chunk, OP_SUB, line);
+        break;
+    case OP_MUL:
+        write_chunk(chunk, OP_MUL, line);
+        break;
+    case OP_DIV:
+        write_chunk(chunk, OP_DIV, line);
         break;
     default:
         break;

@@ -23,10 +23,8 @@ class OpCode(ABC):
 @dataclass
 class OpReturn(OpCode):
     _op_name = "OP_RETURN"
-    
     name: str = field(init=False, default=_op_name)
     span: Span
-
     operations.append(_op_name)
     
     def visit(self, that):
@@ -34,13 +32,11 @@ class OpReturn(OpCode):
 
 @dataclass
 class OpConstant(OpCode):
-    _op_name = "OP_CONSTANT"
-    
+    _op_name = "OP_LOAD_CONST"
     name: str = field(init=False, default=_op_name)
     constant: float
     span: Span
     constant_idx: Optional[int] = field(init=False)
-
     operations.append(_op_name)
     
     def set_constant_index(self, index: int):
@@ -48,7 +44,48 @@ class OpConstant(OpCode):
     
     def visit(self, that):
         that.visit_constant(self)
+        
+@dataclass
+class OpAdd(OpCode):
+    _op_name = "OP_ADD"
+    name: str = field(init=False, default=_op_name)
+    span: Span
+    operations.append(_op_name)
     
+    def visit(self, that):
+        that.visit_add(self)
+
+@dataclass
+class OpSub(OpCode):
+    _op_name = "OP_SUB"
+    name: str = field(init=False, default=_op_name)
+    span: Span
+    operations.append(_op_name)
+    
+    def visit(self, that):
+        that.visit_sub(self)
+
+@dataclass
+class OpMul(OpCode):
+    _op_name = "OP_MUL"
+    name: str = field(init=False, default=_op_name)
+    span: Span
+    operations.append(_op_name)
+    
+    def visit(self, that):
+        that.visit_mul(self)
+        
+@dataclass
+class OpDiv(OpCode):
+    _op_name = "OP_DIV"
+    name: str = field(init=False, default=_op_name)
+    span: Span
+    operations.append(_op_name)
+    
+    def visit(self, that):
+        that.visit_div(self)
+
+
 class Chunk:
     code: list[OpCode]
     constants: list[float]
@@ -112,6 +149,25 @@ class ByteCodeProgramSerializer:
         self._write_span(ret.span)
         self._write_opcode(ret)
         self.file.write(ret.constant_idx.to_bytes(1, BYTE_ORDER))
+        
+        
+    ###### BINARY OPS ######
+    
+    def visit_add(self, op_add: OpAdd):
+        self._write_span(op_add.span)
+        self._write_opcode(op_add)
+        
+    def visit_sub(self, op_sub: OpSub):
+        self._write_span(op_sub.span)
+        self._write_opcode(op_sub)
+        
+    def visit_mul(self, op_mul: OpMul):
+        self._write_span(op_mul.span)
+        self._write_opcode(op_mul)
+        
+    def visit_div(self, op_div: OpDiv):
+        self._write_span(op_div.span)
+        self._write_opcode(op_div)
     
     def _write_chunk(self):
         self._write_constants()
@@ -139,9 +195,16 @@ with open(FILENAME, "w+b") as file:
 
 
     test_chunk = Chunk()
-    test_chunk.add(OpConstant(1.5, Span(65_535,1)))
-    test_chunk.add(OpConstant(3, Span(65_535,1)))
-    test_chunk.add(OpReturn(Span(65_535,1)))
+    test_chunk.add(OpConstant(25, Span(0,1)))
+    test_chunk.add(OpConstant(5, Span(0,1)))
+    test_chunk.add(OpConstant(1.5, Span(0,1)))
+    test_chunk.add(OpConstant(3, Span(0,1)))
+    test_chunk.add(OpAdd(Span(0,1)))
+    test_chunk.add(OpSub(Span(0,1)))
+    test_chunk.add(OpConstant(5, Span(0,1)))
+    test_chunk.add(OpMul(Span(0,1)))
+    test_chunk.add(OpDiv(Span(0,1)))
+    test_chunk.add(OpReturn(Span(0,1)))
     pprint(test_chunk)
     serializer = ByteCodeProgramSerializer(ByteCodeProgram(test_chunk), file)
     serializer.write_to_file()

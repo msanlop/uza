@@ -20,6 +20,8 @@ int main(int argc, char** argv) {
     }
 
     dump_vm(vm);
+    interpret(vm);
+    dump_vm(vm);
     free_vm(vm);
     return 0;
 }

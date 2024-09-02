@@ -10,6 +10,9 @@ run: build
 	# $(MAKE) -C src/vm/main
 	./src/vm/main $(ARGS)
 
+crun: clean build
+	./src/vm/main $(ARGS)
+
 test: 
 	$(MAKE) -C tests
 	pytest
