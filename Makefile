@@ -1,7 +1,6 @@
 
 ARGS=target/test.uza
 
-
 DEBUG ?= 1
 
 all: build
@@ -20,11 +19,11 @@ crun: clean build
 	./src/vm/main $(ARGS)
 
 test: test_build
-	# $(MAKE) -C tests
+	# $(MAKE) -C test
 	pypy3 -m pytest
 
 clean:
 	$(MAKE) -C src/vm/ clean
-	$(MAKE) -C tests clean
+	$(MAKE) -C test clean
 
 .PHONY: clean test

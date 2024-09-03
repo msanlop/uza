@@ -3,16 +3,8 @@
 
 #include "common.h"
 #include "value.h"
+#include "bytecodes.h"
 
-typedef enum {
-    OP_RETURN,
-    OP_LOAD_CONST,
-    OP_ADD,
-    OP_SUB,
-    OP_MUL,
-    OP_DIV,
-    OP_NEG,
-} OpCode;
 
 typedef struct {
     size_t capacity;

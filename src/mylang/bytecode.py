@@ -9,9 +9,15 @@ from .lang import Literal, Parser, Program, Span
 import os
 import struct
 
-BYTE_ORDER = "big"
+BYTE_ORDER = "little"
 operations = []
 
+Const = float | int | bool
+CONST_FLAG = {
+    int: 0,
+    bool: 1,
+    float: 2,
+}
 
 class OpCode(ABC):
     def visit(self, that):
@@ -32,9 +38,24 @@ class OpReturn(OpCode):
 
 @dataclass
 class OpConstant(OpCode):
-    _op_name = "OP_LOAD_CONST"
+    _op_name = "OP_DCONST"
     name: str = field(init=False, default=_op_name)
     constant: float
+    span: Span
+    constant_idx: Optional[int] = field(init=False)
+    operations.append(_op_name)
+    
+    def set_constant_index(self, index: int):
+        self.constant_idx = index
+    
+    def visit(self, that):
+        that.visit_constant(self)
+        
+@dataclass
+class OpConstant(OpCode):
+    _op_name = "OP_LCONST"
+    name: str = field(init=False, default=_op_name)
+    constant: int
     span: Span
     constant_idx: Optional[int] = field(init=False)
     operations.append(_op_name)
@@ -88,7 +109,7 @@ class OpDiv(OpCode):
 
 class Chunk:
     code: list[OpCode]
-    constants: list[float]
+    constants: list[Const]
 
     def __init__(self, code: Optional[list[OpCode]] = None) -> None:
         if code:
@@ -126,11 +147,19 @@ class ByteCodeProgramSerializer:
         self.file = file
         
     def _write_constants(self):
+        # TODO: pack 8 const type flags into 1 byte
         constants = self.program.chunk.constants
         self.file.write((len(constants)).to_bytes(1, BYTE_ORDER))
         for constant in constants:
-            packed = struct.pack('d', constant)
-            written = self.file.write(packed)
+            const_type = type(constant)
+            flag = CONST_FLAG.get(const_type)
+            self.file.write(struct.pack('<B', flag))
+            if const_type == int:
+                packed = struct.pack('<q', constant)
+                wrote = self.file.write(packed)
+            elif const_type == float:
+                packed = struct.pack('<d', constant)
+                wrote = self.file.write(packed)
 
     def _write_version(self):
         [self.file.write(num.to_bytes(1, BYTE_ORDER)) for num in self.program.version]
@@ -139,16 +168,18 @@ class ByteCodeProgramSerializer:
         self.file.write(opcode.get_opbyte())
         
     def _write_span(self, span: Span):
-        self.file.write(span.start.to_bytes(2, BYTE_ORDER))
+        span_pack = struct.pack('<H', span.start)
+        self.file.write(span_pack)
+        # self.file.write(span.start.to_bytes(2, BYTE_ORDER))
     
     def visit_return(self, ret: OpReturn):
         self._write_span(ret.span)
         self._write_opcode(ret)
     
-    def visit_constant(self, ret: OpConstant):
-        self._write_span(ret.span)
-        self._write_opcode(ret)
-        self.file.write(ret.constant_idx.to_bytes(1, BYTE_ORDER))
+    def visit_constant(self, op_const: OpConstant):
+        self._write_span(op_const.span)
+        self._write_opcode(op_const)
+        self.file.write(op_const.constant_idx.to_bytes(1, BYTE_ORDER))
         
         
     ###### BINARY OPS ######
@@ -195,16 +226,16 @@ with open(FILENAME, "w+b") as file:
 
 
     test_chunk = Chunk()
+    test_chunk.add(OpConstant(5, Span(0,1)))
+    test_chunk.add(OpConstant(5, Span(0,1)))
     test_chunk.add(OpConstant(25, Span(0,1)))
-    test_chunk.add(OpConstant(5, Span(0,1)))
-    test_chunk.add(OpConstant(1.5, Span(0,1)))
-    test_chunk.add(OpConstant(3, Span(0,1)))
-    test_chunk.add(OpAdd(Span(0,1)))
+    test_chunk.add(OpDiv(Span(0,1)))
+    test_chunk.add(OpConstant(3, Span(1,1)))
+    test_chunk.add(OpMul(Span(0,1)))
     test_chunk.add(OpSub(Span(0,1)))
-    test_chunk.add(OpConstant(5, Span(0,1)))
-    # test_chunk.add(OpMul(Span(0,1)))
-    # test_chunk.add(OpDiv(Span(0,1)))
-    test_chunk.add(OpReturn(Span(0,1)))
+    # test_chunk.add(OpConstant(1.5, Span(0,1)))
+    # test_chunk.add(OpAdd(Span(0,1)))
+    test_chunk.add(OpReturn(Span(2,1)))
     pprint(test_chunk)
     serializer = ByteCodeProgramSerializer(ByteCodeProgram(test_chunk), file)
     serializer.write_to_file()
