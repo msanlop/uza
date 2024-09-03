@@ -1,5 +1,6 @@
 src/vm/*
 !src/vm/*.c
+!src/vm/*.h
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

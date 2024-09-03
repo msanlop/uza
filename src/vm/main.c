@@ -20,7 +20,7 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    #ifdef DEBUG
+    #ifdef DEBUG_DUMP_VM
         debug_vm_dump(vm);
         interpret(vm);
         debug_vm_dump(vm);

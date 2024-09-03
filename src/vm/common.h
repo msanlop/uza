@@ -4,6 +4,7 @@
 #ifdef DEBUG
     #define DEBUG_TRACE_EXECUTION_STACK
     #define DEBUG_TRACE_EXECUTION_OP
+    #define DEBUG_DUMP_VM
     #define PURPLE "\033[1;35m"
     #define YELLOW "\033[0;33m"
     #define RESET "\033[0m"
