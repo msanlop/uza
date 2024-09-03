@@ -13,10 +13,15 @@ BYTE_ORDER = "little"
 operations = []
 
 Const = float | int | bool
-CONST_FLAG = {
+VALUE_TYPES = {
     int: 0,
     bool: 1,
     float: 2,
+    dict: 3, #TODO: revisit, then change _write_constant for string
+}
+
+OBJECT_TYPES = {
+    str: 0,
 }
 
 class OpCode(ABC):
@@ -36,9 +41,12 @@ class OpReturn(OpCode):
     def visit(self, that):
         that.visit_return(self)
 
-@dataclass
 class OpConstant(OpCode):
-    _op_name = "OP_DCONST"
+    pass
+
+@dataclass
+class OpLConstant(OpConstant):
+    _op_name = "OP_LCONST"
     name: str = field(init=False, default=_op_name)
     constant: float
     span: Span
@@ -52,10 +60,25 @@ class OpConstant(OpCode):
         that.visit_constant(self)
         
 @dataclass
-class OpConstant(OpCode):
-    _op_name = "OP_LCONST"
+class OpDConstant(OpConstant):
+    _op_name = "OP_DCONST"
     name: str = field(init=False, default=_op_name)
     constant: int
+    span: Span
+    constant_idx: Optional[int] = field(init=False)
+    operations.append(_op_name)
+    
+    def set_constant_index(self, index: int):
+        self.constant_idx = index
+    
+    def visit(self, that):
+        that.visit_constant(self)
+        
+@dataclass
+class OpStrConstant(OpConstant):
+    _op_name = "OP_STRCONST"
+    name: str = field(init=False, default=_op_name)
+    constant: str
     span: Span
     constant_idx: Optional[int] = field(init=False)
     operations.append(_op_name)
@@ -142,24 +165,45 @@ class ByteCodeProgram: #TODO: change Program and extend it
     
     
 class ByteCodeProgramSerializer:
+    """
+    This class emits the byte code that is run by the VM.
+    
+    The main function is write_to_file, which converts the given ByteCodeProgram
+    _program_ in the Constructor into bytecode and writes it into _file_.
+    """
+    
     def __init__(self, program : ByteCodeProgram, file: BufferedWriter) -> None:
         self.program = program
         self.file = file
         
     def _write_constants(self):
+        """
+        Write the constant pool to self.file.
+        """
         # TODO: pack 8 const type flags into 1 byte
         constants = self.program.chunk.constants
         self.file.write((len(constants)).to_bytes(1, BYTE_ORDER))
         for constant in constants:
             const_type = type(constant)
-            flag = CONST_FLAG.get(const_type)
-            self.file.write(struct.pack('<B', flag))
-            if const_type == int:
-                packed = struct.pack('<q', constant)
-                wrote = self.file.write(packed)
-            elif const_type == float:
-                packed = struct.pack('<d', constant)
-                wrote = self.file.write(packed)
+            if const_type == str:
+                self.file.write(struct.pack('<B', VALUE_TYPES.get(dict)))
+                self.file.write(OBJECT_TYPES.get(str).to_bytes(1, BYTE_ORDER))
+                length_pack = struct.pack('<q', len(constant))
+                self.file.write(length_pack)
+                packed = struct.pack(
+                    f"{len(constant) + 1}s", 
+                    bytes(constant, 'ascii') + b'\0'
+                )
+                self.file.write(packed)
+                continue
+            type_ = VALUE_TYPES.get(const_type)
+            fmt = ''
+            
+            self.file.write(struct.pack('<B', VALUE_TYPES.get(const_type)))
+            if const_type == int:    fmt = '<q'
+            elif const_type == float: fmt = '<d'
+            packed = struct.pack(fmt, constant)
+            self.file.write(packed)
 
     def _write_version(self):
         [self.file.write(num.to_bytes(1, BYTE_ORDER)) for num in self.program.version]
@@ -226,15 +270,18 @@ with open(FILENAME, "w+b") as file:
 
 
     test_chunk = Chunk()
-    test_chunk.add(OpConstant(5, Span(0,1)))
-    test_chunk.add(OpConstant(5, Span(0,1)))
-    test_chunk.add(OpConstant(25, Span(0,1)))
+    # test_chunk.add(OpConstant(5, Span(0,1)))
+    test_chunk.add(OpLConstant(5, Span(5,1)))
+    test_chunk.add(OpLConstant(25, Span(25,1)))
     test_chunk.add(OpDiv(Span(0,1)))
-    test_chunk.add(OpConstant(3, Span(1,1)))
-    test_chunk.add(OpMul(Span(0,1)))
-    test_chunk.add(OpSub(Span(0,1)))
-    # test_chunk.add(OpConstant(1.5, Span(0,1)))
-    # test_chunk.add(OpAdd(Span(0,1)))
+    test_chunk.add(OpStrConstant("hello ", Span(0,1)))
+    test_chunk.add(OpStrConstant("world!", Span(1,1)))
+    test_chunk.add(OpAdd(Span(0,1)))
+    test_chunk.add(OpLConstant(3, Span(1,1)))
+    # test_chunk.add(OpMul(Span(0,1)))
+    # test_chunk.add(OpSub(Span(0,1)))
+    test_chunk.add(OpDConstant(1.5, Span(0,1)))
+    test_chunk.add(OpAdd(Span(12,1)))
     test_chunk.add(OpReturn(Span(2,1)))
     pprint(test_chunk)
     serializer = ByteCodeProgramSerializer(ByteCodeProgram(test_chunk), file)

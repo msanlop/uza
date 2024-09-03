@@ -2,6 +2,7 @@
 #include "value.h"
 #include "debug.h"
 #include "string.h"
+#include "memory.h"
 
 
 static bool system_is_little_endian;
@@ -48,21 +49,26 @@ void load_chunk(Chunk* chunk, FILE* file) {
 }
 
 void load_constants(ValueArray* array, FILE* file) {
+    // 1 byte: the number of constants
     uint8_t constants_count = 0;
     fread(&constants_count, sizeof(uint8_t), 1, file);
     for (size_t i = 0; i < constants_count; i++) {
+        // 1 byte: the ValueType
         uint8_t type_byte = 0;
         fread(&type_byte, 1, 1, file);
         ValueType type = (ValueType) type_byte;
+        
         Value constant = {.type=type, .as.integer = 0};
         switch(type) {
             case TYPE_LONG:
+                // 8 bytes: the int64 value
                 fread(&constant.as.integer, sizeof(int64_t), 1, file);
                 if(!system_is_little_endian) {
                     constant.as.integer = REV_U64(constant.as.integer);
                 }
                 break;
             case TYPE_DOUBLE: 
+                // 8 bytes: the float value
                 fread(&(constant.as.fp), sizeof(double), 1, file);
                 if(!system_is_little_endian) {
                     uint64_t temp = 0;
@@ -74,6 +80,38 @@ void load_constants(ValueArray* array, FILE* file) {
             case TYPE_BOOL: 
                 fread(&constant.as.boolean, sizeof(bool), 1, file);
                 break;
+            case TYPE_OBJ: {
+                // 1 byte : object type
+                uint8_t obj_type = 0;
+                fread(&obj_type, sizeof(uint8_t), 1, file);
+                
+                if (((ObjectType) obj_type) == OBJ_STRING) {
+                    //TODO: lower, have to make REV for that size
+                    // 8 bytes: string length 
+                    uint64_t string_length = 0;
+                    fread(&string_length, sizeof(int64_t), 1, file);
+                    if(!system_is_little_endian) {
+                        string_length = REV_U64(string_length);
+                    }
+                    
+                    // (string_length + 1) bytes: the string chars
+                    ObjectString* const_pool_string = (ObjectString*) 
+                        calloc(sizeof(Obj) + sizeof(int) + string_length + 1, 1);
+                    if(((ObjectType) obj_type) == OBJ_STRING) {
+                        fgets(const_pool_string->chars, string_length+2, file);
+                    }
+
+                    const_pool_string->length = string_length;
+                    const_pool_string->obj.type = OBJ_STRING;
+                    constant.type = TYPE_OBJ;
+                    constant.as.object = (Obj*) const_pool_string;
+                }
+                else {
+                    PRINT_ERR_ARGS("unrecognized object type : %d", obj_type);
+                    exit(1);
+                }
+                break;
+            }
             default:
                 break;
         } 
@@ -86,6 +124,7 @@ void load_op(Chunk* chunk, uint16_t line, FILE* file) {
     fread(&opcode, sizeof(uint8_t), 1, file);
     switch (opcode) {
         case OP_DCONST:
+        case OP_STRCONST:
         case OP_LCONST:
             chunk_write(chunk, opcode, line);
             uint8_t constant_idx = 0;

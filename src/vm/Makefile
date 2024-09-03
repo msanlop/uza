@@ -2,7 +2,7 @@
 CC = clang      # Compiler to use
 CFLAGS = -Wall  # Compiler flags: -Wall enables all warnings, -g includes debugging info
 TARGET = main   # The name of the output shared library
-SRC = vm.c chunk.c memory.c debug.c value.c serializer.c main.c # Source file
+SRC = vm.c chunk.c memory.c debug.c value.c serializer.c main.c object.c # Source file
 OBJ = $(SRC:.c=.o)  # Object file derived from source file
 
 DEBUG ?= 1

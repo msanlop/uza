@@ -38,12 +38,16 @@ int debug_op_print(Chunk* chunk, int offset) {
         DEBUG_PRINT("OP_RETURN");
         return 1;
         break;
+    case OP_LCONST:
+        debug_constant_print("OP_LCONST", chunk, offset + 1);
+        return 2;
+        break;
     case OP_DCONST:
         debug_constant_print("OP_DCONST", chunk, offset + 1);
         return 2;
         break;
-    case OP_LCONST:
-        debug_constant_print("OP_LCONST", chunk, offset + 1);
+    case OP_STRCONST:
+        debug_constant_print("OP_STRCONST", chunk, offset + 1);
         return 2;
         break;
     case OP_ADD:
@@ -63,7 +67,7 @@ int debug_op_print(Chunk* chunk, int offset) {
     default:
         break;
     }
-    PRINT_ERR_ARGS("ERROR %s:%d : op code not found %d",  __FILE__, __LINE__,
+    PRINT_ERR_ARGS("ERROR %s:%d : op code not found %d\n\n",  __FILE__, __LINE__,
         GET_CODE_AT(chunk, offset));
     exit(1);
 }
