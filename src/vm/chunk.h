@@ -22,15 +22,12 @@ typedef struct {
     uint8_t* code;
 } Chunk;
 
-int print_opcode(Chunk* chunk, int offset);
-void print_constant(char* code_str, Chunk* chunk, int offset);
+#define GET_LINE_AT(chunk_ptr, offset) (chunk_ptr->lines[offset])
+#define GET_CODE_AT(chunk_ptr, offset) (chunk_ptr->code[offset])
 
-Chunk* init_chunk_create();
-
-void init_chunk(Chunk* chunk);
-void free_chunk(Chunk* chunk);
-void write_chunk(Chunk* chunk, OpCode opcode, uint16_t line);
-void print_chunk(Chunk* chunk);
-int add_constant(Chunk* chunk, Value constant);
+void chunk_init(Chunk* chunk);
+void chunk_free(Chunk* chunk);
+void chunk_write(Chunk* chunk, OpCode opcode, uint16_t line);
+int  chunk_const_add(Chunk* chunk, Value constant);
 
 #endif // uza_chunk_h

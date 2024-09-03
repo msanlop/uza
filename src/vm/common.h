@@ -8,7 +8,7 @@
     #define YELLOW "\033[0;33m"
     #define RESET "\033[0m"
     #define DEBUG_PRINT(fmt, ...) \
-        fprintf(stderr, PURPLE "DEBUG: " fmt RESET, ##__VA_ARGS__);
+        fprintf(stderr, PURPLE fmt RESET, ##__VA_ARGS__);
 #endif
 
 
@@ -18,6 +18,11 @@
 #define MIN(a, b) (a < b ? a : b)
 #define MAX(a, b) (a > b ? a : b)
 
-#define PRINT_ERR(string) (fprintf(stderr, string));
+
+#define PRINT_ERR(fmt, ...) \
+            do { fprintf(stderr, "ERROR " fmt); } while (0)
+
+#define PRINT_ERR_ARGS(fmt, ...) \
+            do { fprintf(stderr, "ERROR " fmt, __VA_ARGS__); } while (0)
 
 #endif // uza_common_h

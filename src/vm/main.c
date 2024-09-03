@@ -1,5 +1,6 @@
 #include "vm.h"
 #include <stdio.h>
+#include "debug.h"
 
 int main(int argc, char** argv) {
     if (argc != 2){
@@ -11,17 +12,21 @@ int main(int argc, char** argv) {
         fprintf(stderr, "FILE NOT FOUND");
         return 1;
     }
-    VM* vm = init_vm(file);
+    VM* vm = vm_init(file);
     fclose(file);
     if (vm == NULL) {
         fprintf(stderr, "VM is null");
-        free_vm(vm);
+        vm_free(vm);
         return 1;
     }
 
-    dump_vm(vm);
-    interpret(vm);
-    dump_vm(vm);
-    free_vm(vm);
+    #ifdef DEBUG
+        debug_vm_dump(vm);
+        interpret(vm);
+        debug_vm_dump(vm);
+    #else
+        interpret(vm);
+    #endif
+    vm_free(vm);
     return 0;
 }

@@ -11,9 +11,8 @@ typedef struct {
   Value* values;
 } ValueArray;
 
-void init_valueArray(ValueArray* array);
-void write_valueArray(ValueArray* array, Value value);
-void print_valueArray(ValueArray* array);
-void free_valueArray(ValueArray* array);
+void value_array_init(ValueArray* array);
+void value_array_write(ValueArray* array, Value value);
+void value_array_free(ValueArray* array);
 
 #endif // uza_value_h

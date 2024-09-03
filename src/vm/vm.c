@@ -10,99 +10,42 @@
 #include "memory.h"
 #include "value.h"
 
+#ifdef DEBUG
+#include "debug.h"
+#endif
 
-
-void read_program_version(uint8_t* buff, FILE* file) {
-    fread(buff, sizeof(uint8_t), 3, file);
-}
-
-void read_program(Chunk* chunk, FILE* file) {
-
-    uint8_t version[3] = {0};
-    read_program_version(version, file);
-    load_chunk(chunk, file);
-}
 
 void push(VM* vm, Value value) {
     *vm->stack_top++ = value;
     #ifdef DEBUG_TRACE_EXECUTION_STACK
-        if(STACK_IS_EMPTY(vm)) {
-            DEBUG_PRINT("stack after push is empty\n");
-        }
-        else {
-            DEBUG_PRINT("stack after push \n");
-            for (Value* slot = vm->stack; slot < vm->stack_top; slot++) {
-                printf(YELLOW " %f\n" RESET, *slot);
-            }
-        }
+        debug_stack_print(vm, "stack: pushed");
     #endif //#define DEBUG_TRACE_EXECUTION_STACK
 }
 
 Value pop(VM* vm) {
     vm->stack_top--;
     #ifdef DEBUG_TRACE_EXECUTION_STACK
-        if(STACK_IS_EMPTY(vm)) {
-            DEBUG_PRINT("stack after pop is empty\n");
-        }
-        else {
-            DEBUG_PRINT("stack after pop \n");
-            for (Value* slot = vm->stack; slot < vm->stack_top; slot++) {
-                printf(YELLOW " %f\n" RESET, *slot);
-            }
-        }
+        debug_stack_print(vm, "stack: popped");
     #endif //#define DEBUG_TRACE_EXECUTION_STACK
     return *vm->stack_top;
 }
 
-void print_stack(VM* vm) {
-    Value* stack_curr = vm->stack;
-    while(stack_curr != vm->stack_top) {
-        printf("  %f\n", *stack_curr);
-        stack_curr++;
-    }
-}
 
-void reset_stack(VM* vm) {
+void vm_stack_reset(VM* vm) {
     vm->stack_top = vm->stack;
 }
 
-VM* init_vm(FILE* file) { 
+VM* vm_init(FILE* file) { 
     VM* vm = calloc(1, sizeof(VM));
     if (vm == NULL) return vm;
     read_program(&vm->chunk, file);
     vm->ip = vm->chunk.code;
-    reset_stack(vm);
+    vm_stack_reset(vm);
     return vm;
 }
 
-// int main(int arc, char** argv) {
-//     // char *filename = "../../target/test.zbc";
-//     // read_program(filename);
-//     printf("%lu\n", sizeof(Value));
-//     Chunk chunk = {0};
-//     init_chunk(&chunk);
-//     int constant = add_constant(&chunk, 123.5);
-//     write_chunk(&chunk, OP_CONSTANT);
-//     write_chunk(&chunk, constant);
-//     write_chunk(&chunk, OP_RETURN);
-//     print_chunk(&chunk);
-//     free_chunk(&chunk);
-//     return 0;
-// }
-
-void dump_vm(VM* vm) { 
-    printf("///  VM   ///\n");
-    printf("ip: %p\n", vm->ip);
-    printf("/// stack ///\n");
-    printf("count: %d\n", (int) (vm->stack_top - vm->stack));
-    printf("values:\n");
-    print_stack(vm);
-    print_chunk(&vm->chunk);
-    printf("/////////////\n");
-}
-
-void free_vm(VM* vm){
-    free_chunk(&vm->chunk);
+void vm_free(VM* vm){
+    chunk_free(&vm->chunk);
     free(vm);
 }
 
@@ -111,9 +54,11 @@ void interpret(VM* vm) {
         OpCode instruction = *vm->ip++;
         
         #ifdef DEBUG_TRACE_EXECUTION_OP
-            DEBUG_PRINT(" running op ");
-            print_opcode(&vm->chunk, (int) (vm->ip - 1 - vm->chunk.code));
+            DEBUG_PRINT("running op\n");
+            debug_op_print(&vm->chunk, (int) (vm->ip - 1 - vm->chunk.code));
             printf("\n");
+            DEBUG_PRINT("----------\n");
+
         #endif // #define DEBUG_TRACE_EXECUTION_OP
 
         switch (instruction)
@@ -153,8 +98,8 @@ void interpret(VM* vm) {
             break; 
         }
         default: {
-            PRINT_ERR("UNKNOWN INSTRUCTION FOUND");
-            return;
+            PRINT_ERR_ARGS("unkown instruction : %d\n", instruction);
+            exit(1);
             break;
         }
         }

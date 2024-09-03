@@ -11,5 +11,7 @@ void load_chunk(Chunk* chunk, FILE* file);
 void load_constants(ValueArray *array, FILE* file);
 void load_op(Chunk* chunk, uint16_t line, FILE* file);
 
+void read_program_version(uint8_t* buff, FILE* file);
+void read_program(Chunk* chunk, FILE* file);
 
 #endif // uza_serializer_h
