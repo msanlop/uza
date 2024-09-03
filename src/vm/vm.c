@@ -66,9 +66,9 @@ void vm_free(VM* vm){
 void interpret(VM* vm) {
     while(true) {
         #ifdef DEBUG_TRACE_EXECUTION_OP
-            DEBUG_PRINT(PURPLE "running op\n");
+            DEBUG_PRINT(PURPLE "running op\n  " RESET);
             debug_op_print(&vm->chunk, (int) (vm->ip - vm->chunk.code));
-            printf("\n" RESET);
+            printf("\n");
             // DEBUG_PRINT("----------\n");
 
         #endif // #define DEBUG_TRACE_EXECUTION_OP
