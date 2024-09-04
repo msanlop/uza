@@ -28,5 +28,7 @@ int main(int argc, char** argv) {
         interpret(vm);
     #endif
     vm_free(vm);
+    // fflush(stdout);
+    // fflush(stderr);
     return 0;
 }

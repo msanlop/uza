@@ -42,20 +42,20 @@ typedef struct {
   } while (false); \
   
 
-
-#define PRINT_VALUE(value) \
+// TODO: change back to DEBUG_PRINT when able to
+#define PRINT_VALUE(value, out) \
   do { \
     switch ((value).type) \
     { \
     case TYPE_LONG: \
-      fprintf(stderr, "%lld", (value).as.integer); break; \
+      fprintf((out), "%lld", (value).as.integer); break; \
     case TYPE_DOUBLE: \
-      fprintf(stderr, "%.3lf", (value).as.fp); break; \
+      fprintf((out), "%.3lf", (value).as.fp); break; \
     case TYPE_BOOL: \
-      fprintf(stderr, "%d", (value).as.boolean); break; \
+      fprintf((out), "%d", (value).as.boolean); break; \
     case TYPE_OBJ: \
       if(AS_OBJECT(value)->type == OBJ_STRING) { \
-        DEBUG_PRINT("%s", ((ObjectString*) AS_OBJECT(value))->chars); \
+        fprintf((out), "%s", ((ObjectString*) AS_OBJECT(value))->chars); \
       } \
       else { \
       } \

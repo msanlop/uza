@@ -103,7 +103,8 @@ void interpret(VM* vm) {
         {
         case OP_RETURN:
             // simulate print() to test code, TODO: remove when obsolete
-            PRINT_VALUE((*(vm->stack_top-1))); 
+            PRINT_VALUE((*(vm->stack_top-1)), stdout); 
+            printf("\n");
             return;
         case OP_STRCONST:
         case OP_DCONST:
