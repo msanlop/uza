@@ -11,6 +11,9 @@ build:
 test_build: clean
 	$(MAKE) -C src/vm DEBUG=0
 
+prun: build
+	pypy3 ./src/main.py
+
 run: build
 	# $(MAKE) -C src/vm/main DEBUG=$(DEBUG)
 	./src/vm/main $(ARGS)

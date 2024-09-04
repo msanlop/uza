@@ -103,7 +103,8 @@ void interpret(VM* vm) {
         {
         case OP_RETURN:
             // simulate print() to test code, TODO: remove when obsolete
-            PRINT_VALUE((*(vm->stack_top-1))); 
+            PRINT_VALUE((*(vm->stack_top-1)), stdout); 
+            printf("\n");
             return;
         case OP_STRCONST:
         case OP_DCONST:
@@ -118,7 +119,7 @@ void interpret(VM* vm) {
                 int new_len = lhs_string->length + AS_STRING(rhs)->length;
                 ObjectString* new_object_string = object_string_allocate(new_len);
                 memcpy(new_object_string->chars, lhs_string->chars, lhs_string->length);
-                strlcat(
+                strncat(
                     new_object_string->chars,
                     AS_STRING(rhs)->chars,
                     new_len + 1

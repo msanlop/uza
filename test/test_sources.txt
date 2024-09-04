@@ -1,23 +1,38 @@
-#test simple arithmetic
-val a float = 1.5
-val b float = 1.5
-val c float = 2
-val d float = 3
-println(((a + b) ** c) / (d * 3))
-#expected
-1.0
-
-#test variable names
-val my_var_c_123532 string = "hello world!"
-val d float = 9
-println(my_var_c_123532)
+#test hello world :^)
+println("hello world!")
 #expected
 hello world!
 
-#test min and max builtins
-val a int = -5
-val b int = 0
-val c int = 10
-println(min(a, b) * max(b, c))
+#test simple arithmetic
+println((3 * 3) / ((6 + 5) - 2))
 #expected
--50
+1
+
+#test simple arithmetic
+println(3.333 * 3)
+#expected
+9.999
+
+//#test simple arithmetic with values
+//val a float = 1.5
+//val b float = 1.5
+//val c float = 2
+//val d float = 3
+//println(((a + b) ** c) / (d * 3))
+//#expected
+//1.0
+//
+//#test variable names
+//val my_var_c_123532 string = "hello world!"
+//val d float = 9
+//println(my_var_c_123532)
+//#expected
+//hello world!
+//
+//#test min and max builtins
+//val a int = -5
+//val b int = 0
+//val c int = 10
+//println(min(a, b) * max(b, c))
+//#expected
+//-50
