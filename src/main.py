@@ -42,6 +42,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "-r", "--run", action="store_true", help="Run the source file (default action)"
     )
+    
+    action_group.add_argument(
+        "-v", "--verbose", action="store_true", help="show verbose output"
+    )
 
     # Parse the arguments
     args = parser.parse_args()
@@ -75,6 +79,8 @@ if __name__ == "__main__":
 
     serializer = ByteCodeProgramSerializer(ByteCodeProgram(program))
     bytes_ = serializer.get_bytes()
+    if args.verbose:
+        pprint(serializer.program.chunk.code)
     written = 0
     with open(filename, "w+b") as file:
         written = file.write(bytes_)

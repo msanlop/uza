@@ -4,7 +4,7 @@
 #include "common.h"
 #include "value.h"
 #include "bytecodes.h"
-
+#include "stdint.h"
 
 typedef struct {
     size_t capacity;

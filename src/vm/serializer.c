@@ -98,7 +98,7 @@ void load_constants(ValueArray* array, FILE* file) {
                     ObjectString* const_pool_string = (ObjectString*) 
                         calloc(sizeof(Obj) + sizeof(int) + string_length + 1, 1);
                     if(((ObjectType) obj_type) == OBJ_STRING) {
-                        fgets(const_pool_string->chars, string_length+2, file);
+                        fgets(const_pool_string->chars, string_length+1, file);
                     }
 
                     const_pool_string->length = string_length;

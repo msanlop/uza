@@ -223,7 +223,7 @@ class ByteCodeProgramSerializer:
                 length_pack = struct.pack("<q", len(constant))
                 self._write(length_pack)
                 packed = struct.pack(
-                    f"{len(constant) + 1}s", bytes(constant, "ascii") + b"\0"
+                    f"{len(constant)}s", bytes(constant, "ascii")
                 )
                 self._write(packed)
                 continue
