@@ -5,6 +5,7 @@ import sys
 import os
 from mylang.bytecode import ByteCodeProgram, ByteCodeProgramSerializer
 from mylang.lang import Interpreter, Parser
+import pathlib
 
 
 if __name__ == "__main__":
@@ -69,28 +70,30 @@ if __name__ == "__main__":
         else:
             sys.exit(0)
 
-    filename = ""
-    if args.compile:
-        filename = args.compile
-    elif args.output:
-        filename = args.output
-    elif os.path.exists("./target"):
-        filename = os.path.join("./target", "out.uzabc")
 
+    path = pathlib.Path("./")
+    if args.compile:
+        path = pathlib.Path(args.compile)
+    elif args.output:
+        path = pathlib.Path(args.output)
+    else:
+        path = pathlib.Path("./target/out.uzo")
+    
+    path.parent.mkdir(parents=True, exist_ok=True)
     serializer = ByteCodeProgramSerializer(ByteCodeProgram(program))
     bytes_ = serializer.get_bytes()
     if args.verbose:
         pprint(serializer.program.chunk.code)
     written = 0
-    with open(filename, "w+b") as file:
+    with open(path, "w+b") as file:
         written = file.write(bytes_)
 
     if args.compile:
-        print(f"Wrote {written} bytes to {os.path.join(os.path.curdir, filename)}")
+        print(f"Wrote {written} bytes to {os.path.join(os.path.curdir, path)}")
         sys.exit(0)
 
     try:
-        subprocess.run(["./src/vm/main", filename], check=True)
+        subprocess.run(["./src/vm/main", path], check=True)
     except subprocess.CalledProcessError as e:
         err_fmt = f"The VM exited with and error : \n{e.returncode=}\n{e.stdout=}\n{e.stderr=}"
         print(
