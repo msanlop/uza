@@ -6,6 +6,7 @@ DEBUG ?= 1
 all: build
 
 build:
+	mkdir -p ./target
 	$(MAKE) -C src/vm
 
 test_build: clean
