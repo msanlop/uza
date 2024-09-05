@@ -1,6 +1,4 @@
 astroid==3.2.4
-black==24.8.0
-cffi==1.17.0.dev0
 click==8.1.7
 dill==0.3.8
 exceptiongroup==1.2.0

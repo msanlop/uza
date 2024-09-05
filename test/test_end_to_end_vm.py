@@ -14,7 +14,7 @@ RESET = "\033[0m"
 def test_end_to_end(description, code, expected_output, capfd):
     try:
         subprocess.run(
-            ["pypy3", "./src/main.py", "--output", f"./target/out.uzabc", "-s", code],
+            ["pypy3", "./src/main.py", "--output", f"./target/out.uzo", "-s", code],
             check=True,
         )
     except Exception as e:

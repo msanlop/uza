@@ -4,7 +4,7 @@
 
 int main(int argc, char** argv) {
     if (argc != 2){
-        fprintf(stderr, "Expected 1 argumet, got %d\n", argc);
+        fprintf(stderr, "Expected 1 argumet, got %d\n", argc-1);
         return 1;
     }
     FILE* file = fopen(argv[1], "r");

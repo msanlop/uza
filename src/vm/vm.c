@@ -18,8 +18,8 @@
 
 #define BINARY_OP(vm, op) \
     do { \
-        Value lhs = pop(vm); \
         Value rhs = pop(vm); \
+        Value lhs = pop(vm); \
         if(IS_DOUBLE(lhs) || IS_DOUBLE(rhs)) { \
             if(IS_INTEGER(lhs)) {I2D(lhs);} \
             else if(IS_INTEGER(rhs)) {I2D(rhs);} \

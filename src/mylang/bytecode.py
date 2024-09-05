@@ -171,8 +171,8 @@ class ByteCodeProgram:
         else:
             raise NotImplementedError(f"vm can't do {function} yet")
 
-        application.rhs.visit(self)
         application.lhs.visit(self)
+        application.rhs.visit(self)
         self.chunk.add_op(OpCode(code_str, application.span))
 
     def _build_chunk(self):
@@ -223,7 +223,7 @@ class ByteCodeProgramSerializer:
                 length_pack = struct.pack("<q", len(constant))
                 self._write(length_pack)
                 packed = struct.pack(
-                    f"{len(constant) + 1}s", bytes(constant, "ascii") + b"\0"
+                    f"{len(constant)}s", bytes(constant, "ascii")
                 )
                 self._write(packed)
                 continue

@@ -21,8 +21,9 @@ void chunk_write(Chunk* chunk, OpCode opcode, uint16_t line) {
         capacity_new = GROW_CAPACITY(chunk->capacity);
         uint8_t* code_new = GROW_ARRAY(uint8_t, chunk->code, chunk->capacity, capacity_new);
         uint16_t* lines_new = GROW_ARRAY(uint16_t, chunk->lines, chunk->capacity, capacity_new);
-        chunk->code = code_new;
+	chunk->code = code_new;
         chunk->lines = lines_new;
+    	chunk->capacity = capacity_new;
     }
     chunk->code[chunk->count] = opcode;
     chunk->lines[chunk->count] = line;

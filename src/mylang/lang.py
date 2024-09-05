@@ -364,9 +364,6 @@ class Parser:
 
     def _get_top_level(self) -> Node:
         next_ = self._peek()
-        while next_.kind == token_new_line:
-            next_ = self._expect(token_new_line)
-            next_ = self._peek()
 
         if next_.kind in (token_val, token_var):
             res = self._get_var_def()
@@ -435,7 +432,7 @@ class Parser:
             return self._get_infix(val)
 
         source_excerp = self._source[
-            max(tok.start - 2, 0) : min(tok.end + 2, len(self._source))
+            max(tok.span.start - 2, 0) : min(tok.span.end + 2, len(self._source))
         ]
         raise RuntimeError(f"did not expect '{tok.repr}' at '{source_excerp}'")
 
@@ -477,6 +474,10 @@ class Parser:
             return []
         expressions = []
         while len(self._tokens) > 0:
+            if self._peek().kind == token_new_line:
+                self._expect(token_new_line)
+                continue
+            
             expr = self._get_top_level()
             expressions.append(expr)
 
