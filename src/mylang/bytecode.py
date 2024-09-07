@@ -1,136 +1,82 @@
+"""
+This bytecode module handles bytecode generation to be interpreted by the VM.
+
+"""
+
 from __future__ import annotations
-from abc import ABC
 from dataclasses import dataclass, field
-from io import BufferedReader, BufferedWriter
-from pprint import pprint
 from typing import Optional
-from . import __version_tuple__
-from .lang import Literal, Parser, Program, Span
-import os
 import struct
+from . import __version_tuple__
+from .lang import (
+    Application,
+    Identifier,
+    InfixApplication,
+    Literal,
+    Program,
+    Span,
+    VarDef,
+    bi_add,
+    bi_div,
+    bi_mul,
+    bi_sub,
+    get_builtin,
+)
+
 
 BYTE_ORDER = "little"
 operations = []
+
+OP_CODES = [
+    "OP_RETURN",
+    "OP_LCONST",
+    "OP_DCONST",
+    "OP_STRCONST",
+    "OP_ADD",
+    "OP_SUB",
+    "OP_MUL",
+    "OP_DIV",
+    "OP_NEG",
+]
+
+
+def opcode_int(opcode: str):
+    return OP_CODES.index(opcode)
+
 
 Const = float | int | bool
 VALUE_TYPES = {
     int: 0,
     bool: 1,
     float: 2,
-    dict: 3, #TODO: revisit, then change _write_constant for string
+    dict: 3,  # TODO: revisit, then change _write_constant for string
+    # also just use arrays, dict of len 4 or 1 is dumb
 }
 
 OBJECT_TYPES = {
     str: 0,
 }
 
-class OpCode(ABC):
-    def visit(self, that):
-        pass
-    
-    def get_opbyte(self) -> bytes:
-        return operations.index(self.name).to_bytes(1, BYTE_ORDER)
 
 @dataclass
-class OpReturn(OpCode):
-    _op_name = "OP_RETURN"
-    name: str = field(init=False, default=_op_name)
+class OpCode:
+    op_name: str
     span: Span
-    operations.append(_op_name)
-    
-    def visit(self, that):
-        that.visit_return(self)
+    constant: Optional[int | float | str | bool] = field(default=None)
+    code: int = field(init=False)
+    constant_index: Optional[int] = field(init=False, default=None)
 
-class OpConstant(OpCode):
-    pass
-
-@dataclass
-class OpLConstant(OpConstant):
-    _op_name = "OP_LCONST"
-    name: str = field(init=False, default=_op_name)
-    constant: float
-    span: Span
-    constant_idx: Optional[int] = field(init=False)
-    operations.append(_op_name)
-    
-    def set_constant_index(self, index: int):
-        self.constant_idx = index
-    
-    def visit(self, that):
-        that.visit_constant(self)
-        
-@dataclass
-class OpDConstant(OpConstant):
-    _op_name = "OP_DCONST"
-    name: str = field(init=False, default=_op_name)
-    constant: int
-    span: Span
-    constant_idx: Optional[int] = field(init=False)
-    operations.append(_op_name)
-    
-    def set_constant_index(self, index: int):
-        self.constant_idx = index
-    
-    def visit(self, that):
-        that.visit_constant(self)
-        
-@dataclass
-class OpStrConstant(OpConstant):
-    _op_name = "OP_STRCONST"
-    name: str = field(init=False, default=_op_name)
-    constant: str
-    span: Span
-    constant_idx: Optional[int] = field(init=False)
-    operations.append(_op_name)
-    
-    def set_constant_index(self, index: int):
-        self.constant_idx = index
-    
-    def visit(self, that):
-        that.visit_constant(self)
-        
-@dataclass
-class OpAdd(OpCode):
-    _op_name = "OP_ADD"
-    name: str = field(init=False, default=_op_name)
-    span: Span
-    operations.append(_op_name)
-    
-    def visit(self, that):
-        that.visit_add(self)
-
-@dataclass
-class OpSub(OpCode):
-    _op_name = "OP_SUB"
-    name: str = field(init=False, default=_op_name)
-    span: Span
-    operations.append(_op_name)
-    
-    def visit(self, that):
-        that.visit_sub(self)
-
-@dataclass
-class OpMul(OpCode):
-    _op_name = "OP_MUL"
-    name: str = field(init=False, default=_op_name)
-    span: Span
-    operations.append(_op_name)
-    
-    def visit(self, that):
-        that.visit_mul(self)
-        
-@dataclass
-class OpDiv(OpCode):
-    _op_name = "OP_DIV"
-    name: str = field(init=False, default=_op_name)
-    span: Span
-    operations.append(_op_name)
-    
-    def visit(self, that):
-        that.visit_div(self)
+    def __post_init__(self):
+        self.code = opcode_int(self.op_name)
 
 
 class Chunk:
+    """
+    A bytecode chunk.
+
+    A bytechunk constainst a constant pool, and a list of bytecodes.
+    """
+
     code: list[OpCode]
     constants: list[Const]
 
@@ -141,149 +87,177 @@ class Chunk:
             self.code = []
         self.constants = []
 
-    def _register_constant(self, opcode: OpConstant):
+    def _register_constant(self, constant: str | int | float | str) -> int:
+        """
+        Registers a constant and return its index in the constant pool.
+        """
+        idx = 0
         try:
-            idx = self.constants.index(opcode.constant)
+            idx = self.constants.index(constant)
         except ValueError:
             idx = len(self.constants)
-            self.constants.append(opcode.constant)
-        opcode.set_constant_index(idx)
-    
-    def add(self, opcode: OpCode):
-        self.code.append(opcode)
-        if isinstance(opcode, OpConstant):
-            self._register_constant(opcode)
-        
+            self.constants.append(constant)
+        return idx
+
+    def add_op(self, op: OpCode):
+        """
+        Adds the bytecode to the chunk and the constant if necessary.
+        """
+        if op.constant:
+            idx = self._register_constant(op.constant)
+            op.constant_index = idx
+            self.code.append(op)
+        else:
+            self.code.append(op)
+
     def __repr__(self) -> str:
         return f"Chunk({repr(self.code)})"
 
 
-@dataclass
-class ByteCodeProgram: #TODO: change Program and extend it
-    version: tuple[int, ...] = field(init=False, default=__version_tuple__)
+class ByteCodeProgram:
+    """
+    This class emits the bytecode and build the Chunks.
+
+    This bytecode program can then be serialized and written to disk or passed
+    along to the VM.
+    """
+
+    program: Program
     chunk: Chunk
-    
-    
+
+    def __init__(self, program: Program) -> None:
+        self.program = program
+        self.chunk = Chunk()
+        self._build_chunk()
+
+    def visit_literal(self, literal: Literal):
+        type_ = type(literal.value)
+        code_name = ""
+        if type_ == int:
+            code_name = "OP_LCONST"
+        elif type_ == float:
+            code_name = "OP_DCONST"
+        elif type_ == str:
+            code_name = "OP_STRCONST"
+        else:
+            raise NotImplementedError(f"can't do opcode for literal '{literal}'")
+        self.chunk.add_op(OpCode(code_name, literal.span, constant=literal.value))
+
+    def visit_identifier(self, identifier: Identifier):
+        pass
+
+    def visit_var_def(self, var_def: VarDef):
+        pass
+
+    def visit_application(self, application: Application):
+        func_id = application.func_id
+        # the println function is emitted as RETURN for now
+        if func_id.name == "println":
+            application.args[0].visit(self)
+            self.chunk.add_op(OpCode("OP_RETURN", application.span))
+            return
+
+    def visit_infix_application(self, application: InfixApplication):
+        function = get_builtin(application.func_id)
+        code_str = ""
+        if function == bi_add:
+            code_str = "OP_ADD"
+        elif function == bi_sub:
+            code_str = "OP_SUB"
+        elif function == bi_mul:
+            code_str = "OP_MUL"
+        elif function == bi_div:
+            code_str = "OP_DIV"
+        else:
+            raise NotImplementedError(f"vm can't do {function} yet")
+
+        application.rhs.visit(self)
+        application.lhs.visit(self)
+        self.chunk.add_op(OpCode(code_str, application.span))
+
+    def _build_chunk(self):
+        for line in self.program:
+            line.visit(self)
+
+
 class ByteCodeProgramSerializer:
     """
-    This class emits the byte code that is run by the VM.
-    
-    The main function is write_to_file, which converts the given ByteCodeProgram
-    _program_ in the Constructor into bytecode and writes it into _file_.
+    This class emits the bytecode in _bytes_ that is run by the VM.
+
+    This class does _not_ write to a file.
+    The bytes can then be written on disk or piped to the VM. One downside with
+    this approach is that the program is stored in memory in full instead of
+    writing it as the codegen emits the opcodes. But it also simplifies the file
+    handling and the piping of byte code without passing through disk.
     """
-    
-    def __init__(self, program : ByteCodeProgram, file: BufferedWriter) -> None:
+
+    bytes_: bytes
+    written: int
+    program: ByteCodeProgram
+
+    def __init__(self, program: ByteCodeProgram) -> None:
         self.program = program
-        self.file = file
-        
+        self.written = 0
+        self.bytes_ = b""
+        self._serialize()
+
+    def _write(self, buff):
+        """
+        Appends to the bytes buffer for the program.
+        """
+        self.written += len(buff)
+        self.bytes_ += buff
+
     def _write_constants(self):
         """
         Write the constant pool to self.file.
         """
         # TODO: pack 8 const type flags into 1 byte
         constants = self.program.chunk.constants
-        self.file.write((len(constants)).to_bytes(1, BYTE_ORDER))
+        self._write((len(constants)).to_bytes(1, BYTE_ORDER))
         for constant in constants:
             const_type = type(constant)
             if const_type == str:
-                self.file.write(struct.pack('<B', VALUE_TYPES.get(dict)))
-                self.file.write(OBJECT_TYPES.get(str).to_bytes(1, BYTE_ORDER))
-                length_pack = struct.pack('<q', len(constant))
-                self.file.write(length_pack)
+                self._write(struct.pack("<B", VALUE_TYPES.get(dict)))
+                self._write(OBJECT_TYPES.get(str).to_bytes(1, BYTE_ORDER))
+                length_pack = struct.pack("<q", len(constant))
+                self._write(length_pack)
                 packed = struct.pack(
-                    f"{len(constant) + 1}s", 
-                    bytes(constant, 'ascii') + b'\0'
+                    f"{len(constant) + 1}s", bytes(constant, "ascii") + b"\0"
                 )
-                self.file.write(packed)
+                self._write(packed)
                 continue
-            type_ = VALUE_TYPES.get(const_type)
-            fmt = ''
-            
-            self.file.write(struct.pack('<B', VALUE_TYPES.get(const_type)))
-            if const_type == int:    fmt = '<q'
-            elif const_type == float: fmt = '<d'
+
+            fmt = ""
+
+            self._write(struct.pack("<B", VALUE_TYPES.get(const_type)))
+            if const_type == int:
+                fmt = "<q"
+            elif const_type == float:
+                fmt = "<d"
             packed = struct.pack(fmt, constant)
-            self.file.write(packed)
+            self._write(packed)
 
     def _write_version(self):
-        [self.file.write(num.to_bytes(1, BYTE_ORDER)) for num in self.program.version]
-        
-    def _write_opcode(self, opcode: OpCode):
-        self.file.write(opcode.get_opbyte())
-        
+        for num in __version_tuple__:
+            self._write(num.to_bytes(1, BYTE_ORDER))
+
     def _write_span(self, span: Span):
-        span_pack = struct.pack('<H', span.start)
-        self.file.write(span_pack)
-        # self.file.write(span.start.to_bytes(2, BYTE_ORDER))
-    
-    def visit_return(self, ret: OpReturn):
-        self._write_span(ret.span)
-        self._write_opcode(ret)
-    
-    def visit_constant(self, op_const: OpConstant):
-        self._write_span(op_const.span)
-        self._write_opcode(op_const)
-        self.file.write(op_const.constant_idx.to_bytes(1, BYTE_ORDER))
-        
-        
-    ###### BINARY OPS ######
-    
-    def visit_add(self, op_add: OpAdd):
-        self._write_span(op_add.span)
-        self._write_opcode(op_add)
-        
-    def visit_sub(self, op_sub: OpSub):
-        self._write_span(op_sub.span)
-        self._write_opcode(op_sub)
-        
-    def visit_mul(self, op_mul: OpMul):
-        self._write_span(op_mul.span)
-        self._write_opcode(op_mul)
-        
-    def visit_div(self, op_div: OpDiv):
-        self._write_span(op_div.span)
-        self._write_opcode(op_div)
-    
+        span_pack = struct.pack("<H", span.start)
+        self._write(span_pack)
+
     def _write_chunk(self):
         self._write_constants()
         code = self.program.chunk.code
-        for op in code:
-            op.visit(self)
-    
-    def write_to_file(self):
+        for opcode in code:
+            self._write_span(opcode.span)
+            self._write(opcode.code.to_bytes(1, BYTE_ORDER))
+            if opcode.constant_index is not None:
+                self._write(opcode.constant_index.to_bytes(1, BYTE_ORDER))
+
+    def _serialize(self):
         self._write_version()
         self._write_chunk()
-        
-    
-        
-FILENAME = "target/test.uza"
-os.makedirs(os.path.dirname(FILENAME), exist_ok=True)
 
-with open(FILENAME, "w+b") as file:
-    # source = """
-    # 5.12
-    # 2.87
-    # """
-    # program = Parser(source).parse()
-
-    # ByteCodeEmitter.print_program("target/test.zbc")
-
-
-    test_chunk = Chunk()
-    # test_chunk.add(OpConstant(5, Span(0,1)))
-    test_chunk.add(OpLConstant(5, Span(5,1)))
-    test_chunk.add(OpLConstant(25, Span(25,1)))
-    test_chunk.add(OpDiv(Span(0,1)))
-    test_chunk.add(OpStrConstant("hello ", Span(0,1)))
-    test_chunk.add(OpStrConstant("world!", Span(1,1)))
-    test_chunk.add(OpAdd(Span(0,1)))
-    test_chunk.add(OpLConstant(3, Span(1,1)))
-    # test_chunk.add(OpMul(Span(0,1)))
-    # test_chunk.add(OpSub(Span(0,1)))
-    test_chunk.add(OpDConstant(1.5, Span(0,1)))
-    test_chunk.add(OpAdd(Span(12,1)))
-    test_chunk.add(OpReturn(Span(2,1)))
-    pprint(test_chunk)
-    serializer = ByteCodeProgramSerializer(ByteCodeProgram(test_chunk), file)
-    serializer.write_to_file()
-    
+    def get_bytes(self):
+        return self.bytes_

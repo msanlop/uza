@@ -1,5 +1,6 @@
 TEST_HEADER = "#test "
 TEST_EXPECTED = "#expected"
+COMMENTED_OUT = "//"
 
 
 def parse_test_file(file_path) -> list[tuple]:
@@ -13,7 +14,9 @@ def parse_test_file(file_path) -> list[tuple]:
         title, source, expected = ("", "", "")
         content = file.readline()
         while content:
-            if content.startswith(TEST_HEADER):
+            if content.startswith(COMMENTED_OUT):
+                pass
+            elif content.startswith(TEST_HEADER):
                 title = content[len(TEST_HEADER) :]
             elif content.startswith(TEST_EXPECTED):
                 expected = file.readline()

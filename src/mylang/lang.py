@@ -33,12 +33,13 @@ class TokenKind:
 class Span:
     start: int
     end: int
-    
+
     def __add__(self, that: object) -> Span:
         if not isinstance(that, Span):
             return NotImplemented
         return Span(self.start, that.end)
-        
+
+
 @dataclass(frozen=True)
 class Token:
     kind: TokenKind
@@ -56,8 +57,8 @@ class Token:
             return False
         if self.kind.is_user_value:
             return self.repr == value.repr
-        else:
-            return True
+
+        return True
 
 
 token_types: dict[str, TokenKind] = {}
@@ -132,21 +133,21 @@ class Lexer:
         char = self._char_at(self._start)
         if char == "\n":
             end = self._start + 1
-            type = token_new_line
+            type_ = token_new_line
         elif char in string.digits:
             end = self._next_numeral()
-            type = token_number
+            type_ = token_number
         elif char == ",":
             end = self._start + 1
-            type = token_comma
+            type_ = token_comma
         elif char == '"':
             word, end = self._get_next_string()
             end += 1
-            type = token_string
+            type_ = token_string
             str_start = self._start + 1
             str_end = end - 1
             new_string_token = Token(
-                type, Span(str_start, str_end), self._source[str_start:str_end]
+                type_, Span(str_start, str_end), self._source[str_start:str_end]
             )
             self._start = end
             return new_string_token
@@ -154,37 +155,39 @@ class Lexer:
             word, end = self._get_next_word()
             match word:
                 case "val":
-                    type = token_val  # TODO: test type()
+                    type_ = token_val  # TODO: test type()
                 case "var":
-                    type = token_var
+                    type_ = token_var
                 case "and":
-                    type = token_and
+                    type_ = token_and
                 case "true":
-                    type = token_boolean
+                    type_ = token_boolean
                 case "false":
-                    type = token_boolean
+                    type_ = token_boolean
                 case _:
-                    type = token_identifier
+                    type_ = token_identifier
         elif char == "*":
             if (
                 not self._overflows(self._start + 1)
                 and self._char_at(self._start + 1) == "*"
             ):
                 end = self._start + 2
-                type = token_star_double
+                type_ = token_star_double
 
             else:
                 end = self._start + 1
-                type = token_star
+                type_ = token_star
         else:
             type_maybe = token_types.get(char)
             if type_maybe is None:
                 raise RuntimeError(f"could not tokenize {char} at {self._start}")
-            type = type_maybe
+            type_ = type_maybe
             end = self._start + 1
 
         assert self._start <= end
-        new_token = Token(type, Span(self._start, end), self._source[self._start : end])
+        new_token = Token(
+            type_, Span(self._start, end), self._source[self._start : end]
+        )
         self._start = end
         return new_token
 
@@ -195,7 +198,6 @@ class Lexer:
             self._char_at(end) == "." and not already_has_dot
         ):
             if self._char_at(end) == ".":
-                end + 2
                 already_has_dot = True
             if end + 1 == self._source_len:
                 return end + 1
@@ -281,13 +283,13 @@ class Identifier(Node):
 @dataclass
 class Application(Node):
     func_id: Identifier
-    params: list[Node]
+    args: list[Node]
     span: Span = field(compare=False)
 
     def __init__(self, func_id: Identifier, *args) -> None:
         self.func_id = func_id
-        self.params = list(args)
-        self.span = func_id.span + self.params[-1].span
+        self.args = list(args)
+        self.span = func_id.span + self.args[-1].span
 
     def visit(self, that):
         return that.visit_application(self)
@@ -302,7 +304,7 @@ class InfixApplication(Node):
 
     def __post_init__(self) -> None:
         self.span = self.lhs.span + self.rhs.span
-        
+
     def visit(self, that):
         return that.visit_infix_application(self)
 
@@ -357,8 +359,8 @@ class Parser:
             raise RuntimeError(f"expected operator\n    but got {self._peek()}")
         elif self._peek().kind not in type_ and not op:
             raise RuntimeError(f"expected {type_}\n    but got {self._peek()}")
-        else:
-            return self._tokens.popleft()
+
+        return self._tokens.popleft()
 
     def _get_top_level(self) -> Node:
         next_ = self._peek()
@@ -383,7 +385,7 @@ class Parser:
         self._expect(token_eq)
         value = self._get_infix(self._get_expr())
 
-        return VarDef(identifier.repr, tpe.repr, value, Span(1,1), immutable=immutable)
+        return VarDef(identifier.repr, tpe.repr, value, Span(1, 1), immutable=immutable)
 
     def _get_function_args(self) -> list[Node]:
         next_ = self._peek()
@@ -425,7 +427,9 @@ class Parser:
 
         if tok.kind.is_op():
             prefix_tok = self._expect(tok.kind)
-            return PrefixApplication(self._get_expr(), Identifier(prefix_tok, Span(1,1)))
+            return PrefixApplication(
+                self._get_expr(), Identifier(prefix_tok, Span(1, 1))
+            )
         if tok.kind.is_user_value:
             val = Literal(self._expect(tok.kind))
             return self._get_infix(val)
@@ -498,8 +502,8 @@ class BuiltIn:
 
 _builtins: dict[str, BuiltIn] = {}
 bi_add = BuiltIn("+", _builtins)
-bi_minus = BuiltIn("-", _builtins)
-bi_mult = BuiltIn("*", _builtins)
+bi_sub = BuiltIn("-", _builtins)
+bi_mul = BuiltIn("*", _builtins)
 bi_div = BuiltIn("/", _builtins)
 bi_pow = BuiltIn("**", _builtins)
 bi_land = BuiltIn("and", _builtins)
@@ -604,21 +608,30 @@ class Interpreter:
 
     def visit_built_in_application(self, func_id, *params) -> Optional[Value]:
         ret = None
+        lhs, rhs = params[0], None
+        if len(params) > 1:
+            rhs = params[1]
+
         if func_id == bi_add:
-            ret = params[0] + params[1]
-        elif func_id == bi_minus:
+            ret = lhs + rhs
+        elif func_id == bi_sub:
             if len(params) == 1:
-                ret = -params[0]
+                ret = -lhs
             else:
-                ret = params[0] + params[1]
-        elif func_id == bi_mult:
-            ret = params[0] * params[1]
+                ret = lhs - rhs
+        elif func_id == bi_mul:
+            ret = lhs * rhs
         elif func_id == bi_div:
-            ret = params[0] / params[1]
+            # C division casts the rhs to the lhs's type
+            casted = type(lhs)(rhs)
+            if isinstance(lhs, int):
+                ret = lhs // casted
+            else:
+                ret = lhs / casted
         elif func_id == bi_land:
-            ret = params[0] and params[1]
+            ret = lhs and rhs
         elif func_id == bi_pow:
-            ret = params[0] ** params[1]
+            ret = lhs**rhs
         elif func_id == bi_print:
             print(*params, end="")
             ret = None
@@ -626,9 +639,9 @@ class Interpreter:
             print(*params)
             ret = None
         elif func_id == bi_max:
-            ret = max(params[0], params[1])
+            ret = max(lhs, rhs)
         elif func_id == bi_min:
-            ret = min(params[0], params[1])
+            ret = min(lhs, rhs)
 
         return ret
 
@@ -643,7 +656,7 @@ class Interpreter:
         return literal.value
 
     def visit_application(self, application: Application):
-        evaluated = [param.visit(self) for param in application.params]
+        evaluated = [param.visit(self) for param in application.args]
         build_in_id = get_builtin(application.func_id)
         if build_in_id:
             return self.visit_built_in_application(build_in_id, *evaluated)
@@ -665,7 +678,7 @@ class Interpreter:
             return self.visit_built_in_application(built_in_id, left, right)
         raise NotImplementedError("no user functions yet, something went wrong")
 
-    def evaluate(self) -> Optional[int | float]:
+    def evaluate(self) -> Optional[Value]:
         """
         The main _Interpreter_ function that evaluates the top level nodes.
 

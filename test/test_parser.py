@@ -7,7 +7,7 @@ def test_infix_add():
     actual = Parser(source).parse()[0]
     expected = InfixApplication(
         Literal(Token(token_number, Span(0, 4), "123")),
-        (Identifier(Token(token_plus, Span(5, 7)), Span(1,1))),
+        (Identifier(Token(token_plus, Span(5, 7)), Span(1, 1))),
         Literal(Token(token_number, Span(7, 9), "99")),
     )
     assert actual == expected
@@ -18,7 +18,7 @@ def test_paren_infix_add():
     actual = Parser(source).parse()[0]
     expected = InfixApplication(
         Literal(Token(token_number, Span(0, 4), "123")),
-        (Identifier(Token(token_plus, Span(5, 7)), Span(1,1))),
+        (Identifier(Token(token_plus, Span(5, 7)), Span(1, 1))),
         Literal(Token(token_number, Span(7, 9), "99")),
     )
     assert actual == expected
@@ -31,10 +31,10 @@ def test_mult_precedence():
     # actual = parser._get_infix(parser._get_expr())
     expected = InfixApplication(
         Literal(Token(token_number, Span(0, 4), "123")),
-        (Identifier(Token(token_plus, Span(5, 7)), Span(1,1))),
+        (Identifier(Token(token_plus, Span(5, 7)), Span(1, 1))),
         InfixApplication(
             Literal(Token(token_number, Span(7, 9), "99")),
-            Identifier(Token(token_star, Span(1, 1)), Span(1,1)),
+            Identifier(Token(token_star, Span(1, 1)), Span(1, 1)),
             Literal(Token(token_number, Span(1, 1), "2")),
         ),
     )
@@ -47,10 +47,10 @@ def test_mult_precedence_paren():
     expected = InfixApplication(
         InfixApplication(
             Literal(Token(token_number, Span(1, 1), "123")),
-            (Identifier(Token(token_plus, Span(1, 1)), Span(1,1))),
+            (Identifier(Token(token_plus, Span(1, 1)), Span(1, 1))),
             Literal(Token(token_number, Span(1, 1), "99")),
         ),
-        Identifier(Token(token_star, Span(1, 1)), Span(1,1)),
+        Identifier(Token(token_star, Span(1, 1)), Span(1, 1)),
         Literal(Token(token_number, Span(1, 1), "2")),
     )
     assert actual == expected
@@ -61,10 +61,10 @@ def test_pow_precedence_right_associative():
     actual = Parser(source).parse()[0]
     expected = InfixApplication(
         Literal(Token(token_number, Span(1, 1), "2")),
-        Identifier(Token(token_star_double, Span(1, 1)), Span(1,1)),
+        Identifier(Token(token_star_double, Span(1, 1)), Span(1, 1)),
         InfixApplication(
             Literal(Token(token_number, Span(1, 1), "3")),
-            (Identifier(Token(token_star_double, Span(1, 1)), Span(1,1))),
+            (Identifier(Token(token_star_double, Span(1, 1)), Span(1, 1))),
             Literal(Token(token_number, Span(1, 1), "2")),
         ),
     )
@@ -79,7 +79,7 @@ def test_declarations():
         "float",
         InfixApplication(
             Literal(Token(token_number, Span(1, 1), "123.53")),
-            Identifier(Token(token_star_double, Span(1, 1)), Span(1,1)),
+            Identifier(Token(token_star_double, Span(1, 1)), Span(1, 1)),
             Literal(Token(token_number, Span(1, 1), "2")),
         ),
         True,
@@ -89,7 +89,7 @@ def test_declarations():
 
 
 def test_math_expressions():
-    source = """(5 + 10) * 85 / 3
+    source = """(5 + 10) * 85.5 / 3
     --(5 + 10) + 85
     (5 + 10) + 85
     2 ** 4 ** 5
@@ -107,10 +107,10 @@ def test_builtin_application_parse():
     source = "println(123 + 99)"
     actual = Parser(source).parse()[0]
     expected = Application(
-        Identifier("println", Span(1,1)),
+        Identifier("println", Span(1, 1)),
         InfixApplication(
             Literal(Token(token_number, Span(0, 4), "123")),
-            (Identifier(Token(token_plus, Span(5, 7)), Span(1,1))),
+            (Identifier(Token(token_plus, Span(5, 7)), Span(1, 1))),
             Literal(Token(token_number, Span(7, 9), "99")),
         ),
     )

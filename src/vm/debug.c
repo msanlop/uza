@@ -10,7 +10,7 @@ void debug_stack_print(VM* vm, char* str) {
     else {
         DEBUG_PRINT("%s\n" CYAN , str);
         for (Value* slot = vm->stack; slot < vm->stack_top; slot++) {
-            PRINT_VALUE((*slot));
+            PRINT_VALUE((*slot), stderr);
             DEBUG_PRINT("\n")
         }
     }
@@ -20,7 +20,7 @@ void debug_stack_print(VM* vm, char* str) {
 void debug_constant_print(char* code_str, Chunk* chunk, int offset){
     DEBUG_PRINT("%s    ", code_str);
     int constant = GET_CODE_AT(chunk, offset);
-    PRINT_VALUE(chunk->constants.values[constant]);
+    PRINT_VALUE(chunk->constants.values[constant],stderr);
 }
 
 int debug_op_print(Chunk* chunk, int offset) {
@@ -76,7 +76,7 @@ void debug_chunk_print(Chunk* chunk) {
     DEBUG_PRINT("/// Chunk ///\n");
     DEBUG_PRINT("/// constants ///\n");
     for (size_t i=0; i < chunk->constants.count; i++) {
-        PRINT_VALUE(chunk->constants.values[i]);
+        PRINT_VALUE(chunk->constants.values[i], stderr);
         DEBUG_PRINT("\n");
     }
     for (size_t offset = 0; offset < chunk->count;)
