@@ -2,8 +2,7 @@ name: CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [main, main-rebase]
   pull_request:
     branches:
       - main
