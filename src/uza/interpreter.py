@@ -144,7 +144,7 @@ class Interpreter:
         elif func_id == bi_mul:
             ret = lhs * rhs
         elif func_id == bi_div:
-            # C division casts the rhs to the lhs's type
+            # C division casts the rhs to the lhs's type TODO: false
             casted = type(lhs)(rhs)
             if isinstance(lhs, int):
                 ret = lhs // casted

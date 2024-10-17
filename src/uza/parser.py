@@ -16,7 +16,7 @@ from .ast import (
 
 from .utils import Span
 from .token import *
-
+from .typing import typer
 
 class Scanner:
     """
@@ -193,11 +193,15 @@ class Parser:
         decl_token = self._expect(token_var, token_val)
         immutable = decl_token.kind == token_val
         identifier = self._expect(token_identifier)
-        tpe = self._expect(token_identifier)
+        if self._peek().kind == token_identifier:
+            type_tok = self._expect(token_identifier)
+            type_ = typer.identifier_to_uza_type(type_tok)
+        else:
+            type_ = None
         self._expect(token_eq)
         value = self._get_infix(self._get_expr())
 
-        return VarDef(identifier.repr, tpe.repr, value, Span(1, 1), immutable=immutable)
+        return VarDef(identifier.repr, type_, value, decl_token.span + value.span, immutable=immutable)
 
     def _get_function_args(self) -> list[Node]:
         next_ = self._peek()
