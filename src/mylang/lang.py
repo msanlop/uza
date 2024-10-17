@@ -4,6 +4,7 @@ from typing import Callable, Optional, TypeVar, List
 from collections import deque
 from abc import ABC
 from dataclasses import dataclass, field
+from mylang.typer import UzaType
 
 
 @dataclass(frozen=True)
@@ -325,7 +326,7 @@ class PrefixApplication(Node):
 @dataclass
 class VarDef(Node):
     identifier: str
-    tpe: str
+    tpe: UzaType
     value: Node
     span: Span = field(compare=False)
     immutable: bool = True
@@ -378,11 +379,12 @@ class Parser:
         decl_token = self._expect(token_var, token_val)
         immutable = decl_token.kind == token_val
         identifier = self._expect(token_identifier)
-        tpe = self._expect(token_identifier)
+        type_tok = self._expect(token_identifier)
+        type_ = UzaType.to_type(type_tok)
         self._expect(token_eq)
         value = self._get_infix(self._get_expr())
 
-        return VarDef(identifier.repr, tpe.repr, value, Span(1, 1), immutable=immutable)
+        return VarDef(identifier.repr, type_, value, Span(1, 1), immutable=immutable)
 
     def _get_function_args(self) -> list[Node]:
         next_ = self._peek()

@@ -6,6 +6,7 @@ import os
 from mylang.bytecode import ByteCodeProgram, ByteCodeProgramSerializer
 from mylang.lang import Interpreter, Parser
 import pathlib
+from mylang.typer import Typer
 
 
 if __name__ == "__main__":
@@ -25,6 +26,9 @@ if __name__ == "__main__":
     )
     action_group.add_argument(
         "-i", "--interpret", action="store_true", help="Interpret the source file"
+    )
+    action_group.add_argument(
+        "-t", "--typecheck", action="store_true", help="Typecheck the source file"
     )
     action_group.add_argument(
         "-c",
@@ -63,6 +67,9 @@ if __name__ == "__main__":
             print(node.span.start, end=": ")  # TODO: use line instead of codepoint
             pprint(node)
             sys.exit(0)
+    elif args.typecheck:
+        typer = Typer(program)
+        sys.exit(typer.check_types())
     elif args.interpret:
         out = Interpreter(program).evaluate()
         if out and isinstance(out, int):
