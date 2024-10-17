@@ -1,7 +1,8 @@
 import pytest
-from .helper import parse_test_file
-from src.mylang.lang import Parser, Interpreter
 
+from src.uza.interpreter import Interpreter
+from src.uza.parser import Parser
+from .helper import parse_test_file
 
 TEST_FILENAME = "./test/test_sources.txt"
 MAGENTA = "\033[0;35m"

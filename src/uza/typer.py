@@ -2,11 +2,9 @@ from abc import ABC
 from dataclasses import dataclass
 from enum import Enum
 import sys
-from typing import DefaultDict
-from .lang import (
-    Token,
-    Span
-)
+from typing import List
+from .token import *
+from .ast import Literal, Program, VarDef
 
 class UzaType():
     integer = 1
