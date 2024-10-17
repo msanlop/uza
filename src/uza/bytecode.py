@@ -8,21 +8,15 @@ from dataclasses import dataclass, field
 from typing import Optional
 import struct
 from . import __version_tuple__
-from .lang import (
-    Application,
-    Identifier,
-    InfixApplication,
-    Literal,
-    Program,
-    Span,
-    VarDef,
+from .ast import Application, Identifier, InfixApplication, Literal, VarDef, Program
+from .utils import Span
+from .interpreter import (
     bi_add,
     bi_div,
     bi_mul,
     bi_sub,
     get_builtin,
 )
-
 
 BYTE_ORDER = "little"
 operations = []
@@ -222,9 +216,7 @@ class ByteCodeProgramSerializer:
                 self._write(OBJECT_TYPES.get(str).to_bytes(1, BYTE_ORDER))
                 length_pack = struct.pack("<q", len(constant))
                 self._write(length_pack)
-                packed = struct.pack(
-                    f"{len(constant)}s", bytes(constant, "ascii")
-                )
+                packed = struct.pack(f"{len(constant)}s", bytes(constant, "ascii"))
                 self._write(packed)
                 continue
 
