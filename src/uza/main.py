@@ -4,6 +4,8 @@ import subprocess
 import sys
 import os
 from os.path import dirname
+
+from .typing.typer import Typer
 from .bytecode import ByteCodeProgram, ByteCodeProgramSerializer
 from .parser import Parser
 from .interpreter import Interpreter
@@ -36,6 +38,12 @@ def main() -> int:
         "--interpret",
         action="store_true",
         help="Interpret the source file (can also be piped with -i)",
+    )
+    action_group.add_argument(
+        "-t",
+        "--typecheck",
+        action="store_true",
+        help="Typecheck the program",
     )
     action_group.add_argument(
         "-c",
@@ -98,6 +106,9 @@ def main() -> int:
             print(node.span.start, end=": ")  # TODO: use line instead of codepoint
             pprint(node)
             return 0
+    elif args.typecheck:
+        out = Typer(program).check_types()
+        return out
     elif args.interpret:
         out = Interpreter(program).evaluate()
         if out and isinstance(out, int):

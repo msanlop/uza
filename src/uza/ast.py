@@ -3,6 +3,7 @@ from typing import List
 
 from .utils import Span
 from .token import *
+from .typing.type import UzaType
 
 from dataclasses import dataclass, field
 
@@ -80,7 +81,10 @@ class Application(Node):
     def __init__(self, func_id: Identifier, *args) -> None:
         self.func_id = func_id
         self.args = list(args)
-        self.span = func_id.span + self.args[-1].span
+        if args:
+            self.span = func_id.span + self.args[-1].span
+        else:
+            self.span = func_id.span
 
     def visit(self, that):
         return that.visit_application(self)
@@ -116,7 +120,7 @@ class PrefixApplication(Node):
 @dataclass
 class VarDef(Node):
     identifier: str
-    tpe: str
+    type_: UzaType
     value: Node
     span: Span = field(compare=False)
     immutable: bool = True
