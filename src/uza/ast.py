@@ -3,7 +3,7 @@ from typing import List
 
 from .utils import Span
 from .token import *
-from .typing.type import UzaType
+from .typing.type import *
 
 from dataclasses import dataclass, field
 
@@ -120,7 +120,7 @@ class PrefixApplication(Node):
 @dataclass
 class VarDef(Node):
     identifier: str
-    type_: UzaType
+    type_: Type
     value: Node
     span: Span = field(compare=False)
     immutable: bool = True

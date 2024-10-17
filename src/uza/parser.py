@@ -194,7 +194,7 @@ class Parser:
         immutable = decl_token.kind == token_val
         identifier = self._expect(token_identifier)
         type_tok = self._expect(token_identifier)
-        type_ = typer.UzaType.to_type(type_tok)
+        type_ = typer.identifier_to_uza_type(type_tok)
         self._expect(token_eq)
         value = self._get_infix(self._get_expr())
 
