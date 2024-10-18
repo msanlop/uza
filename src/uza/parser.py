@@ -18,6 +18,7 @@ from .utils import Span
 from .token import *
 from .typing import typer
 
+
 class Scanner:
     """
     The Scanner class is a iterator over the token of a given source file.
@@ -83,7 +84,9 @@ class Scanner:
             str_start = self._start + 1
             str_end = end - 1
             new_string_token = Token(
-                type_, Span(str_start, str_end), self._source[str_start:str_end]
+                type_,
+                Span(str_start, str_end, self._source),
+                self._source[str_start:str_end],
             )
             self._start = end
             return new_string_token
@@ -122,7 +125,7 @@ class Scanner:
 
         assert self._start <= end
         new_token = Token(
-            type_, Span(self._start, end), self._source[self._start : end]
+            type_, Span(self._start, end, self._source), self._source[self._start : end]
         )
         self._start = end
         return new_token
@@ -201,7 +204,13 @@ class Parser:
         self._expect(token_eq)
         value = self._get_infix(self._get_expr())
 
-        return VarDef(identifier.repr, type_, value, decl_token.span + value.span, immutable=immutable)
+        return VarDef(
+            identifier.repr,
+            type_,
+            value,
+            decl_token.span + value.span,
+            immutable=immutable,
+        )
 
     def _get_function_args(self) -> list[Node]:
         next_ = self._peek()
@@ -244,7 +253,7 @@ class Parser:
         if tok.kind.is_op():
             prefix_tok = self._expect(tok.kind)
             return PrefixApplication(
-                self._get_expr(), Identifier(prefix_tok, Span(1, 1))
+                self._get_expr(), Identifier(prefix_tok, prefix_tok.span)
             )
         if tok.kind.is_user_value:
             val = Literal(self._expect(tok.kind))
