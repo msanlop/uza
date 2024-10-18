@@ -107,8 +107,10 @@ def main() -> int:
             pprint(node)
             return 0
     elif args.typecheck:
-        out = Typer(program).check_types()
-        return out
+        err, msg = Typer(program).check_types()
+        if msg:
+            print(msg, file=sys.stderr)
+        return err
     elif args.interpret:
         out = Interpreter(program).evaluate()
         if out and isinstance(out, int):

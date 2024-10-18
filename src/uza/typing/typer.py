@@ -145,14 +145,15 @@ class Typer:
     def visit_literal(self, literal : Literal):
         return python_type_to_uza_type(type(literal.value))
     
-    def check_types(self) -> int:
+    def check_types(self) -> tuple[int, str]:
         ret = 0
+        err_string = ""
         for node in self.program:
             node.visit(self)
             
         for constraint in self.constaints:
             if not constraint.solve():
-                print(constraint.fail_message(), file=sys.stderr)
                 ret += 1
+                err_string += constraint.fail_message()
         
-        return ret
+        return (ret, err_string)
