@@ -1,5 +1,5 @@
 from abc import ABC
-from typing import List
+from typing import List, Optional
 
 from .utils import Span
 from .token import *
@@ -120,7 +120,7 @@ class PrefixApplication(Node):
 @dataclass
 class VarDef(Node):
     identifier: str
-    type_: Type
+    type_: Optional[Type]
     value: Node
     span: Span = field(compare=False)
     immutable: bool = True

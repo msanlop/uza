@@ -4,17 +4,17 @@ from typing import List
 from ..token import *
 
 
-@dataclass
+@dataclass(frozen=True)
 class Type:
     identifier: str
 
-@dataclass
+@dataclass(frozen=True, eq=True)
 class UnionType(Type):
     types: List[Type]
     
     def __init__(self, *types: List[Type]) -> None:
-        self.identifier = "type union"
-        self.types = types
+        super().__init__("union")
+        object.__setattr__(self, 'types', types)
     
     def __str__(self) -> str:
         union = " | ".join(str(t) for t in self.types)

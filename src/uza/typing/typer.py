@@ -2,21 +2,47 @@ from abc import ABC
 from dataclasses import dataclass, field
 from enum import Enum
 import sys
-from typing import List
+from typing import Dict, List
+from itertools import count
 
 from .type import *
 from ..token import *
 from ..ast import InfixApplication, Literal, Program, VarDef
 from ..interpreter import *
 
+@dataclass(eq=True, frozen=True)
+class SymbolicType(Type):
+    identifier: str
+
+@dataclass
+class Mapping:
+    substitutions: dict[SymbolicType, Type]
+
+    def __add__(self, that: object):
+        if isinstance(that, tuple) and len(that) == 2:
+            new_dict = {that[0]:that[1], **self.substitutions}
+            return Mapping(new_dict)
+        if isinstance(that, Mapping):
+            return Mapping(self.substitutions | that.substitutions)
+        return NotImplementedError
 
 class Constraint(ABC):
     span : Span
+    mapping : Mapping
     
-    def solve(self) -> bool:
+    
+    def solve(self, mapping: Mapping) -> tuple[bool, Optional[list[tuple]]]:
+        """
+        If the constraint can be check, returns a bool, otherwise returns a tuple
+        with the SymbolicType mapped to the type.
+        """
         raise NotImplementedError(f"visit not implemented for {self}")
 
     def fail_message(self) -> str:
+        """
+        Returns the failed message for previous _solve()_ try. This method is
+        stateful! If called before _solve()_ it might have self.mapping = None.
+        """
         raise NotImplementedError(f"visit not implemented for {self}")
 
 @dataclass
@@ -24,12 +50,27 @@ class IsType(Constraint):
     a : Type
     b : Type
     span : Span
+    mapping : Mapping = field(default=None)
     
-    def solve(self) -> bool:
-        return self.a == self.b
+    def solve(self, mapping: Mapping):
+        self.mapping = mapping
+        if isinstance(self.a, SymbolicType):
+            val = mapping.substitutions.get(self.a)
+            if val:
+                return val == self.b, None
+            return True, (self.a, self.b)
+        return self.a == self.b, None
     
     def fail_message(self) -> str:
-        return f"Expected type '{self.b}' but found '{self.a}' at {self.span}"
+        if isinstance(self.b, SymbolicType):
+            b_type = self.mapping.substitutions.get(self.b)
+        else:
+            b_type = self.b
+        if isinstance(self.a, SymbolicType):
+            a_type = self.mapping.substitutions.get(self.a)
+        else:
+            a_type = self.a
+        return f"Expected type '{b_type}' but found '{a_type}' at {self.span}"
         
     
 @dataclass
@@ -37,27 +78,48 @@ class IsSubType(Constraint):
     a : Type
     b : UnionType
     span : Span
+    mapping : Mapping = field(default=None)
     
-    def solve(self) -> bool:
-        return self.a in self.b.types
+    def solve(self, mapping: Mapping):
+        self.mapping = mapping
+        if isinstance(self.a, SymbolicType):
+            val = mapping.substitutions.get(self.a)
+            if val:
+                return val in self.b.types, None
+            return True, (self.a, self.b)
+        return self.a in self.b.types, None
     
     def fail_message(self) -> str:
-        return f"Expected type '{self.b}' but found '{self.a}' at {self.span}"
+        if isinstance(self.b, SymbolicType):
+            b_type = self.mapping.substitutions.get(self.b)
+        else:
+            b_type = self.b
+        if isinstance(self.a, SymbolicType):
+            a_type = self.mapping.substitutions.get(self.a)
+        else:
+            a_type = self.a
+        return f"Expected type '{b_type}' but found '{a_type}' at {self.span}"
 
 @dataclass
 class EitherOr(Constraint): #TODO: arbitrary number of possibilities?
     a : List[Constraint]
     b : List[Constraint]
     span : Span
+    mapping : Mapping = field(default=None)
+    _a_solved : list[bool] = field(default=None)
+    _b_solved : list[bool] = field(default=None)
     
-    def solve(self) -> bool:
-        a_true = all(constraint.solve() for constraint in self.a)
-        b_true = all(constraint.solve() for constraint in self.b)
-        return a_true or b_true
+    def solve(self, mapping: Mapping) -> bool:
+        self.mapping = mapping
+        self._a_solved = [constraint.solve(mapping)[0] for constraint in self.a]
+        self._b_solved = [constraint.solve(mapping)[0] for constraint in self.b]
+        a_true = all(self._a_solved)
+        b_true = all(self._b_solved)
+        return a_true or b_true, None
     
     def fail_message(self) -> str:
-        a_messages = "\n ".join(c.fail_message() for c in self.a if not c.solve())
-        b_messages = "\n ".join(c.fail_message() for c in self.b if not c.solve())
+        a_messages = "\n ".join(c.fail_message() for (c, res) in zip(self.a, self._a_solved) if not res)
+        b_messages = "\n ".join(c.fail_message() for (c, res) in zip(self.b, self._b_solved) if not res)
         return f"Expected one of the following at {self.span}:\n {a_messages}\nor:\n {b_messages}"
 
 @dataclass
@@ -75,6 +137,11 @@ class Typer:
         self.program = program
         self.constaints : List[Constraint] = []
         self.context = Context()
+        self.symbol_gen = count()
+        self.mapping = Mapping({})
+        
+    def _create_new_symbol(self):
+        return SymbolicType("symbolic_" + str(next(self.symbol_gen)))
         
     def add_constaint(self, constraint : Constraint) -> None:
         self.constaints.append(constraint)
@@ -137,23 +204,40 @@ class Typer:
         
     
     def visit_var_def(self, varDef : VarDef):
+        t = varDef.type_ if varDef.type_ else self._create_new_symbol()
         self.constaints.append(
-            IsType(varDef.type_, varDef.value.visit(self), varDef.span)
+            IsType(t, varDef.value.visit(self), varDef.span)
         )
-        self.context.define(varDef.identifier, varDef.type_)
+        self.context.define(varDef.identifier, t)
     
     def visit_literal(self, literal : Literal):
         return python_type_to_uza_type(type(literal.value))
     
+    def _check_with_mapping(self, constaints: list[Constraint], mapping : Mapping) -> tuple[int, str]:
+        for idx, constraint in enumerate(constaints):
+            solved, option = constraint.solve(mapping)
+            # if constraint fails return TODO: check the rest of types
+            if not option:
+                if not solved:
+                    return 1, constraint.fail_message()
+                else:
+                    continue
+
+            # if mapping, iterate recursively over mappings
+            new_mapping = mapping + option
+            res, err_string = self._check_with_mapping(constaints[idx + 1:], new_mapping)
+            if res != 0:
+                return res, err_string
+            else:
+                self.mapping = new_mapping
+        
+        return 0, ""
+            
+    
     def check_types(self) -> tuple[int, str]:
-        ret = 0
-        err_string = ""
         for node in self.program:
             node.visit(self)
             
-        for constraint in self.constaints:
-            if not constraint.solve():
-                ret += 1
-                err_string += constraint.fail_message()
-        
-        return (ret, err_string)
+        res, err = self._check_with_mapping(self.constaints, self.mapping)
+        print(self.mapping)
+        return res, err
