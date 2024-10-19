@@ -106,12 +106,14 @@ def main() -> int:
             print(node.span.start, end=": ")  # TODO: use line instead of codepoint
             pprint(node)
             return 0
-    elif args.typecheck:
-        err, msg = Typer(program).check_types()
-        if msg:
-            print(msg, file=sys.stderr)
-        return err
-    elif args.interpret:
+
+    type_err, type_msg = Typer(program).check_types()
+    if args.typecheck or type_err > 0:
+        if type_msg:
+            print(type_msg, file=sys.stderr)
+        return type_err
+
+    if args.interpret:
         out = Interpreter(program).evaluate()
         if out and isinstance(out, int):
             return out
@@ -136,14 +138,14 @@ def main() -> int:
         written = file.write(bytes_)
 
     if args.compile:
-        print(f"Wrote {written} bytes to {os.path.join(os.path.curdir, path)}")
+        print(f"Wrote {written} bytes to {path}")
         return 0
 
     src_dir_path = dirname(dirname(os.path.realpath(__file__)))
     try:
         subprocess.run([src_dir_path + "/vm/main", path], check=True)
     except subprocess.CalledProcessError as e:
-        err_fmt = f"The VM exited with and error : \n{e.returncode=}\n{e.stdout=}\n{e.stderr=}"
+        err_fmt = f"The VM exited with an error : \n{e.returncode=}\n{e.stdout=}\n{e.stderr=}"
         print(
             err_fmt,
             file=sys.stderr,
