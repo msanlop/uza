@@ -47,16 +47,10 @@ class Span:
     end: int
     source: str
 
-    def __add__(self, that: object) -> Span:
-        if not isinstance(that, Span):
-            return NotImplemented
-        assert self.source == that.source
-        return Span(self.start, that.end, self.source)
-
-    def get_source(self) -> str:
-        return self.source[self.start : self.end]
-
     def _get_line(self) -> tuple[str, int, int]:
+        """
+        Return the entire line for this span.
+        """
         start = self.start
         while start > 0 and self.source[start - 1] != "\n":
             start -= 1
@@ -66,7 +60,23 @@ class Span:
 
         return (self.source[start:end], start, end)
 
+    def get_source(self) -> str:
+        """
+        Return the source code for this span.
+        """
+        return self.source[self.start : self.end]
+
     def get_underlined(self, error_message="", padding=0) -> str:
+        """
+        Return the source code line and underline the span with _error_message_.
+
+        Args:
+            error_message (str, optional): The error message. Defaults to "".
+            padding (int, optional): To align with any indenting. Defaults to 0.
+
+        Returns:
+            str: _description_
+        """
         line, start, _ = self._get_line()
         line = f"'{line}'"
         line += "\n"
@@ -79,3 +89,9 @@ class Span:
         if _is_terminal:
             line += ANSIColor.END
         return line
+
+    def __add__(self, that: object) -> Span:
+        if not isinstance(that, Span):
+            return NotImplemented
+        assert self.source == that.source
+        return Span(self.start, that.end, self.source)

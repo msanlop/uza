@@ -6,11 +6,19 @@ from ..token import *
 
 @dataclass(frozen=True)
 class Type:
+    """
+    A uza Type.
+    """
+
     identifier: str
 
 
 @dataclass(frozen=True, eq=True)
 class UnionType(Type):
+    """
+    Represents a union type.
+    """
+
     types: List[Type]
 
     def __init__(self, *types: List[Type]) -> None:
@@ -27,7 +35,7 @@ class UnionType(Type):
 
     def __eq__(self, that: object) -> bool:
         if not isinstance(that, UnionType):
-            return NotImplemented
+            return NotImplementedError
         return all(a == b for (a, b) in zip(self.types, that.types))
 
     def __add__(self, that: object) -> bool:
@@ -35,8 +43,7 @@ class UnionType(Type):
             return UnionType(*self.types, that)
         if isinstance(that, UnionType):
             return UnionType(self.types, that.types)
-        if not isinstance(that, Type):
-            return NotImplemented
+        return NotImplementedError
 
 
 @dataclass(frozen=True)
