@@ -78,7 +78,7 @@ def test_declarations():
     actual = Parser(source).parse()[0]
     expected = VarDef(
         "my_val",
-        "float",
+        type_float,
         InfixApplication(
             Literal(Token(token_number, Span(1, 1, source), "123.53")),
             Identifier(Token(token_star_double, Span(1, 1, source)), Span(1, 1, source)),
