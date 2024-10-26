@@ -11,6 +11,22 @@ class Type:
     """
 
     identifier: str
+    
+    def resolve_type(self, unused_mapping) -> Type:
+        """
+        If type is SymbolicType, flatten the map to find the final type. Otherwise
+        returns self for any other concrete type.
+        
+        This allows for easy flattening of symbolic types without having to check 
+        and if/else every time for SymbolicTypes.
+
+        Args:
+            unused_mapping Mapping: 
+
+        Returns:
+            Type: Type
+        """
+        return self
 
 
 @dataclass(frozen=True, eq=True)
@@ -29,10 +45,6 @@ class UnionType(Type):
         union = " | ".join(str(t) for t in self.types)
         return f"{union}"
 
-    def __repr__(self) -> str:
-        union = "|".join(str(t) for t in self.types)
-        return f"{UnionType.__name__}({union})"
-
     def __eq__(self, that: object) -> bool:
         if not isinstance(that, UnionType):
             return NotImplementedError
@@ -45,9 +57,25 @@ class UnionType(Type):
             return UnionType(self.types, that.types)
         return NotImplementedError
 
+@dataclass(frozen=True, eq=True)
+class ArrowType(Type):
+    """
+    An arrow type takes in a type and returns another type.
+    """
+    
+    takes: list[Type]
+    returns: Type
+    
+    def __init__(self, takes: list[Type], returns: Type) -> None:
+        super().__init__("arrow")
+        object.__setattr__(self, "takes", takes)
+        object.__setattr__(self, "returns", returns)
+
+    def __str__(self) -> str:
+        return f"({str(self.takes)} -> {str(self.returns)})"
 
 @dataclass(frozen=True)
-class BuiltInType:
+class BuiltInType(Type):
     """
     A BuiltInType is a type that is part of the standard library.
     """

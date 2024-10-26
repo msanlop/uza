@@ -40,6 +40,10 @@ def in_bold(string: str) -> str:
         return ANSIColor.BOLD + string + ANSIColor.END
     return string
 
+def in_color(string: str, color: ANSIColor) -> str:
+    if _is_terminal:
+        return color + string + ANSIColor.END
+    return string
 
 @dataclass(frozen=True)
 class Span:
