@@ -9,7 +9,7 @@ def test_add_int_float():
     foo + bar
     """
     typer = Typer(Parser(source).parse())
-    err, _ = typer.check_types()
+    err, _, _ = typer.check_types()
     assert not err
 
 
@@ -20,7 +20,7 @@ def test_add_int_string():
     foo + bar
     """
     typer = Typer(Parser(source).parse())
-    err, _ = typer.check_types()
+    err, _, _ = typer.check_types()
     assert err > 0
 
 
@@ -31,7 +31,7 @@ def test_inference():
     foo + bar
     """
     typer = Typer(Parser(source).parse())
-    err, _ = typer.check_types()
+    err, _, _ = typer.check_types()
     assert not err
 
 
@@ -42,5 +42,26 @@ def test_inference_fail():
     foo + bar
     """
     typer = Typer(Parser(source).parse())
-    err, _ = typer.check_types()
+    err, _, _ = typer.check_types()
     assert err > 0
+
+def test_inference_fail_nested():
+    source = """
+    val foo = 1
+    val bar = 123.54 + 4532
+    foo + bar + "hi"
+    """
+    typer = Typer(Parser(source).parse())
+    err, _, _ = typer.check_types()
+    assert err > 0
+
+def test_inference_fail_nested():
+    source = """
+    val foo float = 1.
+    val bar = 123.54 + 4532
+    val test = foo + bar
+    println(test)
+    """
+    typer = Typer(Parser(source).parse())
+    err, _, _ = typer.check_types()
+    assert not err
