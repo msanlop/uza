@@ -107,7 +107,9 @@ def main() -> int:
             pprint(node, stream=sys.stderr)
             return 0
 
-    type_err, type_msg, mapping_str = Typer(program).check_types(generate_mapping=args.verbose)
+    type_err, type_msg, mapping_str = Typer(program).check_types(
+        generate_mapping=args.verbose
+    )
     if args.verbose:
         print("### inferred types ###", file=sys.stderr)
         print(mapping_str, file=sys.stderr)

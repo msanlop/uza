@@ -45,6 +45,7 @@ def test_inference_fail():
     err, _, _ = typer.check_types()
     assert err > 0
 
+
 def test_inference_fail_nested():
     source = """
     val foo = 1
@@ -54,6 +55,7 @@ def test_inference_fail_nested():
     typer = Typer(Parser(source).parse())
     err, _, _ = typer.check_types()
     assert err > 0
+
 
 def test_inference_fail_nested():
     source = """

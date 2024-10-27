@@ -66,7 +66,11 @@ def test_pow_precedence_right_associative():
         Identifier(Token(token_star_double, Span(1, 1, source)), Span(1, 1, source)),
         InfixApplication(
             Literal(Token(token_number, Span(1, 1, source), "3")),
-            (Identifier(Token(token_star_double, Span(1, 1, source)), Span(1, 1, source))),
+            (
+                Identifier(
+                    Token(token_star_double, Span(1, 1, source)), Span(1, 1, source)
+                )
+            ),
             Literal(Token(token_number, Span(1, 1, source), "2")),
         ),
     )
@@ -81,7 +85,9 @@ def test_declarations():
         type_float,
         InfixApplication(
             Literal(Token(token_number, Span(1, 1, source), "123.53")),
-            Identifier(Token(token_star_double, Span(1, 1, source)), Span(1, 1, source)),
+            Identifier(
+                Token(token_star_double, Span(1, 1, source)), Span(1, 1, source)
+            ),
             Literal(Token(token_number, Span(1, 1, source), "2")),
         ),
         True,

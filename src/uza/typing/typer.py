@@ -30,9 +30,9 @@ class Mapping:
         exprs = [expr.span.get_source() for expr in self._substitutions]
         colored = [in_color(s, ANSIColor.GREEN) for s in exprs]
         max_expr_len = max(len(s) for s in colored)
-        for (idx, k) in enumerate(self._substitutions):
+        for idx, k in enumerate(self._substitutions):
             yellow_type = in_color(str(k.resolve_type(self)), ANSIColor.YELLOW)
-            out+= f"{colored[idx]:<{max_expr_len}} := {yellow_type}\n"
+            out += f"{colored[idx]:<{max_expr_len}} := {yellow_type}\n"
         return out
 
     def __add__(self, that: object):
@@ -96,7 +96,7 @@ class Constraint(ABC):
     def fail_message(self) -> str:
         """
         Returns the failed message for previous _solve()_ try. This method is
-        stateful! 
+        stateful!
         If called before _solve()_ it might have self.mapping = None. And some
         implementations generate the message while solving.
         """
@@ -196,7 +196,9 @@ class Applies(Constraint):
                 solved = False
                 if not isinstance(a, SymbolicType):
                     type_str = str(self.b)
-                    self._err_msgs += f"for function type: {in_color(type_str, ANSIColor.GREEN)}\nat "
+                    self._err_msgs += (
+                        f"for function type: {in_color(type_str, ANSIColor.GREEN)}\nat "
+                    )
                     self._err_msgs += span.get_underlined(
                         f"Expected {type_b} but found {type_a}", len("at ")
                     )
@@ -204,7 +206,9 @@ class Applies(Constraint):
                     continue
                 if mapping.get_type_of(a) is not None:
                     type_str = str(self.b)
-                    self._err_msgs += f"for function type: {in_color(type_str, ANSIColor.GREEN)}\nat "
+                    self._err_msgs += (
+                        f"for function type: {in_color(type_str, ANSIColor.GREEN)}\nat "
+                    )
                     self._err_msgs += span.get_underlined(
                         f"Expected {type_b} but found {type_a}", len("at ")
                     )
@@ -357,9 +361,9 @@ class Typer:
         self, constaints: list[Constraint], mapping: Mapping
     ) -> tuple[int, str, Mapping]:
         """
-        Recursively try to solve the contraints with the given mapping for 
+        Recursively try to solve the contraints with the given mapping for
         symbolic types.
-        
+
         One way to think of this algorithm is that is tries solving constraints
         and inferring types but backtracks (via recursion) when the current
         inffered types are not working.
@@ -395,7 +399,7 @@ class Typer:
         Args:
             generate_mapping (Mapping): generates and returns the mapping string
                 if True
-        
+
         Returns:
             tuple[int, str]: (errors found, error message, mapping string or none)
         """
