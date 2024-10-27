@@ -42,12 +42,17 @@ jobs:
         run: |
           make test  # Adjust to your testing process
           
-      - name: Check for modified files
+      - name: Check for formatting changes
         id: git-check
-        run: echo "modified=$(if git diff-index --quiet HEAD --; then echo "false"; else echo "true"; fi)" >> $GITHUB_OUTPUT
+        run: |
+          if [[ -n "$(git status --porcelain)" ]]; then
+            echo "modified=true" >> $GITHUB_ENV
+          else
+            echo "modified=false" >> $GITHUB_ENV
+          fi
 
       - name: Commit formating changes
-        if: ${{ success() && steps.git-check.outputs.modified == 'true'}}
+        if: ${{ success() && env.modified == 'true'}}
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
