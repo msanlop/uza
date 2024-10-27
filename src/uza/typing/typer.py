@@ -357,11 +357,17 @@ class Typer:
         self, constaints: list[Constraint], mapping: Mapping
     ) -> tuple[int, str, Mapping]:
         """
-        Try to solve the contraints with the given mapping for symbolic types.
+        Recursively try to solve the contraints with the given mapping for 
+        symbolic types.
+        
+        One way to think of this algorithm is that is tries solving constraints
+        and inferring types but backtracks (via recursion) when the current
+        inffered types are not working.
         """
         err = 0
         err_string = ""
         options = []
+        idx = 0
         for idx, constraint in enumerate(constaints):
             solved, options = constraint.solve(mapping)
             if options:
