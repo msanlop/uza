@@ -170,7 +170,7 @@ class ByteCodeProgram:
         self.chunk.add_op(OpCode(code_str, application.span))
 
     def _build_chunk(self):
-        for line in self.program:
+        for line in self.program.syntax_tree:
             line.visit(self)
 
 

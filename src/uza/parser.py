@@ -11,10 +11,12 @@ from .ast import (
     Node,
     PrefixApplication,
     VarDef,
+    Error,
     Program,
+    VarRedef,
 )
 
-from .utils import Span
+from .utils import Span, SymbolTable
 from .token import *
 from .typing import typer
 
@@ -93,8 +95,8 @@ class Scanner:
         elif char in string.ascii_letters:
             word, end = self._get_next_word()
             match word:
-                case "val":
-                    type_ = token_val  # TODO: test type()
+                case "const":
+                    type_ = token_const
                 case "var":
                     type_ = token_var
                 case "and":
@@ -163,6 +165,15 @@ class Parser:
     def __init__(self, source: str):
         self._tokens = deque(Scanner(source))
         self._source = source
+        self._errors = 0
+        self.failed_nodes = []
+
+        # map of (identifier -> bool) for mutability
+        self._symbol_table = SymbolTable()
+
+    def _log_error(self, error: Error):
+        self._errors += 1
+        self.failed_nodes.append(error)
 
     def _peek(self):
         if len(self._tokens) == 0:
@@ -183,7 +194,7 @@ class Parser:
     def _get_top_level(self) -> Node:
         next_ = self._peek()
 
-        if next_.kind in (token_val, token_var):
+        if next_.kind in (token_const, token_var):
             res = self._get_var_def()
         else:
             res = self._get_expr()
@@ -192,9 +203,21 @@ class Parser:
             self._expect(token_new_line)
         return res
 
+    def _get_var_redef(self, identifier: Identifier) -> Node:
+        if self._peek().kind == token_identifier:
+            type_tok = self._expect(token_identifier)
+            type_ = typer.identifier_to_uza_type(type_tok)
+        else:
+            type_ = None
+        self._expect(token_eq)
+        value = self._get_infix(self._get_expr())
+        is_immutable = self._symbol_table.get(identifier.name)
+
+        return VarRedef(identifier.name, value, identifier.span + value.span)
+
     def _get_var_def(self) -> Node:
-        decl_token = self._expect(token_var, token_val)
-        immutable = decl_token.kind == token_val
+        decl_token = self._expect(token_var, token_const)
+        immutable = decl_token.kind == token_const
         identifier = self._expect(token_identifier)
         if self._peek().kind == token_identifier:
             type_tok = self._expect(token_identifier)
@@ -203,7 +226,14 @@ class Parser:
             type_ = None
         self._expect(token_eq)
         value = self._get_infix(self._get_expr())
-
+        if not self._symbol_table.define(identifier.repr, immutable):
+            err = Error(
+                identifier.span.get_underlined(
+                    f"'{identifier.repr}' has already been defined in this scope",
+                )
+            )
+            self._log_error(err)
+            return err
         return VarDef(
             identifier.repr,
             type_,
@@ -241,6 +271,8 @@ class Parser:
             identifier_tok = self._expect(token_identifier)
             identifier = Identifier(identifier_tok, identifier_tok.span)
             tok = self._peek()
+            if tok.kind == token_eq:
+                return self._get_var_redef(identifier)
             if tok.kind != token_paren_l:
                 return self._get_infix(identifier)
 
@@ -309,4 +341,4 @@ class Parser:
             expr = self._get_top_level()
             expressions.append(expr)
 
-        return expressions
+        return Program(expressions, self._errors, self.failed_nodes)

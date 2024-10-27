@@ -13,7 +13,9 @@ from .ast import (
     Value,
     VarDef,
     Program,
+    VarRedef,
 )
+from .utils import SymbolTable
 
 
 @dataclass(frozen=True)
@@ -54,52 +56,6 @@ def get_builtin(identifier: Identifier) -> Optional[BuiltIn]:
     return _builtins.get(identifier.name)
 
 
-class Context:
-    """Excetution context that containts the stack frames.
-
-    _frames_ is queue of locals, a tuple with the context name and a dict with
-    the (variable name, value) pairs.
-    """
-
-    frames: deque[tuple[str, dict[str, Value]]]
-
-    def __init__(
-        self, frames: deque[tuple[str, dict[str, Value]]] | None = None
-    ) -> None:
-        """Excetution context that containts the stack frames. Each frame has a
-        context name and the local definitions.
-
-        Args:
-            frames (deque[tuple[str, dict[str, Value]]], optional):
-                Defaults to deque().
-        """
-        if not frames:
-            self.frames: deque[tuple[str, dict[str, Value]]] = deque()
-            self.frames.appendleft(("", {}))
-        else:
-            self.frames = frames
-
-    def with_new_frame(self, context_name: str, frame: dict[str, Value]) -> Context:
-        new_frames = deque((*self.frames, (context_name, frame)))
-        return Context(new_frames)
-
-    def define(self, variable_name: str, value: Value) -> None:
-        top_frame = self.frames[0]
-        frame_locals = top_frame[1]
-        frame_locals[variable_name] = value
-
-    def get(self, identifier: str) -> Value:
-        for frame in self.frames:
-            frame_locals = frame[1]
-            value = frame_locals.get(identifier)
-            if value is not None:
-                return value
-        raise NameError(f'"{identifier}" has not been defined')
-
-    def reassign(self, identifier: str, new_value: Value) -> None:
-        pass  # immutable check in the parser
-
-
 class Interpreter:
     """
     A class that takes in a program and interprets it by walking the AST.
@@ -109,12 +65,9 @@ class Interpreter:
     VM interpretation and to more easily test ideas.
     """
 
-    def __init__(self, ast: Program | Node):
-        self._context = Context()
-        if isinstance(ast, Node):
-            self._program = [ast]
-        else:
-            self._program = ast
+    def __init__(self, program: Program | Node):
+        self._context = SymbolTable()
+        self._program = program
 
     T = TypeVar("T")
     R = TypeVar("R")
@@ -171,6 +124,10 @@ class Interpreter:
         value = definition.value.visit(self)
         self._context.define(definition.identifier, value)
 
+    def visit_var_redef(self, redef: VarRedef):
+        value = redef.value.visit(self)
+        self._context.reassign(redef.identifier, value)
+
     def visit_identifier(self, identifier: Identifier):
         return self._context.get(identifier.name)
 
@@ -207,5 +164,5 @@ class Interpreter:
         Returns:
             Optional[int | float]: return the evaluated result of the last line
         """
-        lines = [node.visit(self) for node in self._program]
+        lines = [node.visit(self) for node in self._program.syntax_tree]
         return lines[-1]

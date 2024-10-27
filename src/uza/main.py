@@ -101,11 +101,15 @@ def main() -> int:
         return 1
 
     program = Parser(source).parse()
-    if args.parse:
-        for i, node in enumerate(program):
+    if args.verbose:
+        for i, node in enumerate(program.syntax_tree):
             print(node.span.start, end=": ")  # TODO: use line instead of codepoint
             pprint(node, stream=sys.stderr)
-            return 0
+
+    if program.errors:
+        for node in program.failed_nodes:
+            print(node.error_message, file=sys.stderr)
+            return program.errors
 
     type_err, type_msg, mapping_str = Typer(program).check_types(
         generate_mapping=args.verbose

@@ -4,8 +4,8 @@ from src.uza.parser import Parser
 
 def test_add_int_float():
     source = """
-    val foo float = 123.5
-    val bar int = 123
+    const foo float = 123.5
+    const bar int = 123
     foo + bar
     """
     typer = Typer(Parser(source).parse())
@@ -15,8 +15,8 @@ def test_add_int_float():
 
 def test_add_int_string():
     source = """
-    val foo float = 123.5
-    val bar string = "123"
+    const foo float = 123.5
+    const bar string = "123"
     foo + bar
     """
     typer = Typer(Parser(source).parse())
@@ -26,8 +26,8 @@ def test_add_int_string():
 
 def test_inference():
     source = """
-    val foo = 1
-    val bar = 1
+    const foo = 1
+    const bar = 1
     foo + bar
     """
     typer = Typer(Parser(source).parse())
@@ -37,8 +37,8 @@ def test_inference():
 
 def test_inference_fail():
     source = """
-    val foo = 1
-    val bar = "hello"
+    const foo = 1
+    const bar = "hello"
     foo + bar
     """
     typer = Typer(Parser(source).parse())
@@ -48,8 +48,8 @@ def test_inference_fail():
 
 def test_inference_fail_nested():
     source = """
-    val foo = 1
-    val bar = 123.54 + 4532
+    const foo = 1
+    const bar = 123.54 + 4532
     foo + bar + "hi"
     """
     typer = Typer(Parser(source).parse())
@@ -59,11 +59,38 @@ def test_inference_fail_nested():
 
 def test_inference_var_defs():
     source = """
-    val foo float = 1.
-    val bar = 123.54 + 4532
-    val test = foo + bar
+    const foo float = 1.
+    const bar = 123.54 + 4532
+    const test = foo + bar
     println(test)
     """
     typer = Typer(Parser(source).parse())
     err, _, _ = typer.check_types()
     assert not err
+
+def test_const_redef_fails():
+    source = """
+    const foo float = 1.
+    foo = 2.
+    """
+    typer = Typer(Parser(source).parse())
+    err, _, _ = typer.check_types()
+    assert err == 1
+
+def test_var_redef_works():
+    source = """
+    var foo float = 1.
+    foo = 2.
+    """
+    typer = Typer(Parser(source).parse())
+    err, _, _ = typer.check_types()
+    assert not err
+
+def test_var_type_redef_fails():
+    source = """
+    var foo float = 1.
+    foo = 123
+    """
+    typer = Typer(Parser(source).parse())
+    err, _, _ = typer.check_types()
+    assert err > 0

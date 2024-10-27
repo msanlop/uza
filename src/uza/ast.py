@@ -130,6 +130,24 @@ class VarDef(Node):
 
 
 @dataclass
+class VarRedef(Node):
+    identifier: str
+    value: Node
+    span: Span = field(compare=False)
+
+    def visit(self, that):
+        return that.visit_var_redef(self)
+
+
+@dataclass
+class Error(Node):
+    error_message: str
+
+    def visit(self, that):
+        return that.visit_error(self)
+
+
+@dataclass
 class Value:
     """
     Defines a value.
@@ -140,4 +158,8 @@ class Value:
     immutable: bool = False
 
 
-Program = List[Node]
+@dataclass
+class Program:
+    syntax_tree: list[Node]
+    errors: int
+    failed_nodes: List[Error]

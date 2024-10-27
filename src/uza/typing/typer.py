@@ -5,7 +5,7 @@ from itertools import count, permutations
 
 from .type import *
 from ..token import *
-from ..ast import InfixApplication, Literal, Program, VarDef
+from ..ast import InfixApplication, Literal, Program, VarDef, Error, VarRedef
 from ..interpreter import *
 from ..utils import in_bold, in_color, ANSIColor
 
@@ -271,18 +271,35 @@ class IsNotVoid(Constraint):
 
 
 class Typer:
+    """
+    Represents a typer than can typecheck a uza program.
+    """
+
     def __init__(self, program: Program) -> None:
         self.program = program
         self.constaints: List[Constraint] = []
-        self.context = Context()
+
+        # map from identifier in frame to tuple[Type, true if const, false if var]
+        self.symbols = SymbolTable()
+
         self.symbol_gen = count()
         self.mapping = Mapping({})
+        self._error_strings: list[str] = []
 
     def _create_new_symbol(self, node: Node):
         """
         Return a new unique SymbolicType.
         """
         return SymbolicType("symbolic_" + str(next(self.symbol_gen)), node.span)
+
+    def _get_type_of_identifier(self, identifier: str) -> Type:
+        return self.symbols.get(identifier)[0]
+
+    def _var_is_immutable(self, identifier: str) -> Type:
+        pair = self.symbols.get(identifier)
+        if pair is None:
+            return None
+        return pair[1]
 
     def add_constaint(self, constraint: Constraint) -> None:
         """
@@ -341,7 +358,7 @@ class Typer:
         return self.visit_builtin(builtin, infix.lhs, infix.rhs)
 
     def visit_identifier(self, identifier: Identifier):
-        return self.context.get(identifier.name)
+        return self.symbols.get(identifier.name)[0]
 
     def visit_application(self, app: Application):
         func_id = app.func_id
@@ -352,10 +369,34 @@ class Typer:
     def visit_var_def(self, var_def: VarDef):
         t = var_def.type_ if var_def.type_ else self._create_new_symbol(var_def)
         self.constaints.append(IsType(t, var_def.value.visit(self), var_def.span))
-        self.context.define(var_def.identifier, t)
+        self.symbols.define(var_def.identifier, (t, var_def.immutable))
+
+    def visit_var_redef(self, redef: VarRedef):
+        identifier = redef.identifier
+        is_immutable = self._var_is_immutable(identifier)
+        if is_immutable is None:
+            err = redef.span.get_underlined(
+                f"'{identifier}' must be declared before reassignement",
+            )
+            self._error_strings.append(err)
+        if is_immutable is True:
+            err = redef.span.get_underlined(
+                f"cannot reassign const variable '{identifier}'",
+            )
+            self._error_strings.append(err)
+        self.add_constaint(
+            IsType(
+                redef.value.visit(self),
+                self._get_type_of_identifier(redef.identifier),
+                redef.span,
+            )
+        )
 
     def visit_literal(self, literal: Literal):
         return python_type_to_uza_type(type(literal.value))
+
+    def visit_error(self, error: Error):
+        raise RuntimeError(f"Unexpected visit to error node :{error} in typer")
 
     def _check_with_mapping(
         self, constaints: list[Constraint], mapping: Mapping
@@ -401,14 +442,21 @@ class Typer:
                 if True
 
         Returns:
-            tuple[int, str]: (errors found, error message, mapping string or none)
+            tuple[int, str, str]: (errors found, error message, mapping string or none)
         """
-        for node in self.program:
+        for node in self.program.syntax_tree:
             node.visit(self)
 
-        res, err, mapping = self._check_with_mapping(self.constaints, self.mapping)
+        errors = len(self._error_strings)
+        if errors > 0:
+            return errors, "\n".join(self._error_strings), None
+
+        errors, err_str, mapping = self._check_with_mapping(
+            self.constaints, self.mapping
+        )
         if generate_mapping:
-            out_str = mapping.pretty_str_mapping()
+            verbose_map = mapping.pretty_str_mapping()
         else:
-            out_str = None
-        return res, err, out_str
+            verbose_map = ""
+
+        return errors, err_str, verbose_map
