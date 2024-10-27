@@ -87,7 +87,7 @@ class Scanner:
             str_end = end - 1
             new_string_token = Token(
                 type_,
-                Span(str_start, str_end, self._source),
+                Span(str_start - 1, str_end + 1, self._source),  # span includes quotes
                 self._source[str_start:str_end],
             )
             self._start = end
@@ -230,7 +230,8 @@ class Parser:
             err = Error(
                 identifier.span.get_underlined(
                     f"'{identifier.repr}' has already been defined in this scope",
-                )
+                ),
+                decl_token.span + identifier.span,
             )
             self._log_error(err)
             return err
@@ -340,5 +341,4 @@ class Parser:
 
             expr = self._get_top_level()
             expressions.append(expr)
-
         return Program(expressions, self._errors, self.failed_nodes)

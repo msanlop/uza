@@ -142,6 +142,7 @@ class VarRedef(Node):
 @dataclass
 class Error(Node):
     error_message: str
+    span: Span = field(compare=False)
 
     def visit(self, that):
         return that.visit_error(self)
