@@ -68,6 +68,7 @@ def test_inference_var_defs():
     err, _, _ = typer.check_types()
     assert not err
 
+
 def test_const_redef_fails():
     source = """
     const foo float = 1.
@@ -77,6 +78,7 @@ def test_const_redef_fails():
     err, _, _ = typer.check_types()
     assert err == 1
 
+
 def test_var_redef_works():
     source = """
     var foo float = 1.
@@ -85,6 +87,7 @@ def test_var_redef_works():
     typer = Typer(Parser(source).parse())
     err, _, _ = typer.check_types()
     assert not err
+
 
 def test_var_type_redef_fails():
     source = """
