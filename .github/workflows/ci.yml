@@ -41,6 +41,21 @@ jobs:
       - name: Build and run tests
         run: |
           make test  # Adjust to your testing process
+          
+      - name: Check for modified files
+        id: git-check
+        run: echo "modified=$(if git diff-index --quiet HEAD --; then echo "false"; else echo "true"; fi)" >> $GITHUB_OUTPUT
+
+      - name: Commit formating changes
+        if: ${{ success() && steps.git-check.outputs.modified == 'true'}}
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add src test
+          git commit -m "apply automated code formating"
+          git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Cleanup
         run: |
