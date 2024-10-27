@@ -70,17 +70,33 @@ class Constraint(ABC):
 
     def solve(self, mapping: Mapping) -> tuple[bool, Optional[list[tuple]]]:
         """
-        If the constraint can be check, returns a bool, otherwise returns a tuple
-        with the SymbolicType mapped to the type.
+        Tries to solve the constraint. Three outcomes are possible:
+        - The contraint holds
+        - The constraint 'fails' but returns a list of mapping for symbolic types
+        - The constraint fails
+
+        Args:
+            mapping (Mapping): the current mapping of symbolic types
+
+        Raises:
+            NotImplementedError: if the contraint doesn't implement <solve>
+
+        Returns:
+            tuple[bool, Optional[list[tuple]]]:
+                (true, None) if holds
+                (false, None) if not solvable
+                (false, list) for a list of possible substitutions
         """
-        raise NotImplementedError(f"visit not implemented for {self}")
+        raise NotImplementedError(f"<solve> not implemented for {self}")
 
     def fail_message(self) -> str:
         """
         Returns the failed message for previous _solve()_ try. This method is
-        stateful! If called before _solve()_ it might have self.mapping = None.
+        stateful! 
+        If called before _solve()_ it might have self.mapping = None. And some
+        implementations generate the message while solving.
         """
-        raise NotImplementedError(f"visit not implemented for {self}")
+        raise NotImplementedError(f"<fail_message> not implemented for {self}")
 
 
 @dataclass
@@ -159,6 +175,7 @@ class Applies(Constraint):
     _err_msgs: Optional[str] = field(default=None)
 
     def solve(self, mapping: Mapping):
+        self._err_msgs = ""
         num_args = len(self.args)
         num_params = len(self.b.parameters)
         if num_args != num_params:
@@ -167,7 +184,6 @@ class Applies(Constraint):
 
         fatal = False
         solved = True
-        self._err_msgs = ""
         option = mapping
         for a, b, span in zip(self.args, self.b.parameters, self.args_span):
             type_a = a.resolve_type(mapping)
