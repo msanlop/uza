@@ -57,7 +57,7 @@ def test_inference_fail_nested():
     assert err > 0
 
 
-def test_inference_fail_nested():
+def test_inference_var_defs():
     source = """
     val foo float = 1.
     val bar = 123.54 + 4532
