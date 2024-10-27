@@ -25,11 +25,15 @@ class Mapping:
         """
         return self._substitutions.get(t)
 
-    def pretty_print_mapping(self):
-        for k in self._substitutions:
-            green_expr = in_color(k.span.get_source(), ANSIColor.GREEN)
-            yellow_type = in_color(str(self.get_type_of(k)), ANSIColor.YELLOW)
-            print(f"{green_expr: <40} := {yellow_type}")
+    def pretty_str_mapping(self):
+        out = ""
+        exprs = [expr.span.get_source() for expr in self._substitutions]
+        colored = [in_color(s, ANSIColor.GREEN) for s in exprs]
+        max_expr_len = max(len(s) for s in colored)
+        for (idx, k) in enumerate(self._substitutions):
+            yellow_type = in_color(str(k.resolve_type(self)), ANSIColor.YELLOW)
+            out+= f"{colored[idx]:<{max_expr_len}} := {yellow_type}\n"
+        return out
 
     def __add__(self, that: object):
         if isinstance(that, tuple) and len(that) == 2:
@@ -360,7 +364,6 @@ class Typer:
         options = []
         for idx, constraint in enumerate(constaints):
             solved, options = constraint.solve(mapping)
-            # if constraint fails return TODO: check the rest of types
             if options:
                 break
             if not solved:
@@ -378,17 +381,24 @@ class Typer:
 
         return err, err_string, mapping
 
-    def check_types(self) -> tuple[int, str]:
+    def check_types(self, generate_mapping=False) -> tuple[int, str, str]:
         """
         Types checks the proram and returns the returns a tuple with the number
         of errors found and any error messages.
 
+        Args:
+            generate_mapping (Mapping): generates and returns the mapping string
+                if True
+        
         Returns:
-            tuple[int, str]: errors found, error message
+            tuple[int, str]: (errors found, error message, mapping string or none)
         """
         for node in self.program:
             node.visit(self)
 
-        res, err, map_ = self._check_with_mapping(self.constaints, self.mapping)
-        map_.pretty_print_mapping()
-        return res, err
+        res, err, mapping = self._check_with_mapping(self.constaints, self.mapping)
+        if generate_mapping:
+            out_str = mapping.pretty_str_mapping()
+        else:
+            out_str = None
+        return res, err, out_str
