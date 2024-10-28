@@ -26,7 +26,8 @@ class Scanner:
     The Scanner class is a iterator over the token of a given source file.
     """
 
-    def __init__(self, source: str):
+    def __init__(self, source: str, keep_comments = False):
+        self._keep_comments = keep_comments
         self._source = source
         self._source_len = len(source)
         self._start = 0
@@ -63,6 +64,12 @@ class Scanner:
         while self._char_at(end) != '"':
             end += 1
         return self._source[self._start : end], end
+    
+    def _get_next_comment(self) -> int:
+        end = self._start + 1
+        while(not self._overflows(end) and self._char_at(end) != "\n"):
+            end += 1
+        return end
 
     def _next_token(self) -> Optional[Token]:
         self._consume_white_space()
@@ -73,6 +80,19 @@ class Scanner:
         if char == "\n":
             end = self._start + 1
             type_ = token_new_line
+        elif char == "/":
+            idx = self._start + 1
+            if self._overflows(idx):
+                end = idx
+                type_ = token_slash
+            else:
+                second = self._char_at(idx)
+                if second != "/":
+                    end = idx
+                    type_ = token_slash
+                else:
+                    end = self._get_next_comment()
+                    type_ = token_comment
         elif char in string.digits:
             end = self._next_numeral()
             type_ = token_number
@@ -151,6 +171,10 @@ class Scanner:
     def __next__(self):
         while self._start < self._source_len:
             token = self._next_token()
+            if not self._keep_comments:
+                while token and token.kind == token_comment:
+                    token = self._next_token()
+                
             if token is None:
                 raise StopIteration
             return token
@@ -272,6 +296,8 @@ class Parser:
             identifier_tok = self._expect(token_identifier)
             identifier = Identifier(identifier_tok, identifier_tok.span)
             tok = self._peek()
+            if not tok:
+                return identifier
             if tok.kind == token_eq:
                 return self._get_var_redef(identifier)
             if tok.kind != token_paren_l:
@@ -332,7 +358,7 @@ class Parser:
 
     def parse(self) -> Program:
         if not self._peek():
-            return []
+            return Program([], 0, [])
         expressions = []
         while len(self._tokens) > 0:
             if self._peek().kind == token_new_line:

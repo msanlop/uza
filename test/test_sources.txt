@@ -13,6 +13,11 @@ println(3.333 * 3)
 #expected
 9.999
 
+#test end of line comments
+println(3.333 * 3) // some dumb stupid little comment!!!!
+#expected
+9.999
+
 //#test simple arithmetic with values
 //val a float = 1.5
 //val b float = 1.5
