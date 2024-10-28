@@ -120,12 +120,12 @@ def main() -> int:
     if args.parse:
         return 0
 
-    type_err, type_msg, mapping_str = Typer(program).check_types(
-        generate_mapping=args.verbose
+    type_err, type_msg, substitution_str = Typer(program).check_types(
+        output_substitution=args.verbose
     )
     if args.verbose:
         print(in_color("\n### inferred types ###\n", ANSIColor.YELLOW), file=stderr)
-        print(mapping_str, file=stderr)
+        print(substitution_str, file=stderr)
     if args.typecheck or type_err > 0:
         if type_msg:
             print(type_msg, file=stderr)

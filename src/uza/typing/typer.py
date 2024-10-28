@@ -11,21 +11,21 @@ from ..utils import in_bold, in_color, ANSIColor
 
 
 @dataclass
-class Mapping:
+class Substitution:
     """
-    A mapping is a map from symbolic types to real types.
+    A substitution is a map from symbolic types to real types.
     """
 
     _substitutions: dict["SymbolicType", Type]
 
     def get_type_of(self, t: "SymbolicType") -> Optional[Type]:
         """
-        Returns the substited real type for _t_ in this mapping. None if not
+        Returns the substited real type for _t_ in this substitution. None if not
         substitution found.
         """
         return self._substitutions.get(t)
 
-    def pretty_str_mapping(self):
+    def pretty_string(self):
         out = ""
         exprs = [expr.span.get_source() for expr in self._substitutions]
         colored = [in_color(s, ANSIColor.GREEN) for s in exprs]
@@ -38,9 +38,9 @@ class Mapping:
     def __add__(self, that: object):
         if isinstance(that, tuple) and len(that) == 2:
             new_dict = {that[0]: that[1], **self._substitutions}
-            return Mapping(new_dict)
-        if isinstance(that, Mapping):
-            return Mapping(self._substitutions | that._substitutions)
+            return Substitution(new_dict)
+        if isinstance(that, Substitution):
+            return Substitution(self._substitutions | that._substitutions)
         raise NotImplementedError(f"Can't add {self.__class__} and {that.__class__}")
 
 
@@ -56,12 +56,12 @@ class SymbolicType(Type):
     identifier: str
     span: Span
 
-    def resolve_type(self, mapping: Mapping) -> Type:
-        t = mapping.get_type_of(self)
+    def resolve_type(self, substitution: Substitution) -> Type:
+        t = substitution.get_type_of(self)
         if t is None:
             return self
         if isinstance(t, SymbolicType):
-            return t.resolve_type(mapping)
+            return t.resolve_type(substitution)
         return t
 
     def __str__(self) -> str:
@@ -70,17 +70,17 @@ class SymbolicType(Type):
 
 class Constraint(ABC):
     span: Span
-    mapping: Mapping
+    substitution: Substitution
 
-    def solve(self, mapping: Mapping) -> tuple[bool, Optional[list[tuple]]]:
+    def solve(self, substitution: Substitution) -> tuple[bool, Optional[list[Substitution]]]:
         """
         Tries to solve the constraint. Three outcomes are possible:
         - The contraint holds
-        - The constraint 'fails' but returns a list of mapping for symbolic types
+        - The constraint 'fails' but returns a list of substitution for symbolic types
         - The constraint fails
 
         Args:
-            mapping (Mapping): the current mapping of symbolic types
+            substitution (Substitution): the current substitution of symbolic types
 
         Raises:
             NotImplementedError: if the contraint doesn't implement <solve>
@@ -97,7 +97,7 @@ class Constraint(ABC):
         """
         Returns the failed message for previous _solve()_ try. This method is
         stateful!
-        If called before _solve()_ it might have self.mapping = None. And some
+        If called before _solve()_ it might have self.substitution = None. And some
         implementations generate the message while solving.
         """
         raise NotImplementedError(f"<fail_message> not implemented for {self}")
@@ -112,21 +112,21 @@ class IsType(Constraint):
     a: Type
     b: Type
     span: Span
-    mapping: Mapping = field(default=None)
+    substitution: Substitution = field(default=None)
 
-    def solve(self, mapping: Mapping):
-        self.mapping = mapping
-        type_a = self.a.resolve_type(mapping)
-        type_b = self.b.resolve_type(mapping)
+    def solve(self, substitution: Substitution):
+        self.substitution = substitution
+        type_a = self.a.resolve_type(substitution)
+        type_b = self.b.resolve_type(substitution)
         if type_a == type_b:
             return True, None
         if isinstance(type_a, SymbolicType) or isinstance(type_b, SymbolicType):
-            return False, [mapping + (self.a, self.b)]
+            return False, [substitution + (self.a, self.b)]
         return False, None
 
     def fail_message(self) -> str:
-        type_b = self.b.resolve_type(self.mapping)
-        type_a = self.a.resolve_type(self.mapping)
+        type_b = self.b.resolve_type(self.substitution)
+        type_a = self.a.resolve_type(self.substitution)
         source = self.span.get_underlined(
             error_message=f" Expected type '{type_b}' but found '{type_a}'",
             padding=len("at "),
@@ -143,20 +143,20 @@ class IsSubType(Constraint):
     a: Type
     b: UnionType
     span: Span
-    mapping: Mapping = field(default=None)
+    substitution: Substitution = field(default=None)
 
-    def solve(self, mapping: Mapping):
-        self.mapping = mapping
-        type_a = self.a.resolve_type(mapping)
-        types_b = (t.resolve_type(mapping) for t in self.b.types)
+    def solve(self, substitution: Substitution):
+        self.substitution = substitution
+        type_a = self.a.resolve_type(substitution)
+        types_b = (t.resolve_type(substitution) for t in self.b.types)
         for possible_type in types_b:
             if type_a == possible_type:
                 return True, None
-        return False, (mapping + (self.a, t) for t in types_b)
+        return False, (substitution + (self.a, t) for t in types_b)
 
     def fail_message(self) -> str:
-        type_a = self.a.resolve_type(self.mapping)
-        type_b = UnionType(t.resolve_type(self.mapping) for t in self.b.types)
+        type_a = self.a.resolve_type(self.substitution)
+        type_b = UnionType(t.resolve_type(self.substitution) for t in self.b.types)
         source = self.span.get_underlined(
             error_message=f" Expected type '{type_b}' but found '{type_a}'",
             padding=len("at "),
@@ -174,11 +174,11 @@ class Applies(Constraint):
     args_span: list[Span]
     b: ArrowType
     span: Span  # TODO: change args to have more precise span to the argument
-    mapping: Mapping = field(default=None)
+    substitution: Substitution = field(default=None)
     _args_num_incorrect: Optional[tuple[int]] = field(default=None)
     _err_msgs: Optional[str] = field(default=None)
 
-    def solve(self, mapping: Mapping):
+    def solve(self, substitution: Substitution):
         self._err_msgs = ""
         num_args = len(self.args)
         num_params = len(self.b.parameters)
@@ -188,10 +188,10 @@ class Applies(Constraint):
 
         fatal = False
         solved = True
-        option = mapping
+        option = substitution
         for a, b, span in zip(self.args, self.b.parameters, self.args_span):
-            type_a = a.resolve_type(mapping)
-            type_b = b.resolve_type(mapping)
+            type_a = a.resolve_type(substitution)
+            type_b = b.resolve_type(substitution)
             if type_a != type_b:
                 solved = False
                 if not isinstance(a, SymbolicType):
@@ -204,7 +204,7 @@ class Applies(Constraint):
                     )
                     fatal = True
                     continue
-                if mapping.get_type_of(a) is not None:
+                if substitution.get_type_of(a) is not None:
                     type_str = str(self.b)
                     self._err_msgs += (
                         f"for function type: {in_color(type_str, ANSIColor.GREEN)}\nat "
@@ -236,19 +236,20 @@ class OneOf(Constraint):
 
     choices: List[Constraint]
     span: Span
-    mapping: Mapping = field(default=None)
+    substitution: Substitution = field(default=None)
     _a_solved: list[bool] = field(default=None)
 
-    def solve(self, mapping: Mapping) -> bool:
-        self.mapping = mapping
+    def solve(self, substitution: Substitution) -> bool:
+        self.substitution = substitution
         choices_options = []
         for choice in self.choices:
-            works, options = choice.solve(mapping)
+            works, options = choice.solve(substitution)
             if works:
                 return works, None
             if options:
                 choices_options.append(options)
-
+        if len(choices_options) == 0:
+            choices_options = None
         return False, choices_options
 
     def fail_message(self) -> str:
@@ -266,7 +267,7 @@ class IsNotVoid(Constraint):
     def __init__(self, *types: Type):
         self.types = types
 
-    def solve(self, mapping: Mapping) -> bool:
+    def solve(self, substitution: Substitution) -> bool:
         return type_void not in self.types
 
 
@@ -283,7 +284,7 @@ class Typer:
         self.symbols = SymbolTable()
 
         self.symbol_gen = count()
-        self.mapping = Mapping({})
+        self.substitution = Substitution({})
         self._error_strings: list[str] = []
 
     def _create_new_symbol(self, node: Node):
@@ -398,51 +399,50 @@ class Typer:
     def visit_error(self, error: Error):
         raise RuntimeError(f"Unexpected visit to error node :{error} in typer")
 
-    def _check_with_mapping(
-        self, constaints: list[Constraint], mapping: Mapping
-    ) -> tuple[int, str, Mapping]:
+    def _check_with_sub(
+        self, constaints: list[Constraint], substitution: Substitution
+    ) -> tuple[int, str, Substitution]:
         """
-        Recursively try to solve the contraints with the given mapping for
+        Recursively try to unify the constraints with the given substitution for
         symbolic types.
 
         One way to think of this algorithm is that is tries solving constraints
         and inferring types but backtracks (via recursion) when the current
-        inffered types are not working.
+        inferred types are not working, i.e. the substitution does not unify
+        the constraints.
         """
         err = 0
         err_string = ""
         options = []
         idx = 0
         for idx, constraint in enumerate(constaints):
-            solved, options = constraint.solve(mapping)
-            if options:
-                break
-            if not solved:
-                return 1, constraint.fail_message(), mapping
+            solved, options = constraint.solve(substitution)
+            match solved, options:
+                case False, None:
+                    return 1, constraint.fail_message(), substitution
+                case False, options_list:
+                    for option in options_list:
+                        err, err_string, new_map = self._check_with_sub(
+                            constaints[idx + 1 :], option
+                        )
+                        if not err:
+                            return 0, "", new_map
+                    break
 
-        if not options:
-            return 0, "", mapping
+        
+        return err, err_string, substitution
 
-        for option in options:
-            err, err_string, new_map = self._check_with_mapping(
-                constaints[idx + 1 :], option
-            )
-            if not err:
-                return 0, "", new_map
-
-        return err, err_string, mapping
-
-    def check_types(self, generate_mapping=False) -> tuple[int, str, str]:
+    def check_types(self, output_substitution=False) -> tuple[int, str, str]:
         """
         Types checks the proram and returns the returns a tuple with the number
         of errors found and any error messages.
 
         Args:
-            generate_mapping (Mapping): generates and returns the mapping string
+            generate_substitution (Substitution): generates and returns the substitution string
                 if True
 
         Returns:
-            tuple[int, str, str]: (errors found, error message, mapping string or none)
+            tuple[int, str, str]: (errors found, error message, substitution string or none)
         """
         for node in self.program.syntax_tree:
             node.visit(self)
@@ -451,11 +451,11 @@ class Typer:
         if errors > 0:
             return errors, "\n".join(self._error_strings), None
 
-        errors, err_str, mapping = self._check_with_mapping(
-            self.constaints, self.mapping
+        errors, err_str, substitution = self._check_with_sub(
+            self.constaints, self.substitution
         )
-        if generate_mapping:
-            verbose_map = mapping.pretty_str_mapping()
+        if output_substitution:
+            verbose_map = substitution.pretty_string()
         else:
             verbose_map = ""
 

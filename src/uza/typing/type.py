@@ -12,16 +12,18 @@ class Type:
 
     identifier: str
 
-    def resolve_type(self, unused_mapping) -> Type:
+    def resolve_type(self, substitution) -> Type:
         """
         If type is SymbolicType, flatten the map to find the final type. Otherwise
         returns self for any other concrete type.
+        For example with substitution {a: b, b: int}: a.resolve_type = int
 
         This allows for easy flattening of symbolic types without having to check
-        and if/else every time for SymbolicTypes.
+        and if/else every time for SymbolicTypes. 
+        TODO: see if avoiding useless function calls by checking has significant better perf
 
         Args:
-            unused_mapping Mapping:
+            substitution Substitution:
 
         Returns:
             Type: Type
