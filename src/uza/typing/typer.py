@@ -72,7 +72,9 @@ class Constraint(ABC):
     span: Span
     substitution: Substitution
 
-    def solve(self, substitution: Substitution) -> tuple[bool, Optional[list[Substitution]]]:
+    def solve(
+        self, substitution: Substitution
+    ) -> tuple[bool, Optional[list[Substitution]]]:
         """
         Tries to solve the constraint. Three outcomes are possible:
         - The contraint holds
@@ -429,7 +431,6 @@ class Typer:
                             return 0, "", new_map
                     break
 
-        
         return err, err_string, substitution
 
     def check_types(self, output_substitution=False) -> tuple[int, str, str]:

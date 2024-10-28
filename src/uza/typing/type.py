@@ -19,7 +19,7 @@ class Type:
         For example with substitution {a: b, b: int}: a.resolve_type = int
 
         This allows for easy flattening of symbolic types without having to check
-        and if/else every time for SymbolicTypes. 
+        and if/else every time for SymbolicTypes.
         TODO: see if avoiding useless function calls by checking has significant better perf
 
         Args:
