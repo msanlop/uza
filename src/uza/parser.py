@@ -26,7 +26,7 @@ class Scanner:
     The Scanner class is a iterator over the token of a given source file.
     """
 
-    def __init__(self, source: str, keep_comments = False):
+    def __init__(self, source: str, keep_comments=False):
         self._keep_comments = keep_comments
         self._source = source
         self._source_len = len(source)
@@ -64,10 +64,10 @@ class Scanner:
         while self._char_at(end) != '"':
             end += 1
         return self._source[self._start : end], end
-    
+
     def _get_next_comment(self) -> int:
         end = self._start + 1
-        while(not self._overflows(end) and self._char_at(end) != "\n"):
+        while not self._overflows(end) and self._char_at(end) != "\n":
             end += 1
         return end
 
@@ -174,7 +174,7 @@ class Scanner:
             if not self._keep_comments:
                 while token and token.kind == token_comment:
                     token = self._next_token()
-                
+
             if token is None:
                 raise StopIteration
             return token
