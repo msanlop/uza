@@ -57,7 +57,7 @@ void load_constants(ValueArray* array, FILE* file) {
         uint8_t type_byte = 0;
         fread(&type_byte, 1, 1, file);
         ValueType type = (ValueType) type_byte;
-        
+
         Value constant = {.type=type, .as.integer = 0};
         switch(type) {
             case TYPE_LONG:
@@ -67,7 +67,7 @@ void load_constants(ValueArray* array, FILE* file) {
                     constant.as.integer = REV_U64(constant.as.integer);
                 }
                 break;
-            case TYPE_DOUBLE: 
+            case TYPE_DOUBLE:
                 // 8 bytes: the float value
                 fread(&(constant.as.fp), sizeof(double), 1, file);
                 if(!system_is_little_endian) {
@@ -77,25 +77,25 @@ void load_constants(ValueArray* array, FILE* file) {
                     memcpy(&constant.as.fp, &temp, sizeof(double));
                 }
                 break;
-            case TYPE_BOOL: 
+            case TYPE_BOOL:
                 fread(&constant.as.boolean, sizeof(bool), 1, file);
                 break;
             case TYPE_OBJ: {
                 // 1 byte : object type
                 uint8_t obj_type = 0;
                 fread(&obj_type, sizeof(uint8_t), 1, file);
-                
+
                 if (((ObjectType) obj_type) == OBJ_STRING) {
                     //TODO: lower, have to make REV for that size
-                    // 8 bytes: string length 
+                    // 8 bytes: string length
                     uint64_t string_length = 0;
                     fread(&string_length, sizeof(int64_t), 1, file);
                     if(!system_is_little_endian) {
                         string_length = REV_U64(string_length);
                     }
-                    
+
                     // (string_length + 1) bytes: the string chars
-                    ObjectString* const_pool_string = (ObjectString*) 
+                    ObjectString* const_pool_string = (ObjectString*)
                         calloc(sizeof(Obj) + sizeof(int) + string_length + 1, 1);
                     if(((ObjectType) obj_type) == OBJ_STRING) {
                         fgets(const_pool_string->chars, string_length+1, file);
@@ -114,7 +114,7 @@ void load_constants(ValueArray* array, FILE* file) {
             }
             default:
                 break;
-        } 
+        }
 
         value_array_write(array, constant);
     }

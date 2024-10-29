@@ -8,7 +8,7 @@ typedef enum {
 } ObjectType;
 
 struct Obj {
-    ObjectType type;    
+    ObjectType type;
     struct Obj* next;
 };
 

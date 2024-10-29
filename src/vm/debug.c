@@ -31,7 +31,7 @@ int debug_op_print(Chunk* chunk, int offset) {
     } else {
         DEBUG_PRINT("%5d  ", line);
     }
-    
+
     switch (GET_CODE_AT(chunk, offset))
     {
     case OP_RETURN:

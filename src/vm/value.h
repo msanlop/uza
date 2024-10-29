@@ -40,7 +40,7 @@ typedef struct {
     (value).type = TYPE_DOUBLE; \
     (value).as.fp = (double) (value).as.integer; \
   } while (false); \
-  
+
 
 // TODO: change back to DEBUG_PRINT when able to
 #define PRINT_VALUE(value, out) \
@@ -62,7 +62,7 @@ typedef struct {
     default: break; \
     } \
   } while (false); \
-  
+
 
 typedef struct {
   int capacity;

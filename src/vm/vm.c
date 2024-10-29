@@ -29,7 +29,7 @@
         } \
         push(vm, lhs); \
     } while (false); \
-    
+
 
 void push(VM* vm, Value value) {
     *vm->stack_top++ = value;
@@ -51,7 +51,7 @@ void vm_stack_reset(VM* vm) {
     vm->stack_top = vm->stack;
 }
 
-VM* vm_init(FILE* file) { 
+VM* vm_init(FILE* file) {
     VM* vm = calloc(1, sizeof(VM));
     if (vm == NULL) return vm;
     read_program(&vm->chunk, file);
@@ -70,7 +70,7 @@ void interpret(VM* vm) {
         // char* string = "Hello ";
         // int string_len = strlen(string);
         // ObjectString* new_string = calloc(
-        //     1, 
+        //     1,
         //     sizeof(Obj) + sizeof(int) + string_len + 1
         // );
         // new_string->length = string_len;
@@ -81,7 +81,7 @@ void interpret(VM* vm) {
         // char* string1 = "world!";
         // int string_len1 = strlen(string1);
         // ObjectString* new_string1 = calloc(
-        //     1, 
+        //     1,
         //     sizeof(Obj) + sizeof(int) + string_len1 + 1
         // );
         // new_string1->length = string_len1;
@@ -89,7 +89,7 @@ void interpret(VM* vm) {
         // strlcpy(new_string1->chars, string1, string_len1 + 1);
         // push(vm, (Value) {.type=TYPE_OBJ, .as.object=new_string1});
     while(true) {
-        
+
         #ifdef DEBUG_TRACE_EXECUTION_OP
             DEBUG_PRINT(PURPLE "running op\n  " RESET);
             debug_op_print(&vm->chunk, (int) (vm->ip - vm->chunk.code));
@@ -102,12 +102,12 @@ void interpret(VM* vm) {
         {
         case OP_RETURN:
             // simulate print() to test code, TODO: remove when obsolete
-            PRINT_VALUE((*(vm->stack_top-1)), stdout); 
+            PRINT_VALUE((*(vm->stack_top-1)), stdout);
             printf("\n");
             return;
         case OP_STRCONST:
         case OP_DCONST:
-        case OP_LCONST: push(vm, vm->chunk.constants.values[*(vm->ip++)]); 
+        case OP_LCONST: push(vm, vm->chunk.constants.values[*(vm->ip++)]);
             break;
         case OP_ADD: {
             Value top = PEEK(vm);
@@ -126,7 +126,7 @@ void interpret(VM* vm) {
                 new_object_string->length = new_len;
                 new_object_string->obj.type = OBJ_STRING;
                 Value new_object_value = {
-                    .type=TYPE_OBJ, 
+                    .type=TYPE_OBJ,
                     .as.object=(Obj*) new_object_string
                 };
                 // new_chars->length = new_size;
@@ -135,22 +135,22 @@ void interpret(VM* vm) {
             else {
                 BINARY_OP(vm, +);
             }
-            break; 
+            break;
         }
         case OP_SUB: {
             BINARY_OP(vm, -);
-            break; 
+            break;
         }
         case OP_MUL: {
             BINARY_OP(vm, *);
-            break; 
+            break;
         }
         case OP_DIV: {
             BINARY_OP(vm, /);
-            break; 
+            break;
         }
         default: {
-            PRINT_ERR_ARGS("at %s:%d unknown instruction : %d\n\n", 
+            PRINT_ERR_ARGS("at %s:%d unknown instruction : %d\n\n",
                 __FILE__, __LINE__, instruction);
             exit(1);
             break;

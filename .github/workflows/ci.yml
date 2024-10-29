@@ -30,18 +30,18 @@ jobs:
       - name: Install C dependencies
         run: |
           sudo apt-get install build-essential  # For Ubuntu
-          
+
       - name: Run pylint
         run: |
           pylint --fail-under=9 src/
 
       - name: Format python code with ruff
         run: pypy3 -m ruff format
-        
+
       - name: Build and run tests
         run: |
           make test  # Adjust to your testing process
-          
+
       - name: Check for formatting changes
         id: git-check
         run: |
