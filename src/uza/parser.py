@@ -220,14 +220,24 @@ class Parser:
 
         if next_.kind in (token_const, token_var):
             res = self._get_var_def()
+        elif next_.kind == token_identifier:
+            if len(self._tokens) > 1 and self._tokens[1].kind == token_eq:
+                res = self._get_var_redef()
+            else:
+                res = self._get_expr()
         else:
             res = self._get_expr()
 
-        if len(self._tokens) > 0:
-            self._expect(token_new_line)
+        # if len(self._tokens) > 0:
+        #     self._expect(token_new_line)
         return res
 
-    def _get_var_redef(self, identifier: Identifier) -> Node:
+    def _get_identifier(self) -> Identifier:
+        identifier_tok = self._expect(token_identifier)
+        return Identifier(identifier_tok, identifier_tok.span)
+
+    def _get_var_redef(self) -> Node:
+        identifier = self._get_identifier()
         if self._peek().kind == token_identifier:
             type_tok = self._expect(token_identifier)
             type_ = typer.identifier_to_uza_type(type_tok)
@@ -276,7 +286,7 @@ class Parser:
             if next_.kind == token_comma:
                 self._expect(token_comma)
             elif next_.kind != token_paren_r:
-                raise SyntaxError(f"Expected ',' or ')' but got {next_}")
+                raise SyntaxError(f"Expected ',' or ')' but got '{(next_.repr)}'")
             args.append(arg)
             next_ = self._peek()
 
@@ -293,13 +303,10 @@ class Parser:
             return self._get_infix(node)
 
         if tok.kind == token_identifier:
-            identifier_tok = self._expect(token_identifier)
-            identifier = Identifier(identifier_tok, identifier_tok.span)
+            identifier = self._get_identifier()
             tok = self._peek()
             if not tok:
                 return identifier
-            if tok.kind == token_eq:
-                return self._get_var_redef(identifier)
             if tok.kind != token_paren_l:
                 return self._get_infix(identifier)
 

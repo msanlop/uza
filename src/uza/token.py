@@ -19,7 +19,7 @@ class TokenKind:
 
     def __eq__(self, value: object) -> bool:
         if not isinstance(value, TokenKind):
-            return NotImplemented
+            raise NotImplementedError(f"for {value}")
         return self.repr == value.repr
 
     def __repr__(self) -> str:
@@ -38,7 +38,7 @@ class Token:
 
     def __eq__(self, value: object) -> bool:
         if not isinstance(value, Token):
-            return NotImplemented
+            raise NotImplementedError(f"for {value}")
         if self.kind != value.kind:
             return False
         if self.kind.is_user_value:
