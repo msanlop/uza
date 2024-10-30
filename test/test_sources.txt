@@ -1,3 +1,11 @@
+// All new line characters are ignored in the expected and tested output
+
+// declare test:
+// #test __name_of_test__
+// __source_code__
+// #expected
+// __expected_stdout__ (again, \n and \r\n)
+
 #test hello world :^)
 println("hello world!")
 #expected

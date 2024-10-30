@@ -1,20 +1,25 @@
+from pathlib import Path
 import subprocess
 import pytest
-from .helper import parse_test_file
-
-
-TEST_FILENAME = "./test/test_sources.txt"
-MAGENTA = "\033[0;35m"
-RESET = "\033[0m"
+from .helper import (
+    parse_test_file,
+    TESTS_PATH,
+    TEST_UZA_PATH,
+    RESET,
+    MAGENTA,
+    PROJECT_ROOT,
+)
+import os
 
 
 @pytest.mark.parametrize(
-    "description, code, expected_output", parse_test_file(TEST_FILENAME)
+    "description, code, expected_output", parse_test_file(TESTS_PATH)
 )
 def test_end_to_end(description, code, expected_output, capfd):
+    bytecode_out = os.path.join(PROJECT_ROOT, "out.uzo")
     try:
         subprocess.run(
-            ["./uza", "--output", f"./target/out.uzo", "-s", code],
+            [TEST_UZA_PATH, "--output", bytecode_out, "-s", code],
             check=True,
         )
     except Exception as e:
@@ -26,6 +31,7 @@ def test_end_to_end(description, code, expected_output, capfd):
         )
     captured_out = capfd.readouterr()
     actual_output = captured_out.out
+    actual_output = actual_output.replace(os.linesep, "")
 
     try:
         expected_output = pytest.approx(float(expected_output))

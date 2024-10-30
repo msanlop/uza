@@ -160,9 +160,13 @@ def main() -> int:
         print(f"Wrote {written} bytes to {path}")
         return 0
 
-    src_dir_path = dirname(dirname(os.path.realpath(__file__)))
+    # TODO: find better way to do this
+    root_path = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    binary_path = os.path.join(root_path, "build", "bin", "vm")
+    if not os.path.isfile(binary_path):
+        binary_path = os.path.join(root_path, "bin", "vm")
     try:
-        subprocess.run([src_dir_path + "/vm/main", path], check=True)
+        subprocess.run([binary_path, path], check=True)
     except subprocess.CalledProcessError as e:
         err_fmt = (
             f"The VM exited with an error : \n{e.returncode=}\n{e.stdout=}\n{e.stderr=}"

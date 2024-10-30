@@ -2,15 +2,12 @@ import pytest
 
 from src.uza.interpreter import Interpreter
 from src.uza.parser import Parser
-from .helper import parse_test_file
-
-TEST_FILENAME = "./test/test_sources.txt"
-MAGENTA = "\033[0;35m"
-RESET = "\033[0m"
+from .helper import parse_test_file, TESTS_PATH, MAGENTA, RESET
+import os
 
 
 @pytest.mark.parametrize(
-    "description, code, expected_output", parse_test_file(TEST_FILENAME)
+    "description, code, expected_output", parse_test_file(TESTS_PATH)
 )
 def test_end_to_end(description, code, expected_output, capsys):
     try:
@@ -25,6 +22,7 @@ def test_end_to_end(description, code, expected_output, capsys):
         )
     captured_out = capsys.readouterr()
     actual_output = captured_out.out
+    actual_output = actual_output.replace(os.linesep, "")
 
     assert actual_output == expected_output, (
         f"\nTest: {description}\n"

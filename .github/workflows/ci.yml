@@ -38,9 +38,15 @@ jobs:
       - name: Format python code with ruff
         run: pypy3 -m ruff format
 
-      - name: Build and run tests
+      - name: Build
         run: |
-          make test  # Adjust to your testing process
+          mkdir build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release
+          make
+
+      - name : Run tests
+        run: |
+          pypy3 -m pytest ..
 
       - name: Check for formatting changes
         id: git-check
@@ -61,7 +67,3 @@ jobs:
           git push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Cleanup
-        run: |
-          make clean
