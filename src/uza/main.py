@@ -14,7 +14,7 @@ from .parser import Parser
 from .interpreter import Interpreter
 import pathlib
 
-from src.vm.main import run_vm
+from vm.main import run_vm
 
 
 def main() -> int:

@@ -1,8 +1,9 @@
 import ctypes
 from os.path import dirname, join
 import sys
+from importlib import resources
 
-from src.uza.bytecode import ByteCodeProgramSerializer
+from uza.bytecode import ByteCodeProgramSerializer
 
 LIB_NAME = "vm"
 # LIB_DIR = join(dirname(dirname(dirname(__file__))), "build", "lib")
@@ -10,17 +11,18 @@ LIB_NAME = "vm"
 
 def load_shared_library(directory, lib_name):
     if sys.platform.startswith("win"):
-        filename = join(directory, f"{lib_name}.dll")
+        filename = f"{lib_name}.dll"
     elif sys.platform == "darwin":
         directory = join("/", "usr", "local", "lib")
-        filename = join(directory, f"lib{lib_name}.dylib")
+        filename = f"lib{lib_name}.dylib"
     else:
-        filename = join(directory, f"lib{lib_name}.so")
+        filename = f"lib{lib_name}.so"
 
+    lib_path = join("lib", filename)
     try:
-        return ctypes.CDLL(filename)
+        return ctypes.CDLL(lib_path)
     except OSError as e:
-        print(f"Could not load {filename}: {e}")
+        print(f"Could not load {lib_path}: {e}")
         sys.exit(1)
 
 
