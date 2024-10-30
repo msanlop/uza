@@ -5,13 +5,14 @@ import sys
 from src.uza.bytecode import ByteCodeProgramSerializer
 
 LIB_NAME = "vm"
-LIB_DIR = join(dirname(dirname(dirname(__file__))), "build", "lib")
+# LIB_DIR = join(dirname(dirname(dirname(__file__))), "build", "lib")
 
 
 def load_shared_library(directory, lib_name):
     if sys.platform.startswith("win"):
         filename = join(directory, f"{lib_name}.dll")
     elif sys.platform == "darwin":
+        directory = join("/", "usr", "local", "lib")
         filename = join(directory, f"lib{lib_name}.dylib")
     else:
         filename = join(directory, f"lib{lib_name}.so")
@@ -23,7 +24,7 @@ def load_shared_library(directory, lib_name):
         sys.exit(1)
 
 
-vm_ = load_shared_library(LIB_DIR, LIB_NAME)
+vm_ = load_shared_library("", LIB_NAME)
 vm_.run_vm.argtypes = (ctypes.c_int, ctypes.c_char_p)
 
 
