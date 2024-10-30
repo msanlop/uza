@@ -45,4 +45,9 @@
 #define PRINT_ERR_ARGS(fmt, ...) \
             do { fprintf(stderr, "ERROR " fmt, __VA_ARGS__); } while (0)
 
+typedef struct {
+    size_t count;
+    uint8_t* bytes;
+} program_bytes_t;
+
 #endif // uza_common_h

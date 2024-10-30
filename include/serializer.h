@@ -22,7 +22,7 @@ for each CONSTANT
     case OBJECT:
         1B           : ObjectType
         8B           : string length
-        (str_len+1)B : String chars
+        (str_len)B : String chars (not null terminated)
 
     case INT    : 8B
     case DOUBLE : 8B
@@ -36,11 +36,11 @@ for each opcode
 */
 
 // void load_program(FILE* file, Chunk* chunk);
-void load_chunk(Chunk* chunk, FILE* file);
-void load_constants(ValueArray *array, FILE* file);
-void load_op(Chunk* chunk, uint16_t line, FILE* file);
+void load_chunk(Chunk* chunk, program_bytes_t* program);
+void load_constants(ValueArray *array, program_bytes_t* program);
+void load_op(Chunk* chunk, uint16_t line, program_bytes_t* program);
 
-void read_program_version(uint8_t* buff, FILE* file);
-void read_program(Chunk* chunk, FILE* file);
+void read_program_version(uint8_t* buff, program_bytes_t* program);
+void read_program(Chunk* chunk, program_bytes_t* program);
 
 #endif // uza_serializer_h

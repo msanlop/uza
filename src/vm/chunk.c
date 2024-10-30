@@ -6,8 +6,6 @@
 
 
 
-
-
 void chunk_init(Chunk* chunk) {
     chunk->capacity = 0;
     chunk->count = 0;

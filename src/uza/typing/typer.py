@@ -25,7 +25,9 @@ class Substitution:
         """
         return self._substitutions.get(t)
 
-    def pretty_string(self):
+    def pretty_string(self) -> str:
+        if len(self._substitutions) == 0:
+            return ""
         out = ""
         exprs = [expr.span.get_source() for expr in self._substitutions]
         colored = [in_color(s, ANSIColor.GREEN) for s in exprs]

@@ -9,5 +9,7 @@ set(SOURCES
     memory.c
 )
 
-add_executable(vm ${SOURCES})
+add_executable(main ${SOURCES})
+target_include_directories(main PUBLIC ${CMAKE_SOURCE_DIR}/include)
+add_library(vm SHARED ${SOURCES})
 target_include_directories(vm PUBLIC ${CMAKE_SOURCE_DIR}/include)

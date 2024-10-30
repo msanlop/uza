@@ -21,7 +21,7 @@ typedef struct {
 void  push(VM* vm, Value value);
 Value pop(VM* vm);
 
-VM*  vm_init(FILE* file);
+VM*  vm_init(program_bytes_t* program);
 void vm_stack_reset(VM* vm);
 void vm_free(VM* vm);
 

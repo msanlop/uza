@@ -51,10 +51,10 @@ void vm_stack_reset(VM* vm) {
     vm->stack_top = vm->stack;
 }
 
-VM* vm_init(FILE* file) {
+VM* vm_init(program_bytes_t* program) {
     VM* vm = calloc(1, sizeof(VM));
     if (vm == NULL) return vm;
-    read_program(&vm->chunk, file);
+    read_program(&vm->chunk, program);
     vm->ip = vm->chunk.code;
     vm_stack_reset(vm);
     return vm;
