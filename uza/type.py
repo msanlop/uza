@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import List
 
-from ..token import *
+from uza.token import *
 
 
 @dataclass(frozen=True)

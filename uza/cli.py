@@ -3,21 +3,20 @@ from pprint import pprint
 import subprocess
 from sys import stderr, stdin
 import sys  # sys.exit conflict with exit?
-import os
-from os.path import dirname
+from typing import Sequence
 
-from .utils import ANSIColor, in_color
+from uza.utils import ANSIColor, in_color
 
-from .typing.typer import Typer
-from .bytecode import ByteCodeProgram, ByteCodeProgramSerializer
-from .parser import Parser
-from .interpreter import Interpreter
+from uza.typer import Typer
+from uza.bytecode import ByteCodeProgram, ByteCodeProgramSerializer
+from uza.parser import Parser
+from uza.interpreter import Interpreter
 import pathlib
 
-from src.vm.main import run_vm
+from vm.main import run_vm
 
 
-def main() -> int:
+def main(argv: Sequence[str] = None) -> int:
     """
     Run the uza CLI.
 
@@ -72,11 +71,14 @@ def main() -> int:
         "-v", "--verbose", action="store_true", help="show verbose output"
     )
 
-    # Parse the arguments
-    args = parser.parse_args()
+    if argv is not None:
+        args = parser.parse_args(args=argv)
+    else:
+        args = parser.parse_args()
 
     piped_input = None
-    if not stdin.isatty():
+    # argv is used for testing, do not read stdin then
+    if not stdin.isatty() and argv is None:
         piped_input = stdin.read()
 
     if piped_input and args.source:
@@ -91,7 +93,6 @@ def main() -> int:
     if args.source and args.file:
         print("Cannot use -i and pass a source file at the same time", file=stderr)
         return 1
-
     source = ""
     if piped_input:
         source = piped_input

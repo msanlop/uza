@@ -3,11 +3,11 @@ from dataclasses import dataclass, field
 from typing import List
 from itertools import count, permutations
 
-from .type import *
-from ..token import *
-from ..ast import InfixApplication, Literal, Program, VarDef, Error, VarRedef
-from ..interpreter import *
-from ..utils import in_bold, in_color, ANSIColor
+from uza.type import *
+from uza.token import *
+from uza.uzast import InfixApplication, Literal, Program, VarDef, Error, VarRedef
+from uza.interpreter import *
+from uza.utils import in_bold, in_color, ANSIColor
 
 
 @dataclass

@@ -1,6 +1,11 @@
+import contextlib
+import io
 from pathlib import Path
 import subprocess
 import pytest
+import sys
+import os
+
 from .helper import (
     parse_test_file,
     TESTS_PATH,
@@ -9,7 +14,6 @@ from .helper import (
     MAGENTA,
     PROJECT_ROOT,
 )
-import os
 
 
 @pytest.mark.parametrize(
@@ -17,9 +21,21 @@ import os
 )
 def test_end_to_end(description, code, expected_output, capfd):
     bytecode_out = os.path.join(PROJECT_ROOT, "out.uzo")
+
+    ## This would be cleaner but I C buffers stdout until all tests are done
+    ## tried redirecting and all but nothing works except fflush, which we don't want
+    # ret_code = main(argv=("--output", bytecode_out, "-s", code))
+
     try:
         subprocess.run(
-            [TEST_UZA_PATH, "--output", bytecode_out, "-s", code],
+            [
+                "python",
+                os.path.join(os.path.dirname(os.path.dirname(__file__)), "main.py"),
+                "--output",
+                bytecode_out,
+                "-s",
+                code,
+            ],
             check=True,
         )
     except Exception as e:

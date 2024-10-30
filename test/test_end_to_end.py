@@ -1,7 +1,7 @@
 import pytest
 
-from src.uza.interpreter import Interpreter
-from src.uza.parser import Parser
+from uza.interpreter import Interpreter
+from uza.parser import Parser
 from .helper import parse_test_file, TESTS_PATH, MAGENTA, RESET
 import os
 
@@ -20,8 +20,8 @@ def test_end_to_end(description, code, expected_output, capsys):
             f"With code:\n{code}\n",
             pytrace=False,
         )
-    captured_out = capsys.readouterr()
-    actual_output = captured_out.out
+    captured = capsys.readouterr()
+    actual_output = captured.out
     actual_output = actual_output.replace(os.linesep, "")
 
     assert actual_output == expected_output, (

@@ -3,8 +3,8 @@ cmake_minimum_required(VERSION 3.10)
 project(project VERSION 0.0.1)
 set(CMAKE_C_STANDARD 99)
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/lib) # it's just a headache otherwise
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
@@ -19,4 +19,4 @@ endif()
 
 
 add_subdirectory(include)
-add_subdirectory(src)
+add_subdirectory(vm)

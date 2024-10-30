@@ -3,7 +3,7 @@ from collections import deque
 import string
 from typing import Optional
 
-from .ast import (
+from uza.uzast import (
     Application,
     Identifier,
     InfixApplication,
@@ -16,9 +16,9 @@ from .ast import (
     VarRedef,
 )
 
-from .utils import Span, SymbolTable
-from .token import *
-from .typing import typer
+from uza.utils import Span, SymbolTable
+from uza.token import *
+from uza import typer
 
 
 class Scanner:

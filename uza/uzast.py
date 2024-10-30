@@ -1,9 +1,9 @@
 from abc import ABC
 from typing import List, Optional
 
-from .utils import Span
-from .token import *
-from .typing.type import *
+from uza.utils import Span
+from uza.token import *
+from uza.type import *
 
 from dataclasses import dataclass, field
 

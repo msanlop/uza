@@ -7,10 +7,17 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional
 import struct
-from . import __version_tuple__
-from .ast import Application, Identifier, InfixApplication, Literal, VarDef, Program
-from .utils import Span
-from .interpreter import (
+from uza import __version_tuple__
+from uza.uzast import (
+    Application,
+    Identifier,
+    InfixApplication,
+    Literal,
+    VarDef,
+    Program,
+)
+from uza.utils import Span
+from uza.interpreter import (
     bi_add,
     bi_div,
     bi_mul,

@@ -2,7 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable, Optional, TypeVar
 
-from .ast import (
+from uza.uzast import (
     Application,
     Identifier,
     InfixApplication,
@@ -14,7 +14,7 @@ from .ast import (
     Program,
     VarRedef,
 )
-from .utils import SymbolTable
+from uza.utils import SymbolTable
 
 
 @dataclass(frozen=True)
