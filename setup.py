@@ -1,11 +1,10 @@
 from skbuild import setup
 from setuptools import find_packages
 
-
 setup(
-    name="uza",
+    name="uzalang",
     version="0.0.1",
-    packages=find_packages(),
+    packages=["uza", "vm"],
     package_data={"uza": ["*.so", "*.so", "*.dll"], "vm": ["*.so", "*.so", "*.dll"]},
     include_package_data=True,
     cmake_install_dir="vm",
