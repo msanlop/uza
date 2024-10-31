@@ -31,6 +31,11 @@
         fprintf(stderr, fmt, ##__VA_ARGS__);
 #endif
 
+#if defined(_WIN32) || defined(_WIN64)
+    #define NEWLINE "\r\n"
+#else
+    #define NEWLINE "\n"
+#endif
 
 #include <stdbool.h>
 #include <stdlib.h>
