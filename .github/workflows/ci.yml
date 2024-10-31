@@ -12,22 +12,59 @@ jobs:
   build-and-test:
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
-    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        version: ["pypy3.10", "3.11", "3.12", "3.13"]
+    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
     runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Set up Pypy3.10
+      - name: Set up python
         uses: actions/setup-python@v5
         with:
-          python-version: "pypy3.10"
+          python-version: ${{ matrix.version }}
+
+      - name: Windows build
+        if: startsWith(matrix.os, 'windows')
+        run: |
+          mkdir build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release
+          cmake --build .
+
+      - name: Build macos/linux
+        if: ${{ !startsWith(matrix.os, 'windows') }}
+        run: |
+          mkdir build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release
+          make
 
       - name: Install Python dependencies
         run: |
-          pypy3 -m pip install --upgrade pip
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name : Run tests
+        run: |
+          python -m pytest ..
+
+  lint-and-format:
+    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
+    runs-on: "macos-latest"
+    needs: [build-and-test]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Run pylint
@@ -35,17 +72,7 @@ jobs:
           pylint --fail-under=9 src/
 
       - name: Format python code with ruff
-        run: pypy3 -m ruff format
-
-      - name: Build
-        run: |
-          mkdir build && cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release
-          make
-
-      - name : Run tests
-        run: |
-          pypy3 -m pytest ..
+        run: python -m ruff format
 
       - name: Check for formatting changes
         id: git-check
