@@ -2,7 +2,7 @@ from skbuild import setup
 from setuptools import find_packages
 
 setup(
-    name="uzalang",
+    name="uza",
     version="0.0.1",
     packages=["uza", "vm"],
     package_data={"uza": ["*.so", "*.so", "*.dll"], "vm": ["*.so", "*.so", "*.dll"]},
