@@ -47,7 +47,7 @@ def test_end_to_end(description, code, expected_output, capfd):
         )
     captured_out = capfd.readouterr()
     actual_output = captured_out.out
-    actual_output = actual_output.replace(os.linesep, "")
+    actual_output = actual_output.strip()
 
     try:
         expected_output = pytest.approx(float(expected_output))

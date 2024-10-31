@@ -22,7 +22,7 @@ def test_end_to_end(description, code, expected_output, capsys):
         )
     captured = capsys.readouterr()
     actual_output = captured.out
-    actual_output = actual_output.replace(os.linesep, "")
+    actual_output = actual_output.strip()
 
     assert actual_output == expected_output, (
         f"\nTest: {description}\n"
