@@ -10,20 +10,23 @@ LIB_NAME = "vm"
 
 
 def load_shared_library(directory, lib_name):
+    folder = "lib"
     if sys.platform.startswith("win"):
-        filename = f"{lib_name}.dll"
+        filenames = [f"{lib_name}.dll", f"{lib_name}.dll"]
+        folder = "bin"
     elif sys.platform == "darwin":
-        directory = join("/", "usr", "local", "lib")
-        filename = f"lib{lib_name}.dylib"
+        filenames = [f"lib{lib_name}.dylib"]
     else:
-        filename = f"lib{lib_name}.so"
+        filenames = [f"lib{lib_name}.so"]
 
-    lib_path = join(dirname(__file__), "lib", filename)
-    try:
-        return ctypes.CDLL(lib_path)
-    except OSError as e:
-        local_build_path = join(dirname(dirname(__file__)), "lib", filename)
-        return ctypes.CDLL(local_build_path)
+    for fn in filenames:
+        lib_path = join(dirname(__file__), folder, fn)
+        try:
+            return ctypes.CDLL(lib_path)
+        except OSError as e:
+            pass
+    print(f"Could not load lib{lib_name}", file=sys.stderr)
+    exit(1)
 
 
 vm_ = load_shared_library("", LIB_NAME)
