@@ -33,7 +33,8 @@ def parse_test_file(file_path) -> list[tuple]:
             elif content.startswith(TEST_HEADER):
                 title = content[len(TEST_HEADER) :]
             elif content.startswith(TEST_EXPECTED):
-                expected = file.readline().replace(os.linesep, "")
+                expected = file.readline()
+                expected = expected.strip()
                 tests.append((title, source, expected))
                 source = ""
             else:
