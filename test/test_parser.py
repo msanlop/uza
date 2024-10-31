@@ -1,7 +1,7 @@
 # pylint: disable=wildcard-import unused-import missing-function-docstring
-from src.uza.ast import *
-from src.uza.parser import Parser
-from src.uza.interpreter import Interpreter
+from uza.uzast import *
+from uza.parser import Parser
+from uza.interpreter import Interpreter
 
 
 def test_infix_add():
