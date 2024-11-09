@@ -114,22 +114,11 @@ void interpret(VM* vm) {
             if (IS_STRING(top)) {
                 Value rhs = pop(vm);
                 Value lhs = pop(vm);
-                ObjectString* lhs_string = AS_STRING(lhs);
-                int new_len = lhs_string->length + AS_STRING(rhs)->length;
-                ObjectString* new_object_string = object_string_allocate(new_len);
-                memcpy(new_object_string->chars, lhs_string->chars, lhs_string->length);
-                strncat(
-                    new_object_string->chars,
-                    AS_STRING(rhs)->chars,
-                    new_len + 1
-                );
-                new_object_string->length = new_len;
-                new_object_string->obj.type = OBJ_STRING;
+                ObjectString *new_object_string = object_string_concat(AS_STRING(lhs), AS_STRING(rhs));
                 Value new_object_value = {
                     .type=TYPE_OBJ,
                     .as.object=(Obj*) new_object_string
                 };
-                // new_chars->length = new_size;
                 push(vm, new_object_value);
             }
             else {

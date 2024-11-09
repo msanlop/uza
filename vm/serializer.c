@@ -107,15 +107,12 @@ void load_constants(ValueArray* array, program_bytes_t* program) {
                         string_length = REV_U64(string_length);
                     }
 
-                    // (string_length + 1) bytes: the string chars
-                    ObjectString* const_pool_string = (ObjectString*)
-                        calloc(sizeof(Obj) + sizeof(int) + string_length + 1, 1);
-                    if(((ObjectType) obj_type) == OBJ_STRING) {
-                        prog_read_bytes(const_pool_string->chars, program, sizeof(char), string_length);
-                        const_pool_string->chars[string_length] = '\0';
-                    }
+                    ObjectString* const_pool_string = object_string_allocate(string_length);
 
+                    prog_read_bytes(const_pool_string->chars, program, sizeof(char), string_length);
+                    const_pool_string->chars[string_length] = '\0';
                     const_pool_string->length = string_length;
+                    object_string_hash(const_pool_string);
                     const_pool_string->obj.type = OBJ_STRING;
                     constant.type = TYPE_OBJ;
                     constant.as.object = (Obj*) const_pool_string;

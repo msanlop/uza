@@ -2,7 +2,7 @@
 #define uza_vm_h
 
 #include "common.h"
-#include "stdio.h"
+#include <stdio.h>
 #include "chunk.h"
 
 #define STACK_MAX (1048576 / sizeof(Value)) // 1MiB
