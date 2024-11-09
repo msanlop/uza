@@ -7,6 +7,7 @@ set(SOURCES
     object.c
     value.c
     memory.c
+    table.c
 )
 
 add_library(vm SHARED ${SOURCES})

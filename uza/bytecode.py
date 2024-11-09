@@ -47,10 +47,11 @@ def opcode_int(opcode: str):
 
 Const = float | int | bool
 VALUE_TYPES = {
-    int: 0,
-    bool: 1,
-    float: 2,
-    dict: 3,  # TODO: revisit, then change _write_constant for string
+    None: 0,
+    int: 1,
+    bool: 2,
+    float: 3,
+    dict: 4,  # TODO: revisit, then change _write_constant for string
     # also just use arrays, dict of len 4 or 1 is dumb
 }
 
