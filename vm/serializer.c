@@ -7,8 +7,6 @@
 
 static bool system_is_little_endian;
 
-#define STRING_STACK_BUFF_LEN 256
-
 #define REV_U16(value) (((line << 8) & 0xFF00)|((line >> 8) & 0x00FF))
 
 // Convert little endian to big endian. Use memcpy for double before passing.
@@ -110,9 +108,10 @@ void load_constants(ValueArray* array, program_bytes_t* program, Table *strings)
                         string_length = REV_U64(string_length);
                     }
                     if (string_length > STRING_STACK_BUFF_LEN) {
-                        string = calloc(string_length, sizeof(char));
+                        string = calloc(string_length + 1, sizeof(char));
                         if (string == NULL) {
                             fprintf(stderr, "error: couldn't allocate to read program string\n");
+                            exit(1);
                         }
                     }
 

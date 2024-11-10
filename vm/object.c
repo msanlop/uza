@@ -2,6 +2,7 @@
 #include "value.h"
 #include "memory.h"
 #include <assert.h>
+#include <stdio.h>
 
 // using the FNV-1a hashing algorithm
 static uint32_t hash_string(const char* key, int length) {
@@ -39,8 +40,17 @@ void object_string_hash(struct ObjectString *string) {
 }
 
 ObjectString* object_string_concat(Table *strings, const ObjectString *lhs, const ObjectString *rhs) {
+    char static_buff[STRING_STACK_BUFF_LEN];
     int new_len = lhs->length + rhs->length;
-    char buff[new_len];
+    char *buff = static_buff;
+    if (new_len > STRING_STACK_BUFF_LEN) {
+        buff = calloc(new_len + 1, sizeof(char));
+        if(buff == NULL) {
+            fprintf(stderr, "error: couldn't allocate to concat string\n");
+            exit(1);
+        }
+
+    }
     buff[0] = 0;
     strncpy(buff, lhs->chars, lhs->length + 1);
     strncat(
@@ -50,7 +60,11 @@ ObjectString* object_string_concat(Table *strings, const ObjectString *lhs, cons
     );
     uint32_t hash = hash_string(buff, new_len);
 
-    return object_string_allocate(strings, buff, new_len);
+    ObjectString *new_str = object_string_allocate(strings, buff, new_len);
+    if (new_len > STRING_STACK_BUFF_LEN) {
+        free(buff);
+    }
+    return new_str;
 }
 
 void object_string_free(ObjectString* obj_string) {
