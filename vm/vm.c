@@ -3,12 +3,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "chunk.h"
 #include "common.h"
 #include "serializer.h"
 #include "vm.h"
 #include "memory.h"
 #include "value.h"
+#include "chunk.h"
 
 #ifdef DEBUG
 #include "debug.h"
@@ -54,13 +54,15 @@ void vm_stack_reset(VM* vm) {
 VM* vm_init(program_bytes_t* program) {
     VM* vm = calloc(1, sizeof(VM));
     if (vm == NULL) return vm;
-    read_program(&vm->chunk, program);
+    initTable(&vm->strings);
+    read_program(vm, program);
     vm->ip = vm->chunk.code;
     vm_stack_reset(vm);
     return vm;
 }
 
 void vm_free(VM* vm){
+    freeTable(&vm->strings);
     chunk_free(&vm->chunk);
     free(vm);
 }
@@ -114,7 +116,7 @@ void interpret(VM* vm) {
             if (IS_STRING(top)) {
                 Value rhs = pop(vm);
                 Value lhs = pop(vm);
-                ObjectString *new_object_string = object_string_concat(AS_STRING(lhs), AS_STRING(rhs));
+                ObjectString *new_object_string = object_string_concat(&vm->strings, AS_STRING(lhs), AS_STRING(rhs));
                 Value new_object_value = {
                     .type=TYPE_OBJ,
                     .as.object=(Obj*) new_object_string

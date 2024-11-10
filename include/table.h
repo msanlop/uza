@@ -27,6 +27,8 @@
 #include "value.h"
 //> entry
 
+typedef struct ObjectString ObjectString;
+
 typedef struct {
   ObjectString* key;
   Value value;

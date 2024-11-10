@@ -1,8 +1,8 @@
 #if !defined(uza_object_h)
 #define uza_object_h
 
-#include "value.h"
 #include <string.h>
+#include "table.h"
 
 typedef enum {
     OBJ_STRING,
@@ -27,10 +27,10 @@ struct ObjectString{
 #define AS_STRING(string_value) (((struct ObjectString* ) AS_OBJECT(string_value)))
 
 
-struct ObjectString* object_string_allocate(const int string_length);
+ObjectString* object_string_allocate(Table *strings, char *chars, const int string_length);
 void object_string_hash(struct ObjectString *string);
 void object_string_free(struct ObjectString* obj_string);
-struct ObjectString* object_string_concat(const struct ObjectString *lhs, const struct ObjectString *rhs);
+struct ObjectString* object_string_concat(Table *strings, const struct ObjectString *lhs, const struct ObjectString *rhs);
 
 
 #endif // uza_object_h

@@ -2,8 +2,6 @@
 #define uza_value_h
 
 #include "common.h"
-#include "object.h"
-
 
 typedef struct Obj Obj;
 typedef struct ObjectString ObjectString;

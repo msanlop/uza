@@ -43,25 +43,25 @@ void read_program_version(uint8_t* buff, program_bytes_t* program) {
     prog_read_bytes(buff, program, sizeof(uint8_t), 3);
 }
 
-void read_program(Chunk* chunk, program_bytes_t* program) {
+void read_program(VM *vm, program_bytes_t* program) {
     int endian_test = 1;
     system_is_little_endian = endian_test == ((char*) &endian_test)[0];
     uint8_t version[3] = {0};
     read_program_version(version, program);
-    load_chunk(chunk, program);
+    load_chunk(vm, program);
 }
 
-void load_chunk(Chunk* chunk, program_bytes_t* program) {
-    load_constants(&chunk->constants, program);
+void load_chunk(VM *vm, program_bytes_t* program) {
+    load_constants(&vm->chunk.constants, program, &vm->strings);
     uint16_t line = 0;
     while (program->count != 0) {
         PROG_CPY(line, program, uint16_t);
         if(!system_is_little_endian) line = REV_U16(line);
-        load_op(chunk, line, program);
+        load_op(vm, line, program);
     }
 }
 
-void load_constants(ValueArray* array, program_bytes_t* program) {
+void load_constants(ValueArray* array, program_bytes_t* program, Table *strings) {
     // 1 byte: the number of constants
     uint8_t constants_count = 0;
     PROG_CPY(constants_count, program, uint8_t);
@@ -107,13 +107,10 @@ void load_constants(ValueArray* array, program_bytes_t* program) {
                         string_length = REV_U64(string_length);
                     }
 
-                    ObjectString* const_pool_string = object_string_allocate(string_length);
+                    char buff[string_length]; // TODO: VLAs can overflow, use malloc for long strings, or set max buff len and except for big strings
 
-                    prog_read_bytes(const_pool_string->chars, program, sizeof(char), string_length);
-                    const_pool_string->chars[string_length] = '\0';
-                    const_pool_string->length = string_length;
-                    object_string_hash(const_pool_string);
-                    const_pool_string->obj.type = OBJ_STRING;
+                    prog_read_bytes(buff, program, sizeof(char), string_length);
+                    ObjectString* const_pool_string = object_string_allocate(strings, buff, string_length);
                     constant.type = TYPE_OBJ;
                     constant.as.object = (Obj*) const_pool_string;
                 }
@@ -130,9 +127,10 @@ void load_constants(ValueArray* array, program_bytes_t* program) {
         value_array_write(array, constant);
     }
 }
-void load_op(Chunk* chunk, uint16_t line, program_bytes_t* program) {
+void load_op(VM *vm, uint16_t line, program_bytes_t* program) {
     OpCode opcode = 0;
     PROG_CPY(opcode, program, uint8_t);
+    Chunk *chunk = &vm->chunk;
     switch (opcode) {
         case OP_DCONST:
         case OP_STRCONST:

@@ -4,6 +4,7 @@
 #include "common.h"
 #include "chunk.h"
 #include "stdio.h"
+#include "vm.h"
 
 /*
 
@@ -35,12 +36,12 @@ for each opcode
 
 */
 
-// void load_program(FILE* file, Chunk* chunk);
-void load_chunk(Chunk* chunk, program_bytes_t* program);
-void load_constants(ValueArray *array, program_bytes_t* program);
-void load_op(Chunk* chunk, uint16_t line, program_bytes_t* program);
+// void load_program(FILE* file, VM *vm);
+void load_chunk(VM *vm, program_bytes_t* program);
+void load_constants(ValueArray *array, program_bytes_t* program, Table *strings);
+void load_op(VM *vm, uint16_t line, program_bytes_t* program);
 
 void read_program_version(uint8_t* buff, program_bytes_t* program);
-void read_program(Chunk* chunk, program_bytes_t* program);
+void read_program(VM *vm, program_bytes_t* program);
 
 #endif // uza_serializer_h
