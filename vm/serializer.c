@@ -7,6 +7,7 @@
 
 static bool system_is_little_endian;
 
+#define STRING_STACK_BUFF_LEN 256
 
 #define REV_U16(value) (((line << 8) & 0xFF00)|((line >> 8) & 0x00FF))
 
@@ -99,6 +100,8 @@ void load_constants(ValueArray* array, program_bytes_t* program, Table *strings)
                 PROG_CPY(obj_type, program, uint8_t);
 
                 if (((ObjectType) obj_type) == OBJ_STRING) {
+                    char buff[STRING_STACK_BUFF_LEN];
+                    char *string = buff;
                     //TODO: lower, have to make REV for that size
                     // 8 bytes: string length
                     uint64_t string_length = 0;
@@ -106,13 +109,20 @@ void load_constants(ValueArray* array, program_bytes_t* program, Table *strings)
                     if(!system_is_little_endian) {
                         string_length = REV_U64(string_length);
                     }
+                    if (string_length > STRING_STACK_BUFF_LEN) {
+                        string = calloc(string_length, sizeof(char));
+                        if (string == NULL) {
+                            fprintf(stderr, "error: couldn't allocate to read program string\n");
+                        }
+                    }
 
-                    char buff[string_length]; // TODO: VLAs can overflow, use malloc for long strings, or set max buff len and except for big strings
-
-                    prog_read_bytes(buff, program, sizeof(char), string_length);
-                    ObjectString* const_pool_string = object_string_allocate(strings, buff, string_length);
+                    prog_read_bytes(string, program, sizeof(char), string_length);
+                    ObjectString* const_pool_string = object_string_allocate(strings, string, string_length);
                     constant.type = TYPE_OBJ;
                     constant.as.object = (Obj*) const_pool_string;
+                    if (string_length > STRING_STACK_BUFF_LEN) {
+                        free(string);
+                    }
                 }
                 else {
                     PRINT_ERR_ARGS("unrecognized object type : %d", obj_type);
