@@ -11,6 +11,10 @@ typedef enum {
     OP_MUL,
     OP_DIV,
     OP_NEG,
+    OP_DEFGLOBAL,
+    OP_GETGLOBAL,
+    OP_SETGLOBAL,
+    OP_EXITVM,
 } OpCode;
 
 #endif // uza_bytecodes_h

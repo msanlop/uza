@@ -10,7 +10,7 @@
 #include "value.h"
 #include "chunk.h"
 
-#ifdef DEBUG
+#ifndef NDEBUG
 #include "debug.h"
 #endif
 
@@ -55,6 +55,7 @@ VM* vm_init(program_bytes_t* program) {
     VM* vm = calloc(1, sizeof(VM));
     if (vm == NULL) return vm;
     initTable(&vm->strings);
+    initTable(&vm->globals);
     read_program(vm, program);
     vm->ip = vm->chunk.code;
     vm_stack_reset(vm);
@@ -63,6 +64,7 @@ VM* vm_init(program_bytes_t* program) {
 
 void vm_free(VM* vm){
     freeTable(&vm->strings);
+    freeTable(&vm->globals);
     chunk_free(&vm->chunk);
     free(vm);
 }
@@ -95,7 +97,7 @@ void interpret(VM* vm) {
         #ifdef DEBUG_TRACE_EXECUTION_OP
             DEBUG_PRINT(PURPLE "running op\n  " RESET);
             debug_op_print(&vm->chunk, (int) (vm->ip - vm->chunk.code));
-            dprintf("\n");
+            fprintf(stderr, "\n");
             // DEBUG_PRINT("----------\n");
 
         #endif // #define DEBUG_TRACE_EXECUTION_OP
@@ -104,9 +106,10 @@ void interpret(VM* vm) {
         {
         case OP_RETURN:
             // simulate print() to test code, TODO: remove when obsolete
-            PRINT_VALUE((*(vm->stack_top-1)), stdout);
+            Value val = pop(vm);
+            PRINT_VALUE(val, stdout);
             printf(NEWLINE);
-            return;
+            break;
         case OP_STRCONST:
         case OP_DCONST:
         case OP_LCONST: push(vm, vm->chunk.constants.values[*(vm->ip++)]);
@@ -140,6 +143,26 @@ void interpret(VM* vm) {
             BINARY_OP(vm, /);
             break;
         }
+        case OP_DEFGLOBAL: {
+            ObjectString *identifier = (ObjectString *) vm->chunk.constants.values[*(vm->ip++)].as.object;
+            tableSet(&vm->globals, identifier, pop(vm));
+            break;
+        }
+        case OP_GETGLOBAL: {
+            ObjectString *identifier = (ObjectString *) vm->chunk.constants.values[*(vm->ip++)].as.object;
+            Value val = {0};
+            tableGet(&vm->globals, identifier, &val);
+            push(vm, val);
+            break;
+        }
+        case OP_SETGLOBAL: {
+            ObjectString *identifier = (ObjectString *) vm->chunk.constants.values[*(vm->ip++)].as.object;
+            Value val = pop(vm);
+            tableSet(&vm->globals, identifier, val);
+            break;
+        }
+        case OP_EXITVM:
+            return;
         default: {
             PRINT_ERR_ARGS("at %s:%d unknown instruction : %d\n\n",
                 __FILE__, __LINE__, instruction);

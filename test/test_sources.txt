@@ -33,25 +33,35 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus blandit, feli
 
 
 //#test simple arithmetic with values
-//val a float = 1.5
-//val b float = 1.5
-//val c float = 2
-//val d float = 3
+//const a float = 1.5
+//const b float = 1.5
+//const c float = 2.
+//const d float = 3.
 //println(((a + b) ** c) / (d * 3))
 //#expected
 //1.0
-//
-//#test variable names
-//val my_var_c_123532 string = "hello world!"
-//val d float = 9
-//println(my_var_c_123532)
-//#expected
-//hello world!
-//
+
+#test variable names
+const my_var_c_123532 string = "hello world!"
+const d float = 9.
+println(my_var_c_123532)
+#expected
+hello world!
+
+#test get and set globals
+var foo = "hello world"
+println(foo)
+foo = "different"
+println(foo)
+#expected
+hello world
+different
+
+
 //#test min and max builtins
-//val a int = -5
-//val b int = 0
-//val c int = 10
+//const a int = -5
+//const b int = 0
+//const c int = 10
 //println(min(a, b) * max(b, c))
 //#expected
 //-50

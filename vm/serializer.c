@@ -144,6 +144,9 @@ void load_op(VM *vm, uint16_t line, program_bytes_t* program) {
         case OP_DCONST:
         case OP_STRCONST:
         case OP_LCONST:
+        case OP_DEFGLOBAL:
+        case OP_GETGLOBAL:
+        case OP_SETGLOBAL:
             chunk_write(chunk, opcode, line);
             uint8_t constant_idx = 0;
             PROG_CPY(constant_idx, program, uint8_t);

@@ -1,7 +1,7 @@
 #include "debug.h"
 #include "common.h"
 
-#ifdef DEBUG
+#ifndef NDEBUG
 
 void debug_stack_print(VM* vm, char* str) {
     if(STACK_IS_EMPTY(vm)) {
@@ -50,6 +50,18 @@ int debug_op_print(Chunk* chunk, int offset) {
         debug_constant_print("OP_STRCONST", chunk, offset + 1);
         return 2;
         break;
+    case OP_DEFGLOBAL:
+        debug_constant_print("OP_DEFGLOBAL", chunk, offset + 1);
+        return 2;
+        break;
+    case OP_SETGLOBAL:
+        debug_constant_print("OP_SETGLOBAL", chunk, offset + 1);
+        return 2;
+        break;
+    case OP_GETGLOBAL:
+        debug_constant_print("OP_GETGLOBAL", chunk, offset + 1);
+        return 2;
+        break;
     case OP_ADD:
         DEBUG_PRINT("OP_ADD");
         return 1;
@@ -62,6 +74,10 @@ int debug_op_print(Chunk* chunk, int offset) {
         return 1;
     case OP_DIV:
         DEBUG_PRINT("OP_DIV");
+        return 1;
+        break;
+    case OP_EXITVM:
+        DEBUG_PRINT("OP_EXITVM");
         return 1;
         break;
     default:

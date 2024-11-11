@@ -17,6 +17,7 @@ typedef struct {
     Value stack[STACK_MAX];
     Value* stack_top;
     Table strings;
+    Table globals;
 } VM;
 
 #define STACK_IS_EMPTY(vm) (vm->stack_top == vm->stack)
