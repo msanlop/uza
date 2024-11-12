@@ -104,6 +104,9 @@ class Span:
         assert self.source == that.source
         return Span(self.start, that.end, self.source)
 
+    def __repr__(self) -> str:
+        return f"Span({self.start, self.end, self.get_source()})"
+
 
 T = TypeVar("T")
 

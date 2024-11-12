@@ -3,14 +3,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "chunk.h"
 #include "common.h"
 #include "serializer.h"
 #include "vm.h"
 #include "memory.h"
 #include "value.h"
+#include "chunk.h"
 
-#ifdef DEBUG
+#ifndef NDEBUG
 #include "debug.h"
 #endif
 
@@ -54,13 +54,17 @@ void vm_stack_reset(VM* vm) {
 VM* vm_init(program_bytes_t* program) {
     VM* vm = calloc(1, sizeof(VM));
     if (vm == NULL) return vm;
-    read_program(&vm->chunk, program);
+    initTable(&vm->strings);
+    initTable(&vm->globals);
+    read_program(vm, program);
     vm->ip = vm->chunk.code;
     vm_stack_reset(vm);
     return vm;
 }
 
 void vm_free(VM* vm){
+    freeTable(&vm->strings);
+    freeTable(&vm->globals);
     chunk_free(&vm->chunk);
     free(vm);
 }
@@ -93,7 +97,7 @@ void interpret(VM* vm) {
         #ifdef DEBUG_TRACE_EXECUTION_OP
             DEBUG_PRINT(PURPLE "running op\n  " RESET);
             debug_op_print(&vm->chunk, (int) (vm->ip - vm->chunk.code));
-            dprintf("\n");
+            fprintf(stderr, "\n");
             // DEBUG_PRINT("----------\n");
 
         #endif // #define DEBUG_TRACE_EXECUTION_OP
@@ -102,9 +106,10 @@ void interpret(VM* vm) {
         {
         case OP_RETURN:
             // simulate print() to test code, TODO: remove when obsolete
-            PRINT_VALUE((*(vm->stack_top-1)), stdout);
+            Value val = pop(vm);
+            PRINT_VALUE(val, stdout);
             printf(NEWLINE);
-            return;
+            break;
         case OP_STRCONST:
         case OP_DCONST:
         case OP_LCONST: push(vm, vm->chunk.constants.values[*(vm->ip++)]);
@@ -114,22 +119,11 @@ void interpret(VM* vm) {
             if (IS_STRING(top)) {
                 Value rhs = pop(vm);
                 Value lhs = pop(vm);
-                ObjectString* lhs_string = AS_STRING(lhs);
-                int new_len = lhs_string->length + AS_STRING(rhs)->length;
-                ObjectString* new_object_string = object_string_allocate(new_len);
-                memcpy(new_object_string->chars, lhs_string->chars, lhs_string->length);
-                strncat(
-                    new_object_string->chars,
-                    AS_STRING(rhs)->chars,
-                    new_len + 1
-                );
-                new_object_string->length = new_len;
-                new_object_string->obj.type = OBJ_STRING;
+                ObjectString *new_object_string = object_string_concat(&vm->strings, AS_STRING(lhs), AS_STRING(rhs));
                 Value new_object_value = {
                     .type=TYPE_OBJ,
                     .as.object=(Obj*) new_object_string
                 };
-                // new_chars->length = new_size;
                 push(vm, new_object_value);
             }
             else {
@@ -149,6 +143,26 @@ void interpret(VM* vm) {
             BINARY_OP(vm, /);
             break;
         }
+        case OP_DEFGLOBAL: {
+            ObjectString *identifier = (ObjectString *) vm->chunk.constants.values[*(vm->ip++)].as.object;
+            tableSet(&vm->globals, identifier, pop(vm));
+            break;
+        }
+        case OP_GETGLOBAL: {
+            ObjectString *identifier = (ObjectString *) vm->chunk.constants.values[*(vm->ip++)].as.object;
+            Value val = {0};
+            tableGet(&vm->globals, identifier, &val);
+            push(vm, val);
+            break;
+        }
+        case OP_SETGLOBAL: {
+            ObjectString *identifier = (ObjectString *) vm->chunk.constants.values[*(vm->ip++)].as.object;
+            Value val = pop(vm);
+            tableSet(&vm->globals, identifier, val);
+            break;
+        }
+        case OP_EXITVM:
+            return;
         default: {
             PRINT_ERR_ARGS("at %s:%d unknown instruction : %d\n\n",
                 __FILE__, __LINE__, instruction);

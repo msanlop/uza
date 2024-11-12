@@ -1,7 +1,7 @@
 #ifndef uza_common_h
 #define uza_common_h
 
-#ifdef DEBUG
+#ifndef NDEBUG
     #define DEBUG_TRACE_EXECUTION_STACK
     #define DEBUG_TRACE_EXECUTION_OP
     #define DEBUG_DUMP_VM
@@ -40,6 +40,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <stddef.h>
 
 #define MIN(a, b) (a < b ? a : b)
 #define MAX(a, b) (a > b ? a : b)

@@ -15,6 +15,7 @@ from uza.uzast import (
     Literal,
     VarDef,
     Program,
+    VarRedef,
 )
 from uza.utils import Span
 from uza.interpreter import (
@@ -38,6 +39,10 @@ OP_CODES = [
     "OP_MUL",
     "OP_DIV",
     "OP_NEG",
+    "OP_DEFGLOBAL",
+    "OP_GETGLOBAL",
+    "OP_SETGLOBAL",
+    "OP_EXITVM",
 ]
 
 
@@ -47,10 +52,11 @@ def opcode_int(opcode: str):
 
 Const = float | int | bool
 VALUE_TYPES = {
-    int: 0,
-    bool: 1,
-    float: 2,
-    dict: 3,  # TODO: revisit, then change _write_constant for string
+    None: 0,
+    int: 1,
+    bool: 2,
+    float: 3,
+    dict: 4,  # TODO: revisit, then change _write_constant for string
     # also just use arrays, dict of len 4 or 1 is dumb
 }
 
@@ -145,10 +151,21 @@ class ByteCodeProgram:
         self.chunk.add_op(OpCode(code_name, literal.span, constant=literal.value))
 
     def visit_identifier(self, identifier: Identifier):
-        pass
+        self.chunk.add_op(
+            OpCode("OP_GETGLOBAL", identifier.span, constant=identifier.name)
+        )
 
     def visit_var_def(self, var_def: VarDef):
-        pass
+        var_def.value.visit(self)
+        self.chunk.add_op(
+            OpCode("OP_DEFGLOBAL", var_def.span, constant=var_def.identifier)
+        )
+
+    def visit_var_redef(self, var_redef: VarRedef):
+        var_redef.value.visit(self)
+        self.chunk.add_op(
+            OpCode("OP_SETGLOBAL", var_redef.span, constant=var_redef.identifier)
+        )
 
     def visit_application(self, application: Application):
         func_id = application.func_id
@@ -179,6 +196,7 @@ class ByteCodeProgram:
     def _build_chunk(self):
         for line in self.program.syntax_tree:
             line.visit(self)
+        self.chunk.add_op(OpCode("OP_EXITVM", Span(0, 0, "META")))
 
 
 class ByteCodeProgramSerializer:

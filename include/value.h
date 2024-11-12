@@ -2,14 +2,13 @@
 #define uza_value_h
 
 #include "common.h"
-#include "object.h"
-
 
 typedef struct Obj Obj;
 typedef struct ObjectString ObjectString;
 
 typedef enum {
   TYPE_INVALID = -1,
+  TYPE_NIL,
   TYPE_LONG,
   TYPE_BOOL,
   TYPE_DOUBLE,
@@ -26,10 +25,14 @@ typedef struct {
   } as;
 } Value;
 
+#define VAL_NIL ((Value){TYPE_NIL, {.integer = 0}})
+#define VAL_BOOL(val) ((Value) {TYPE_BOOL, .as.boolean=val})
+
 #define IS_INTEGER(value) ((value).type == TYPE_LONG)
 #define IS_DOUBLE(value) ((value).type == TYPE_DOUBLE)
 #define IS_BOOL(value) ((value).type == TYPE_BOOL)
 #define IS_OBJECT(value) ((value).type == TYPE_OBJ)
+#define IS_NIL(value)     ((value).type == TYPE_NIL)
 
 #define AS_INTEGER(value) ((value).as.integer)
 #define AS_DOUBLE(value) ((value).as.fp)
@@ -47,6 +50,8 @@ typedef struct {
   do { \
     switch ((value).type) \
     { \
+    case TYPE_NIL: \
+      fprintf((out), "(nil)"); break; \
     case TYPE_LONG: \
       fprintf((out), "%lld", (value).as.integer); break; \
     case TYPE_DOUBLE: \
