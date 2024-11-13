@@ -69,7 +69,7 @@ void vm_free(VM* vm){
     free(vm);
 }
 
-void interpret(VM* vm) {
+int interpret(VM* vm) {
 
         // char* string = "Hello ";
         // int string_len = strlen(string);
@@ -102,14 +102,14 @@ void interpret(VM* vm) {
 
         #endif // #define DEBUG_TRACE_EXECUTION_OP
         OpCode instruction = *vm->ip++;
-        switch (instruction)
-        {
-        case OP_RETURN:
+        switch (instruction) {
+        case OP_RETURN: {
             // simulate print() to test code, TODO: remove when obsolete
             Value val = pop(vm);
             PRINT_VALUE(val, stdout);
             printf(NEWLINE);
-            break;
+        }
+        break;
         case OP_STRCONST:
         case OP_DCONST:
         case OP_LCONST: push(vm, vm->chunk.constants.values[*(vm->ip++)]);
@@ -129,48 +129,49 @@ void interpret(VM* vm) {
             else {
                 BINARY_OP(vm, +);
             }
-            break;
         }
+        break;
         case OP_SUB: {
             BINARY_OP(vm, -);
-            break;
         }
+        break;
         case OP_MUL: {
             BINARY_OP(vm, *);
-            break;
         }
+        break;
         case OP_DIV: {
             BINARY_OP(vm, /);
-            break;
         }
+        break;
         case OP_DEFGLOBAL: {
             ObjectString *identifier = (ObjectString *) vm->chunk.constants.values[*(vm->ip++)].as.object;
             tableSet(&vm->globals, identifier, pop(vm));
-            break;
         }
+        break;
         case OP_GETGLOBAL: {
             ObjectString *identifier = (ObjectString *) vm->chunk.constants.values[*(vm->ip++)].as.object;
             Value val = {0};
             tableGet(&vm->globals, identifier, &val);
             push(vm, val);
-            break;
         }
+        break;
         case OP_SETGLOBAL: {
             ObjectString *identifier = (ObjectString *) vm->chunk.constants.values[*(vm->ip++)].as.object;
             Value val = pop(vm);
             tableSet(&vm->globals, identifier, val);
-            break;
         }
+        break;
         case OP_EXITVM:
-            return;
+            return 0;
         default: {
             PRINT_ERR_ARGS("at %s:%d unknown instruction : %d\n\n",
                 __FILE__, __LINE__, instruction);
-            exit(1);
-            break;
+            return 1;
         }
+        break;
         }
     }
+    return 1;
 }
 
 #undef BINARY_OP

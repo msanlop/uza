@@ -30,6 +30,6 @@ VM*  vm_init(program_bytes_t* program);
 void vm_stack_reset(VM* vm);
 void vm_free(VM* vm);
 
-void interpret(VM* vm);
+int interpret(VM* vm);
 
 #endif // uza_vm_h

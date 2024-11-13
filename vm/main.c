@@ -24,14 +24,14 @@ int run_vm(int byte_count, char* code) {
 
     #ifdef DEBUG_DUMP_VM
         debug_vm_dump(vm);
-        interpret(vm);
+    int res = interpret(vm);
         debug_vm_dump(vm);
     #else
-        interpret(vm);
+    int res = interpret(vm);
     #endif
     vm_free(vm);
     // fflush(stdout);
     // fflush(stderr);
-    return 0;
+    return res;
 }
 
