@@ -263,12 +263,12 @@ class Parser:
         identifier = Identifier(identifier_tok, identifier_tok.span)
         if self._peek().kind == token_paren_l:
             if get_builtin(identifier) == None:
-                raise SyntaxError(
+                raise NameError(
                     "\n" + identifier_tok.span.get_underlined("function is undefined")
                 )
         else:
             if self._symbol_table.get(identifier_tok.repr) is None:
-                raise SyntaxError(
+                raise NameError(
                     "\n"
                     + identifier_tok.span.get_underlined(
                         "variable not defined in this scope"

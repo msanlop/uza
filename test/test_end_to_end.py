@@ -2,7 +2,7 @@ import pytest
 
 from uza.interpreter import Interpreter
 from uza.parser import Parser
-from .helper import parse_test_file, TESTS_PATH, MAGENTA, RESET
+from .helper import parse_test_file, TESTS_PATH, MAGENTA, RESET, remove_new_lines
 import os
 
 
@@ -22,7 +22,7 @@ def test_end_to_end(description, code, expected_output, capsys):
         )
     captured = capsys.readouterr()
     actual_output = captured.out
-    actual_output = actual_output.strip()
+    actual_output = remove_new_lines(actual_output)
 
     assert actual_output == expected_output, (
         f"\nTest: {description}\n"
