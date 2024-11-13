@@ -106,7 +106,7 @@ def test_math_expressions():
 
     expressions = Parser(source).parse().syntax_tree.lines
     outputs = [
-        Interpreter(Program(Scope([expr], Span(0, 0, "top_level")), 0, [])).evaluate()
+        Interpreter(Program(Block([expr], Span(0, 0, "top_level")), 0, [])).evaluate()
         for expr in expressions
     ]
     real = [eval(line) for line in source.splitlines()]

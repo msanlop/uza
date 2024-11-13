@@ -3,8 +3,10 @@ from collections import deque
 import string
 from typing import Callable, List, Optional, TypeVar
 
+from uza.interpreter import get_builtin
 from uza.uzast import (
     Application,
+    Block,
     Identifier,
     InfixApplication,
     Literal,
@@ -225,15 +227,28 @@ class Parser:
             temp = self._peek()
         return temp
 
-    def scoped(func, frame_name):
-        def _scoped(self, *args, **kwargs):
-            saved = self._symbol_table
-            self._symbol_table = saved.with_new_frame(frame_name, [])
-            res = func(self, *args, **kwargs)
-            self._symbol_table = saved
-            return res
+    def scoped(frame_name):
+        """
+        Decorator to scope a function with the scope named _frame_name_.
+        """
 
-        return _scoped
+        def named_scope(func):
+            """
+            Decorator that saves the scope of the parser and pushes a new stack
+            frame, executes _func_ and then restores the original state before
+            returning.
+            """
+
+            def _scoped(self, *args, **kwargs):
+                saved = self._symbol_table
+                self._symbol_table = self._symbol_table.with_new_frame(frame_name, {})
+                res = func(self, *args, **kwargs)
+                self._symbol_table = saved
+                return res
+
+            return _scoped
+
+        return named_scope
 
     def _get_top_level(self) -> Node:
         next_ = self._peek()
@@ -245,7 +260,21 @@ class Parser:
 
     def _get_identifier(self) -> Identifier:
         identifier_tok = self._expect(token_identifier)
-        return Identifier(identifier_tok, identifier_tok.span)
+        identifier = Identifier(identifier_tok, identifier_tok.span)
+        if self._peek().kind == token_paren_l:
+            if get_builtin(identifier) == None:
+                raise SyntaxError(
+                    "\n" + identifier_tok.span.get_underlined("function is undefined")
+                )
+        else:
+            if self._symbol_table.get(identifier_tok.repr) is None:
+                raise SyntaxError(
+                    "\n"
+                    + identifier_tok.span.get_underlined(
+                        "variable not defined in this scope"
+                    )
+                )
+        return identifier
 
     def _get_var_redef(self, identifier) -> Node:
         if self._peek().kind == token_identifier:
@@ -302,20 +331,27 @@ class Parser:
 
         return args
 
-    def _parse_scope(self) -> Scope:
+    def _parse_node_list(self, end_token: Optional[TokenKind] = None):
         expressions: list[Node] = []
         while len(self._tokens) > 0:
-            if self._peek().kind == token_new_line:
+            tok = self._peek()
+            if tok.kind == token_new_line:
                 self._expect(token_new_line)
                 continue
-
+            if end_token and tok.kind == end_token:
+                break
             expr = self._get_top_level()
             expressions.append(expr)
+
         if len(expressions) > 0:
             span = expressions[0].span + expressions[-1].span
         else:
             span = Span(0, 0, "empty scope")
         return Scope(expressions, span)
+
+    @scoped(frame_name="Block")
+    def _parse_scope(self, end_token: Optional[TokenKind] = None) -> Block:
+        return self._parse_node_list(end_token)
 
     def _get_expr(self) -> Node:
         tok = self._consume_white_space_and_peek()
@@ -330,7 +366,7 @@ class Parser:
 
         elif tok.kind == token_bracket_l:
             self._expect(token_bracket_l)
-            node = self._parse_scope()
+            node = self._parse_scope(end_token=token_bracket_r)
             self._expect(token_bracket_r)
             return self._get_infix(node)
         elif tok.kind == token_identifier:
@@ -397,7 +433,5 @@ class Parser:
         return lhs
 
     def parse(self) -> Program:
-        if not self._peek():
-            return Program([], 0, [])
         top_level = self._parse_scope()
         return Program(top_level, self._errors, self.failed_nodes)

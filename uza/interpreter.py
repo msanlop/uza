@@ -9,6 +9,7 @@ from uza.uzast import (
     Literal,
     Node,
     PrefixApplication,
+    Block,
     Value,
     VarDef,
     Program,
@@ -156,6 +157,14 @@ class Interpreter:
             return self.visit_built_in_application(built_in_id, left, right)
         raise NotImplementedError("no user functions yet, something went wrong")
 
+    def visit_scope(self, scope: Block):
+        saved_context = self._context
+        self._context = self._context.with_new_frame("/", {})
+        last = None
+        for node in scope.lines:
+            last = node.visit(self)
+        return last
+
     def evaluate(self) -> Optional[Value]:
         """
         The main _Interpreter_ function that evaluates the top level nodes.
@@ -163,5 +172,4 @@ class Interpreter:
         Returns:
             Optional[int | float]: return the evaluated result of the last line
         """
-        lines = [node.visit(self) for node in self._program.syntax_tree.lines]
-        return lines[-1]
+        return self._program.syntax_tree.visit(self)

@@ -5,7 +5,7 @@ from itertools import count, permutations
 
 from uza.type import *
 from uza.token import *
-from uza.uzast import InfixApplication, Literal, Program, VarDef, Error, VarRedef
+from uza.uzast import InfixApplication, Literal, Program, Scope, VarDef, Error, VarRedef
 from uza.interpreter import *
 from uza.utils import in_bold, in_color, ANSIColor
 
@@ -403,6 +403,17 @@ class Typer:
     def visit_error(self, error: Error):
         raise RuntimeError(f"Unexpected visit to error node :{error} in typer")
 
+    def visit_scope(self, scope: Scope):
+        saved_constraints = [*self.constaints]
+        saved_sub = Substitution({**self.substitution._substitutions})
+        saved_symbols = self.symbols
+        self.symbols = self.symbols.with_new_frame("/", {})
+        res = self._check(scope.lines)
+        self.constaints = saved_constraints
+        self.substitution = saved_sub
+        self.symbols = saved_symbols
+        return res
+
     def _check_with_sub(
         self, constaints: list[Constraint], substitution: Substitution
     ) -> tuple[int, str, Substitution]:
@@ -435,6 +446,24 @@ class Typer:
 
         return err, err_string, substitution
 
+    # @scoped
+    def _check(self, lines: List[Node]) -> tuple[int, str, str]:
+        """
+        Type checks a scope.
+        """
+        for node in lines:
+            node.visit(self)
+
+        errors = len(self._error_strings)
+        if errors > 0:
+            return errors, "\n".join(self._error_strings), None
+
+        errors, err_str, substitution = self._check_with_sub(
+            self.constaints, self.substitution
+        )
+
+        return errors, err_str, substitution
+
     def check_types(self, output_substitution=False) -> tuple[int, str, str]:
         """
         Types checks the proram and returns the returns a tuple with the number
@@ -447,16 +476,8 @@ class Typer:
         Returns:
             tuple[int, str, str]: (errors found, error message, substitution string or none)
         """
-        for node in self.program.syntax_tree.lines:
-            node.visit(self)
+        errors, err_str, substitution = self._check(self.program.syntax_tree.lines)
 
-        errors = len(self._error_strings)
-        if errors > 0:
-            return errors, "\n".join(self._error_strings), None
-
-        errors, err_str, substitution = self._check_with_sub(
-            self.constaints, self.substitution
-        )
         if output_substitution:
             verbose_map = substitution.pretty_string()
         else:

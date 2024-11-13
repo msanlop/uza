@@ -156,6 +156,11 @@ class Scope(Node):
 
 
 @dataclass
+class Block(Scope):
+    pass
+
+
+@dataclass
 class Error(Node):
     error_message: str
     span: Span = field(compare=False)
