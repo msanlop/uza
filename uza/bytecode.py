@@ -194,7 +194,7 @@ class ByteCodeProgram:
         self.chunk.add_op(OpCode(code_str, application.span))
 
     def _build_chunk(self):
-        for line in self.program.syntax_tree:
+        for line in self.program.syntax_tree.lines:
             line.visit(self)
         self.chunk.add_op(OpCode("OP_EXITVM", Span(0, 0, "META")))
 

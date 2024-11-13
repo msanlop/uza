@@ -447,7 +447,7 @@ class Typer:
         Returns:
             tuple[int, str, str]: (errors found, error message, substitution string or none)
         """
-        for node in self.program.syntax_tree:
+        for node in self.program.syntax_tree.lines:
             node.visit(self)
 
         errors = len(self._error_strings)

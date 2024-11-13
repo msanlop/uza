@@ -163,5 +163,5 @@ class Interpreter:
         Returns:
             Optional[int | float]: return the evaluated result of the last line
         """
-        lines = [node.visit(self) for node in self._program.syntax_tree]
+        lines = [node.visit(self) for node in self._program.syntax_tree.lines]
         return lines[-1]

@@ -140,6 +140,22 @@ class VarRedef(Node):
 
 
 @dataclass
+class Scope(Node):
+    """
+    A Scope is is a list of Nodes. For example the function scope, or the top
+    level scope.
+
+    TODO: rename, ambiguous
+    """
+
+    lines: List[Node]
+    span: Span = field(compare=False)
+
+    def visit(self, that):
+        return that.visit_scope(self)
+
+
+@dataclass
 class Error(Node):
     error_message: str
     span: Span = field(compare=False)
@@ -161,6 +177,6 @@ class Value:
 
 @dataclass
 class Program:
-    syntax_tree: list[Node]
+    syntax_tree: Scope
     errors: int
     failed_nodes: List[Error]

@@ -1,7 +1,7 @@
 from __future__ import annotations
 from collections import deque
 import string
-from typing import Optional
+from typing import Callable, List, Optional, TypeVar
 
 from uza.uzast import (
     Application,
@@ -10,6 +10,7 @@ from uza.uzast import (
     Literal,
     Node,
     PrefixApplication,
+    Scope,
     VarDef,
     Error,
     Program,
@@ -211,40 +212,49 @@ class Parser:
         if op and not self._peek().kind.is_op():
             raise RuntimeError(f"expected operator\n    but got {self._peek()}")
         elif self._peek().kind not in type_ and not op:
-            raise RuntimeError(f"expected {type_}\n    but got {self._peek()}")
+            raise RuntimeError(
+                f"expected {type_}\n    but got {self._peek()}: {self._peek().span.get_source()}"
+            )
 
         return self._tokens.popleft()
 
+    def _consume_white_space_and_peek(self) -> TokenKind:
+        temp = self._peek()
+        while temp.kind == token_new_line:
+            self._expect(temp.kind)
+            temp = self._peek()
+        return temp
+
+    def scoped(func, frame_name):
+        def _scoped(self, *args, **kwargs):
+            saved = self._symbol_table
+            self._symbol_table = saved.with_new_frame(frame_name, [])
+            res = func(self, *args, **kwargs)
+            self._symbol_table = saved
+            return res
+
+        return _scoped
+
     def _get_top_level(self) -> Node:
         next_ = self._peek()
+        while next_.kind == token_new_line:
+            self._expect(token_new_line)
+            next_ = self._peek()
 
-        if next_.kind in (token_const, token_var):
-            res = self._get_var_def()
-        elif next_.kind == token_identifier:
-            if len(self._tokens) > 1 and self._tokens[1].kind == token_eq:
-                res = self._get_var_redef()
-            else:
-                res = self._get_expr()
-        else:
-            res = self._get_expr()
-
-        # if len(self._tokens) > 0:
-        #     self._expect(token_new_line)
-        return res
+        return self._get_expr()
 
     def _get_identifier(self) -> Identifier:
         identifier_tok = self._expect(token_identifier)
         return Identifier(identifier_tok, identifier_tok.span)
 
-    def _get_var_redef(self) -> Node:
-        identifier = self._get_identifier()
+    def _get_var_redef(self, identifier) -> Node:
         if self._peek().kind == token_identifier:
             type_tok = self._expect(token_identifier)
             type_ = typer.identifier_to_uza_type(type_tok)
         else:
             type_ = None
         self._expect(token_eq)
-        value = self._get_infix(self._get_expr())
+        value = self._get_expr()
         is_immutable = self._symbol_table.get(identifier.name)
 
         return VarRedef(identifier.name, value, identifier.span + value.span)
@@ -259,7 +269,7 @@ class Parser:
         else:
             type_ = None
         self._expect(token_eq)
-        value = self._get_infix(self._get_expr())
+        value = self._get_expr()
         if not self._symbol_table.define(identifier.repr, immutable):
             err = Error(
                 identifier.span.get_underlined(
@@ -292,43 +302,66 @@ class Parser:
 
         return args
 
+    def _parse_scope(self) -> Scope:
+        expressions: list[Node] = []
+        while len(self._tokens) > 0:
+            if self._peek().kind == token_new_line:
+                self._expect(token_new_line)
+                continue
+
+            expr = self._get_top_level()
+            expressions.append(expr)
+        if len(expressions) > 0:
+            span = expressions[0].span + expressions[-1].span
+        else:
+            span = Span(0, 0, "empty scope")
+        return Scope(expressions, span)
+
     def _get_expr(self) -> Node:
-        tok = self._peek()
+        tok = self._consume_white_space_and_peek()
 
-        if tok.kind == token_paren_l:
+        if tok.kind in (token_const, token_var):
+            return self._get_var_def()
+        elif tok.kind == token_paren_l:
             self._expect(token_paren_l)
-
             node = self._get_infix(self._get_expr())
             self._expect(token_paren_r)
             return self._get_infix(node)
 
-        if tok.kind == token_identifier:
+        elif tok.kind == token_bracket_l:
+            self._expect(token_bracket_l)
+            node = self._parse_scope()
+            self._expect(token_bracket_r)
+            return self._get_infix(node)
+        elif tok.kind == token_identifier:
             identifier = self._get_identifier()
             tok = self._peek()
             if not tok:
                 return identifier
-            if tok.kind != token_paren_l:
-                return self._get_infix(identifier)
+            elif tok.kind == token_eq:
+                return self._get_var_redef(identifier)
+            elif tok.kind == token_paren_l:
+                self._expect(token_paren_l)
+                arguments = self._get_function_args()
+                self._expect(token_paren_r)
+                func_call = Application(identifier, *arguments)
+                return self._get_infix(func_call)
 
-            self._expect(token_paren_l)
-            arguments = self._get_function_args()
-            self._expect(token_paren_r)
-            func_call = Application(identifier, *arguments)
-            return self._get_infix(func_call)
+            return self._get_infix(identifier)
 
-        if tok.kind.is_op():
+        elif tok.kind.is_op():
             prefix_tok = self._expect(tok.kind)
             return PrefixApplication(
                 self._get_expr(), Identifier(prefix_tok, prefix_tok.span)
             )
-        if tok.kind.is_user_value:
+        elif tok.kind.is_user_value:
             val = Literal(self._expect(tok.kind))
             return self._get_infix(val)
-
-        source_excerp = self._source[
-            max(tok.span.start - 2, 0) : min(tok.span.end + 2, len(self._source))
-        ]
-        raise RuntimeError(f"did not expect '{tok.repr}' at '{source_excerp}'")
+        else:
+            source_excerp = self._source[
+                max(tok.span.start - 2, 0) : min(tok.span.end + 2, len(self._source))
+            ]
+            raise RuntimeError(f"did not expect '{tok.repr}' at '{source_excerp}'")
 
     def _peek_valid_op(self, precedence: int):
         next_tok = self._peek()
@@ -366,12 +399,5 @@ class Parser:
     def parse(self) -> Program:
         if not self._peek():
             return Program([], 0, [])
-        expressions = []
-        while len(self._tokens) > 0:
-            if self._peek().kind == token_new_line:
-                self._expect(token_new_line)
-                continue
-
-            expr = self._get_top_level()
-            expressions.append(expr)
-        return Program(expressions, self._errors, self.failed_nodes)
+        top_level = self._parse_scope()
+        return Program(top_level, self._errors, self.failed_nodes)

@@ -109,7 +109,7 @@ def main(argv: Sequence[str] = None) -> int:
     program = Parser(source).parse()
     if args.verbose:
         print(in_color("\n### ast ###\n", ANSIColor.YELLOW), file=stderr)
-        for i, node in enumerate(program.syntax_tree):
+        for i, node in enumerate(program.syntax_tree.lines):
             print(
                 node.span.start, end=": ", file=stderr
             )  # TODO: use line instead of codepoint
