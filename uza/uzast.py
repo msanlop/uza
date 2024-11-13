@@ -157,7 +157,8 @@ class Scope(Node):
 
 @dataclass
 class Block(Scope):
-    pass
+    def visit(self, that):
+        return that.visit_block(self)
 
 
 @dataclass

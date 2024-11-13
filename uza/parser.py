@@ -331,7 +331,7 @@ class Parser:
 
         return args
 
-    def _parse_node_list(self, end_token: Optional[TokenKind] = None):
+    def _parse_lines(self, end_token: Optional[TokenKind] = None) -> List[Node]:
         expressions: list[Node] = []
         while len(self._tokens) > 0:
             tok = self._peek()
@@ -343,15 +343,16 @@ class Parser:
             expr = self._get_top_level()
             expressions.append(expr)
 
-        if len(expressions) > 0:
-            span = expressions[0].span + expressions[-1].span
-        else:
-            span = Span(0, 0, "empty scope")
-        return Scope(expressions, span)
+        return expressions
 
     @scoped(frame_name="Block")
-    def _parse_scope(self, end_token: Optional[TokenKind] = None) -> Block:
-        return self._parse_node_list(end_token)
+    def _parse_block(self, end_token: Optional[TokenKind] = None) -> Block:
+        lines = self._parse_lines(end_token)
+        if len(lines) > 0:
+            span = lines[0].span + lines[-1].span
+        else:
+            span = Span(0, 0, "empty block")
+        return Block(lines, span)
 
     def _get_expr(self) -> Node:
         tok = self._consume_white_space_and_peek()
@@ -366,7 +367,7 @@ class Parser:
 
         elif tok.kind == token_bracket_l:
             self._expect(token_bracket_l)
-            node = self._parse_scope(end_token=token_bracket_r)
+            node = self._parse_block(end_token=token_bracket_r)
             self._expect(token_bracket_r)
             return self._get_infix(node)
         elif tok.kind == token_identifier:
@@ -433,5 +434,12 @@ class Parser:
         return lhs
 
     def parse(self) -> Program:
-        top_level = self._parse_scope()
+        top_level_lines = self._parse_lines()
+        span = None
+        if len(top_level_lines) > 0:
+            span = Span(0, 0, "empty scope")
+        else:
+            span = top_level_lines[0].span + top_level_lines[-1].span
+
+        top_level = Scope(top_level_lines, span)
         return Program(top_level, self._errors, self.failed_nodes)

@@ -127,7 +127,7 @@ class SymbolTable:
     def __init__(self, frames: deque[tuple[str, dict[str, T]]] | None = None) -> None:
         if not frames:
             self.frames: deque[tuple[str, dict[str, T]]] = deque()
-            self.frames.appendleft(("", {}))
+            self.frames.appendleft(("top-level", {}))
         else:
             self.frames = frames
 
