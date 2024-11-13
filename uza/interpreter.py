@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Callable, Optional, TypeVar
+from typing import Callable, List, Optional, TypeVar
 
 from uza.uzast import (
     Application,
@@ -9,6 +9,8 @@ from uza.uzast import (
     Literal,
     Node,
     PrefixApplication,
+    Block,
+    Scope,
     Value,
     VarDef,
     Program,
@@ -71,14 +73,30 @@ class Interpreter:
     T = TypeVar("T")
     R = TypeVar("R")
 
-    def _in_scope(
-        self, scope_name: str, locals_vals: dict[str, Value], func: Callable[[], R]
-    ) -> R:
-        saved = self._context
-        self._context = saved.with_new_frame(scope_name, locals_vals)
-        res = func()
-        self._context = saved
-        return res
+    def scoped(frame_name):
+        """
+        Decorator to scope a function with the scope named _frame_name_.
+
+        TODO: abstract for parser, typer, interpreter, bc emiter...
+        """
+
+        def named_scope(func):
+            """
+            Decorator that saves the scope of the interpreter and pushes a new stack
+            frame, executes _func_ and then restores the original state before
+            returning.
+            """
+
+            def _scoped(self, *args, **kwargs):
+                saved = self._context
+                self._context = self._context.with_new_frame(frame_name, {})
+                res = func(self, *args, **kwargs)
+                self._context = saved
+                return res
+
+            return _scoped
+
+        return named_scope
 
     def visit_built_in_application(self, func_id, *params) -> Optional[Value]:
         ret = None
@@ -156,6 +174,18 @@ class Interpreter:
             return self.visit_built_in_application(built_in_id, left, right)
         raise NotImplementedError("no user functions yet, something went wrong")
 
+    def _visit_lines(self, lines: List[Node]):
+        for node in lines:
+            last = node.visit(self)
+        return last
+
+    @scoped("Block")
+    def visit_block(self, block: Block):
+        return self._visit_lines(block.lines)
+
+    def visit_scope(self, scope: Scope):
+        return self._visit_lines(scope.lines)
+
     def evaluate(self) -> Optional[Value]:
         """
         The main _Interpreter_ function that evaluates the top level nodes.
@@ -163,5 +193,4 @@ class Interpreter:
         Returns:
             Optional[int | float]: return the evaluated result of the last line
         """
-        lines = [node.visit(self) for node in self._program.syntax_tree.lines]
-        return lines[-1]
+        return self._program.syntax_tree.visit(self)

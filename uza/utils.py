@@ -2,7 +2,7 @@ from __future__ import annotations
 from collections import deque
 from dataclasses import dataclass
 import sys
-from typing import TypeVar
+from typing import Optional, TypeVar
 
 
 class ANSIColor:
@@ -127,7 +127,7 @@ class SymbolTable:
     def __init__(self, frames: deque[tuple[str, dict[str, T]]] | None = None) -> None:
         if not frames:
             self.frames: deque[tuple[str, dict[str, T]]] = deque()
-            self.frames.appendleft(("", {}))
+            self.frames.appendleft(("top-level", {}))
         else:
             self.frames = frames
 
@@ -136,7 +136,7 @@ class SymbolTable:
         return top_frame[1]
 
     def with_new_frame(self, context_name: str, frame: dict[str, T]) -> SymbolTable:
-        new_frames = deque((*self.frames, (context_name, frame)))
+        new_frames = deque(((context_name, frame), *self.frames))
         return SymbolTable(new_frames)
 
     def define(self, variable_name: str, value: T) -> bool:
@@ -152,13 +152,13 @@ class SymbolTable:
         frame_locals[variable_name] = value
         return True
 
-    def get(self, identifier: str) -> T:
+    def get(self, identifier: str) -> Optional[T]:
         for frame in self.frames:
             frame_locals = frame[1]
             value = frame_locals.get(identifier)
             if value is not None:
                 return value
-        raise NameError(f'"{identifier}" has not been defined')
+        return None
 
     def reassign(self, identifier: str, new_value: T) -> None:
         frame_locals = self._get_locals()

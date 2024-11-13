@@ -9,6 +9,12 @@
 #include "chunk.h"
 
 #define STACK_MAX (1048576 / sizeof(Value)) // 1MiB
+#define FRAMES_MAX (1000)
+
+typedef struct {
+    Value *locals;
+} Frame;
+
 
 typedef struct {
     // uint8_t version[3];
@@ -16,6 +22,9 @@ typedef struct {
     uint8_t* ip;
     Value stack[STACK_MAX];
     Value* stack_top;
+    uint16_t depth;
+    // TODO: see about type, so far only hold locals
+    Frame frame_stacks[FRAMES_MAX]; // points to the spot after last local
     Table strings;
     Table globals;
 } VM;

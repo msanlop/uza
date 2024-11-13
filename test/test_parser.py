@@ -1,4 +1,5 @@
 # pylint: disable=wildcard-import unused-import missing-function-docstring
+import pytest
 from uza.uzast import *
 from uza.parser import Parser
 from uza.interpreter import Interpreter
@@ -106,7 +107,7 @@ def test_math_expressions():
 
     expressions = Parser(source).parse().syntax_tree.lines
     outputs = [
-        Interpreter(Program(Scope([expr], Span(0, 0, "top_level")), 0, [])).evaluate()
+        Interpreter(Program(Block([expr], Span(0, 0, "top_level")), 0, [])).evaluate()
         for expr in expressions
     ]
     real = [eval(line) for line in source.splitlines()]
@@ -127,3 +128,31 @@ def test_builtin_application_parse():
     )
     print(repr(expected))
     assert actual == expected
+
+
+def test_variable_out_of_scope_raises_name_error():
+    source = """{
+        const foo = 42.
+        println(foo)
+    }
+    """
+    actual = Parser(source).parse().syntax_tree.lines[0]
+    assert isinstance(actual, Block)
+
+    failing_source = source + "\nprintln(foo)"
+    with pytest.raises(NameError):
+        Parser(failing_source).parse().syntax_tree.lines[0]
+
+
+def test_undefined_func_raises_name_error():
+    source = """{
+        const foo = 42.
+        println(foo)
+    }
+    """
+    actual = Parser(source).parse().syntax_tree.lines[0]
+    assert isinstance(actual, Block)
+
+    failing_source = source + "\ndewit(foo)"
+    with pytest.raises(NameError):
+        Parser(failing_source).parse().syntax_tree.lines[0]

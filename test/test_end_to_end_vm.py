@@ -13,6 +13,7 @@ from .helper import (
     RESET,
     MAGENTA,
     PROJECT_ROOT,
+    remove_new_lines,
 )
 
 
@@ -47,7 +48,7 @@ def test_end_to_end(description, code, expected_output, capfd):
         )
     captured_out = capfd.readouterr()
     actual_output = captured_out.out
-    actual_output = actual_output.strip()
+    actual_output = remove_new_lines(actual_output)
 
     try:
         expected_output = pytest.approx(float(expected_output))

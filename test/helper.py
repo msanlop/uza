@@ -1,4 +1,5 @@
 import os
+import re
 
 TEST_HEADER = "#test "
 TEST_EXPECTED = "#expected"
@@ -15,6 +16,10 @@ MAGENTA = "\033[0;35m"
 RESET = "\033[0m"
 
 
+def remove_new_lines(string: str) -> str:
+    return re.sub(r"\n|\r", "", string)
+
+
 def parse_test_file(file_path) -> list[tuple]:
     """returns a list of tuple : (test title, test source, expected output),
     where expected output has no new line character for easier cross platform
@@ -26,27 +31,27 @@ def parse_test_file(file_path) -> list[tuple]:
     tests = []
     with open(file_path, "r") as file:
         title, source, expected = ("", "", "")
-        content = file.readline()
-        while content:
-            if content.startswith(COMMENTED_OUT):
+        line = file.readline()
+        while line:
+            print(line)
+            if line.startswith(COMMENTED_OUT):
                 pass
-            elif content.startswith(TEST_HEADER):
-                title = content[len(TEST_HEADER) :]
-            elif content.startswith(TEST_EXPECTED):
+            elif line.startswith(TEST_HEADER):
+                title = line[len(TEST_HEADER) :]
+            elif line.startswith(TEST_EXPECTED):
                 expected = ""
-                temp = file.readline().strip()
+                temp = remove_new_lines(file.readline())
                 while True:
                     expected += temp
                     print(expected)
-                    temp = file.readline().strip()
+                    temp = remove_new_lines(file.readline())
                     if len(temp) == 0:
-                        content = temp
+                        line = temp
                         break
                 tests.append((title, source, expected))
                 source = ""
-                continue
             else:
-                source += content
-            content = file.readline()
+                source += line
+            line = file.readline()
 
     return tests

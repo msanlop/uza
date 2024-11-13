@@ -5,7 +5,16 @@ from itertools import count, permutations
 
 from uza.type import *
 from uza.token import *
-from uza.uzast import InfixApplication, Literal, Program, VarDef, Error, VarRedef
+from uza.uzast import (
+    Block,
+    InfixApplication,
+    Literal,
+    Program,
+    Scope,
+    VarDef,
+    Error,
+    VarRedef,
+)
 from uza.interpreter import *
 from uza.utils import in_bold, in_color, ANSIColor
 
@@ -285,7 +294,7 @@ class Typer:
         self.constaints: List[Constraint] = []
 
         # map from identifier in frame to tuple[Type, true if const, false if var]
-        self.symbols = SymbolTable()
+        self._symbol_table = SymbolTable()
 
         self.symbol_gen = count()
         self.substitution = Substitution({})
@@ -298,13 +307,38 @@ class Typer:
         return SymbolicType("symbolic_" + str(next(self.symbol_gen)), node.span)
 
     def _get_type_of_identifier(self, identifier: str) -> Type:
-        return self.symbols.get(identifier)[0]
+        return self._symbol_table.get(identifier)[0]
 
     def _var_is_immutable(self, identifier: str) -> Type:
-        pair = self.symbols.get(identifier)
+        pair = self._symbol_table.get(identifier)
         if pair is None:
             return None
         return pair[1]
+
+    def scoped(frame_name):
+        """
+        Decorator to scope a function with the scope named _frame_name_.
+
+        TODO: abstract for parser, typer, interpreter, bc emiter...
+        """
+
+        def named_scope(func):
+            """
+            Decorator that saves the scope of the typer and pushes a new stack
+            frame, executes _func_ and then restores the original state before
+            returning.
+            """
+
+            def _scoped(self, *args, **kwargs):
+                saved = self._symbol_table
+                self._symbol_table = self._symbol_table.with_new_frame(frame_name, {})
+                res = func(self, *args, **kwargs)
+                self._symbol_table = saved
+                return res
+
+            return _scoped
+
+        return named_scope
 
     def add_constaint(self, constraint: Constraint) -> None:
         """
@@ -363,7 +397,7 @@ class Typer:
         return self.visit_builtin(builtin, infix.lhs, infix.rhs)
 
     def visit_identifier(self, identifier: Identifier):
-        return self.symbols.get(identifier.name)[0]
+        return self._symbol_table.get(identifier.name)[0]
 
     def visit_application(self, app: Application):
         func_id = app.func_id
@@ -374,7 +408,7 @@ class Typer:
     def visit_var_def(self, var_def: VarDef):
         t = var_def.type_ if var_def.type_ else self._create_new_symbol(var_def)
         self.constaints.append(IsType(t, var_def.value.visit(self), var_def.span))
-        self.symbols.define(var_def.identifier, (t, var_def.immutable))
+        self._symbol_table.define(var_def.identifier, (t, var_def.immutable))
 
     def visit_var_redef(self, redef: VarRedef):
         identifier = redef.identifier
@@ -402,6 +436,13 @@ class Typer:
 
     def visit_error(self, error: Error):
         raise RuntimeError(f"Unexpected visit to error node :{error} in typer")
+
+    @scoped("Block")
+    def visit_block(self, scope: Block):
+        return self._check(scope.lines)
+
+    def visit_scope(self, scope: Block):
+        return self._check(scope.lines)
 
     def _check_with_sub(
         self, constaints: list[Constraint], substitution: Substitution
@@ -435,6 +476,23 @@ class Typer:
 
         return err, err_string, substitution
 
+    def _check(self, lines: List[Node]) -> tuple[int, str, str]:
+        """
+        Type checks a scope.
+        """
+        for node in lines:
+            node.visit(self)
+
+        errors = len(self._error_strings)
+        if errors > 0:
+            return errors, "\n".join(self._error_strings), None
+
+        errors, err_str, substitution = self._check_with_sub(
+            self.constaints, self.substitution
+        )
+
+        return errors, err_str, substitution
+
     def check_types(self, output_substitution=False) -> tuple[int, str, str]:
         """
         Types checks the proram and returns the returns a tuple with the number
@@ -447,16 +505,8 @@ class Typer:
         Returns:
             tuple[int, str, str]: (errors found, error message, substitution string or none)
         """
-        for node in self.program.syntax_tree.lines:
-            node.visit(self)
+        errors, err_str, substitution = self._check(self.program.syntax_tree.lines)
 
-        errors = len(self._error_strings)
-        if errors > 0:
-            return errors, "\n".join(self._error_strings), None
-
-        errors, err_str, substitution = self._check_with_sub(
-            self.constaints, self.substitution
-        )
         if output_substitution:
             verbose_map = substitution.pretty_string()
         else:
