@@ -73,31 +73,6 @@ class Interpreter:
     T = TypeVar("T")
     R = TypeVar("R")
 
-    def scoped(frame_name):
-        """
-        Decorator to scope a function with the scope named _frame_name_.
-
-        TODO: abstract for parser, typer, interpreter, bc emiter...
-        """
-
-        def named_scope(func):
-            """
-            Decorator that saves the scope of the interpreter and pushes a new stack
-            frame, executes _func_ and then restores the original state before
-            returning.
-            """
-
-            def _scoped(self, *args, **kwargs):
-                saved = self._context
-                self._context = self._context.with_new_frame(frame_name, {})
-                res = func(self, *args, **kwargs)
-                self._context = saved
-                return res
-
-            return _scoped
-
-        return named_scope
-
     def visit_built_in_application(self, func_id, *params) -> Optional[Value]:
         ret = None
         lhs, rhs = params[0], None
@@ -179,9 +154,9 @@ class Interpreter:
             last = node.visit(self)
         return last
 
-    @scoped("Block")
     def visit_block(self, block: Block):
-        return self._visit_lines(block.lines)
+        with self._context.new_frame():
+            return self._visit_lines(block.lines)
 
     def visit_scope(self, scope: Scope):
         return self._visit_lines(scope.lines)

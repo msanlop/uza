@@ -315,31 +315,6 @@ class Typer:
             return None
         return pair[1]
 
-    def scoped(frame_name):
-        """
-        Decorator to scope a function with the scope named _frame_name_.
-
-        TODO: abstract for parser, typer, interpreter, bc emiter...
-        """
-
-        def named_scope(func):
-            """
-            Decorator that saves the scope of the typer and pushes a new stack
-            frame, executes _func_ and then restores the original state before
-            returning.
-            """
-
-            def _scoped(self, *args, **kwargs):
-                saved = self._symbol_table
-                self._symbol_table = self._symbol_table.with_new_frame(frame_name, {})
-                res = func(self, *args, **kwargs)
-                self._symbol_table = saved
-                return res
-
-            return _scoped
-
-        return named_scope
-
     def add_constaint(self, constraint: Constraint) -> None:
         """
         Adds a constraint to the typed program.
@@ -437,9 +412,9 @@ class Typer:
     def visit_error(self, error: Error):
         raise RuntimeError(f"Unexpected visit to error node :{error} in typer")
 
-    @scoped("Block")
     def visit_block(self, scope: Block):
-        return self._check(scope.lines)
+        with self._symbol_table.new_frame():
+            return self._check(scope.lines)
 
     def visit_scope(self, scope: Block):
         return self._check(scope.lines)

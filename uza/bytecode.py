@@ -138,6 +138,8 @@ class ByteCodeLocals:
     This class keeps track of local variables and allow the emiter to generate
     indexes when accesing variables on the stack. The top level frame is always
     empty as globals operations use a hash table and chunk constants.
+
+    TODO: exntend SymbolTable, make it generic?
     """
 
     frames: List[List[str]]
@@ -171,9 +173,14 @@ class ByteCodeLocals:
         frame_locals.append(variable_name)
         return idx
 
-    def with_new_frame(self, frame: list[str]) -> ByteCodeLocals:
-        new_frames = [frame, *self.frames]
-        return ByteCodeLocals(new_frames)
+    def new_frame(self) -> ByteCodeLocals:
+        self.frames.insert(0, [])
+        self.depth += 1
+        return self
+
+    def pop_frame(self) -> None:
+        self.frames = self.frames[1:]
+        self.depth -= 1
 
     def get(self, identifier: str) -> Optional[tuple[int, int]]:
         """
@@ -188,6 +195,15 @@ class ByteCodeLocals:
                 pass
 
         return None
+
+    def __enter__(self):
+        """
+        self.new_frame MUST be called from outside
+        """
+        pass
+
+    def __exit__(self, type, value, traceback):
+        self.pop_frame()
 
 
 class ByteCodeProgram:
@@ -207,32 +223,6 @@ class ByteCodeProgram:
         self.chunk = Chunk()
         self._local_vars = ByteCodeLocals()
         self._build_chunk()
-
-    def scoped(frame_name):
-        """
-        Decorator to scope a function with the scope named _frame_name_.
-
-        TODO: remove named_scope if not useful
-        TODO: abstract for parser, typer, interpreter, bc ByteCodeProgram...
-        """
-
-        def named_scope(func):
-            """
-            Decorator that saves the scope of the emitter and pushes a new stack
-            frame, executes _func_ and then restores the original state before
-            returning.
-            """
-
-            def _scoped(self, *args, **kwargs):
-                saved = self._local_vars
-                self._local_vars = self._local_vars.with_new_frame([])
-                res = func(self, *args, **kwargs)
-                self._local_vars = saved
-                return res
-
-            return _scoped
-
-        return named_scope
 
     def depth(self) -> int:
         return self._local_vars.depth
@@ -318,21 +308,26 @@ class ByteCodeProgram:
         ]
 
     def _build_lines(self, lines: list[Node]) -> List[OpCode]:
+        """
+        Generates the bytecode for a sequence of nodes (lines of uza code).
+        """
         res = []
         for node in lines:
             res.extend(node.visit(self))
         return res
 
-    @scoped("Block")
     def visit_block(self, block: Block) -> List[OpCode]:
-        block_ops = self._build_lines(block.lines)
-        return [
-            OpCode(
-                "OP_BLOCK", block.span, local_index=self._local_vars.get_num_locals()
-            ),
-            *block_ops,
-            OpCode("OP_EXITBLOCK", block.span),
-        ]
+        with self._local_vars.new_frame():
+            block_ops = self._build_lines(block.lines)
+            return [
+                OpCode(
+                    "OP_BLOCK",
+                    block.span,
+                    local_index=self._local_vars.get_num_locals(),
+                ),
+                *block_ops,
+                OpCode("OP_EXITBLOCK", block.span),
+            ]
 
     def _build_chunk(self):
         top_level = self._build_lines(self.program.syntax_tree.lines)

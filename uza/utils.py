@@ -2,7 +2,7 @@ from __future__ import annotations
 from collections import deque
 from dataclasses import dataclass
 import sys
-from typing import Optional, TypeVar
+from typing import List, Optional, TypeVar
 
 
 class ANSIColor:
@@ -122,22 +122,23 @@ class SymbolTable:
     the (variable name and it's associated value) pairs.
     """
 
-    frames: deque[tuple[str, dict[str, T]]]
+    frames: List[List[tuple[str, T]]]
 
-    def __init__(self, frames: deque[tuple[str, dict[str, T]]] | None = None) -> None:
+    def __init__(self, frames: List[List[tuple[str, T]]] | None = None) -> None:
         if not frames:
-            self.frames: deque[tuple[str, dict[str, T]]] = deque()
-            self.frames.appendleft(("top-level", {}))
+            self.frames: List[List[tuple[str, T]]] = [[]]
         else:
             self.frames = frames
 
-    def _get_locals(self) -> dict[str, T]:
-        top_frame = self.frames[0]
-        return top_frame[1]
+    def _get_locals(self) -> List[tuple[str, T]]:
+        return self.frames[-1]
 
-    def with_new_frame(self, context_name: str, frame: dict[str, T]) -> SymbolTable:
-        new_frames = deque(((context_name, frame), *self.frames))
-        return SymbolTable(new_frames)
+    def new_frame(self) -> SymbolTable:
+        self.frames.append([])
+        return self
+
+    def pop_frame(self) -> SymbolTable:
+        self.frames = self.frames[:-1]
 
     def define(self, variable_name: str, value: T) -> bool:
         """
@@ -145,21 +146,40 @@ class SymbolTable:
         false if the given variable name is already been defined in this scope.
         """
         frame_locals = self._get_locals()
-        already_defined_in_scope = frame_locals.get(variable_name)
-        if already_defined_in_scope:
-            return False
+        for local in frame_locals:
+            if local[0] == variable_name:
+                return False
 
-        frame_locals[variable_name] = value
+        frame_locals.append((variable_name, value))
         return True
 
     def get(self, identifier: str) -> Optional[T]:
-        for frame in self.frames:
-            frame_locals = frame[1]
-            value = frame_locals.get(identifier)
-            if value is not None:
-                return value
+        idx = len(self.frames) - 1
+        while idx >= 0:
+            frame = self.frames[idx]
+            for name, val in frame:
+                if name == identifier:
+                    return val
+            idx -= 1
+
         return None
 
     def reassign(self, identifier: str, new_value: T) -> None:
         frame_locals = self._get_locals()
-        frame_locals[identifier] = new_value
+        idx = 0
+        while idx < len(frame_locals):
+            if frame_locals[idx][0] == identifier:
+                frame_locals[idx] = (identifier, new_value)
+                return
+            idx += 1
+
+        frame_locals.append((identifier, new_value))
+
+    def __enter__(self):
+        """
+        self.new_frame is called from outside
+        """
+        pass
+
+    def __exit__(self, type, value, traceback):
+        self.pop_frame()

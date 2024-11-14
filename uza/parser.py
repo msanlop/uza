@@ -227,29 +227,6 @@ class Parser:
             temp = self._peek()
         return temp
 
-    def scoped(frame_name):
-        """
-        Decorator to scope a function with the scope named _frame_name_.
-        """
-
-        def named_scope(func):
-            """
-            Decorator that saves the scope of the parser and pushes a new stack
-            frame, executes _func_ and then restores the original state before
-            returning.
-            """
-
-            def _scoped(self, *args, **kwargs):
-                saved = self._symbol_table
-                self._symbol_table = self._symbol_table.with_new_frame(frame_name, {})
-                res = func(self, *args, **kwargs)
-                self._symbol_table = saved
-                return res
-
-            return _scoped
-
-        return named_scope
-
     def _get_top_level(self) -> Node:
         next_ = self._peek()
         while next_.kind == token_new_line:
@@ -345,13 +322,13 @@ class Parser:
 
         return expressions
 
-    @scoped(frame_name="Block")
     def _parse_block(self, end_token: Optional[TokenKind] = None) -> Block:
-        lines = self._parse_lines(end_token)
-        if len(lines) > 0:
-            span = lines[0].span + lines[-1].span
-        else:
-            span = Span(0, 0, "empty block")
+        with self._symbol_table.new_frame():
+            lines = self._parse_lines(end_token)
+            if len(lines) > 0:
+                span = lines[0].span + lines[-1].span
+            else:
+                span = Span(0, 0, "empty block")
         return Block(lines, span)
 
     def _get_expr(self) -> Node:
