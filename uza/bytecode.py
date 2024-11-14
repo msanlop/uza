@@ -4,20 +4,23 @@ This bytecode module handles bytecode generation to be interpreted by the VM.
 """
 
 from __future__ import annotations
+from collections import deque
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import List, Optional, TypeVar
 import struct
 from uza import __version_tuple__
 from uza.uzast import (
     Application,
+    Block,
     Identifier,
     InfixApplication,
     Literal,
+    Node,
     VarDef,
     Program,
     VarRedef,
 )
-from uza.utils import Span
+from uza.utils import Span, SymbolTable
 from uza.interpreter import (
     bi_add,
     bi_div,
@@ -42,6 +45,11 @@ OP_CODES = [
     "OP_DEFGLOBAL",
     "OP_GETGLOBAL",
     "OP_SETGLOBAL",
+    "OP_BLOCK",
+    "OP_EXITBLOCK",
+    "OP_DEFLOCAL",
+    "OP_GETLOCAL",
+    "OP_SETLOCAL",
     "OP_EXITVM",
 ]
 
@@ -70,8 +78,10 @@ class OpCode:
     op_name: str
     span: Span
     constant: Optional[int | float | str | bool] = field(default=None)
+    constant_index: Optional[int] = field(default=None)
+    local_index: Optional[int] = field(default=None)
+    outer_local_index: Optional[int] = field(default=None)
     code: int = field(init=False)
-    constant_index: Optional[int] = field(init=False, default=None)
 
     def __post_init__(self):
         self.code = opcode_int(self.op_name)
@@ -121,6 +131,66 @@ class Chunk:
         return f"Chunk({repr(self.code)})"
 
 
+T = TypeVar("T")
+
+
+class ByteCodeLocals:
+    """
+    This class keeps track of local variables and allow the emiter to generate
+    indexes when accesing variables on the stack. The top level frame is always
+    empty as globals operations use a hash table and chunk constants.
+    """
+
+    frames: List[List[str]]
+    depth: int  # global scope is depth 0
+
+    def __init__(self, frames: List[List[str]] | None = None) -> None:
+        if frames == None:
+            self.frames = []
+        else:
+            self.frames = frames
+        self.depth = len(self.frames)
+
+    def _get_current_frame(self) -> List[str]:
+        if self.depth == 0:
+            return None
+        return self.frames[0]
+
+    def get_num_locals(self) -> int:
+        return len(self._get_current_frame())
+
+    def define(self, variable_name: str) -> int:
+        """
+        Returns the index in the current stack frame.
+        """
+        frame_locals = self._get_current_frame()
+        already_defined_in_scope = variable_name in frame_locals
+        if already_defined_in_scope:
+            raise NameError(f"Unexpected redefinition of {variable_name}")
+
+        idx = len(frame_locals)
+        frame_locals.append(variable_name)
+        return idx
+
+    def with_new_frame(self, frame: list[str]) -> ByteCodeLocals:
+        new_frames = [frame, *self.frames]
+        return ByteCodeLocals(new_frames)
+
+    def get(self, identifier: str) -> Optional[tuple[int, int]]:
+        """
+        Returns a tuple with the stack frame depth and local variale index.
+        Returns None if the variable is in global (top-level frame -> use GLOBAL).
+        """
+        for idx, frame in enumerate(self.frames):
+            try:
+                res = frame.index(identifier)
+                return idx, res
+            except ValueError:
+                pass
+
+        return None
+
+
 class ByteCodeProgram:
     """
     This class emits the bytecode and build the Chunks.
@@ -131,13 +201,44 @@ class ByteCodeProgram:
 
     program: Program
     chunk: Chunk
+    _local_vars: ByteCodeLocals
 
     def __init__(self, program: Program) -> None:
         self.program = program
         self.chunk = Chunk()
+        self._local_vars = ByteCodeLocals()
         self._build_chunk()
 
-    def visit_literal(self, literal: Literal):
+    def scoped(frame_name):
+        """
+        Decorator to scope a function with the scope named _frame_name_.
+
+        TODO: remove named_scope if not useful
+        TODO: abstract for parser, typer, interpreter, bc ByteCodeProgram...
+        """
+
+        def named_scope(func):
+            """
+            Decorator that saves the scope of the emitter and pushes a new stack
+            frame, executes _func_ and then restores the original state before
+            returning.
+            """
+
+            def _scoped(self, *args, **kwargs):
+                saved = self._local_vars
+                self._local_vars = self._local_vars.with_new_frame([])
+                res = func(self, *args, **kwargs)
+                self._local_vars = saved
+                return res
+
+            return _scoped
+
+        return named_scope
+
+    def depth(self) -> int:
+        return self._local_vars.depth
+
+    def visit_literal(self, literal: Literal) -> List[OpCode]:
         type_ = type(literal.value)
         code_name = ""
         if type_ == int:
@@ -148,34 +249,56 @@ class ByteCodeProgram:
             code_name = "OP_STRCONST"
         else:
             raise NotImplementedError(f"can't do opcode for literal '{literal}'")
-        self.chunk.add_op(OpCode(code_name, literal.span, constant=literal.value))
+        return [OpCode(code_name, literal.span, constant=literal.value)]
 
-    def visit_identifier(self, identifier: Identifier):
-        self.chunk.add_op(
-            OpCode("OP_GETGLOBAL", identifier.span, constant=identifier.name)
-        )
+    def visit_identifier(self, identifier: Identifier) -> List[OpCode]:
+        name = identifier.name
+        if self.depth() == 0:
+            return [OpCode("OP_GETGLOBAL", identifier.span, constant=name)]
+        res = self._local_vars.get(name)
+        if res == None:
+            return [OpCode("OP_GETGLOBAL", identifier.span, constant=name)]
 
-    def visit_var_def(self, var_def: VarDef):
-        var_def.value.visit(self)
-        self.chunk.add_op(
-            OpCode("OP_DEFGLOBAL", var_def.span, constant=var_def.identifier)
-        )
+        frame_idx, idx = res
+        if frame_idx != 0:
+            raise NotImplementedError("variables from outer frames not yet implemented")
+        return [OpCode("OP_GETLOCAL", identifier.span, local_index=idx)]
 
-    def visit_var_redef(self, var_redef: VarRedef):
-        var_redef.value.visit(self)
-        self.chunk.add_op(
-            OpCode("OP_SETGLOBAL", var_redef.span, constant=var_redef.identifier)
-        )
+    def visit_var_def(self, var_def: VarDef) -> List[OpCode]:
+        value = var_def.value.visit(self)
+        name = var_def.identifier
+        if self.depth() == 0:
+            return [
+                *value,
+                OpCode("OP_DEFGLOBAL", var_def.span, constant=var_def.identifier),
+            ]
 
-    def visit_application(self, application: Application):
+        idx = self._local_vars.define(name)
+        return [*value, OpCode("OP_DEFLOCAL", var_def.span, local_index=idx)]
+
+    def visit_var_redef(self, var_redef: VarRedef) -> List[OpCode]:
+        value = var_redef.value.visit(self)
+        name = var_redef.identifier
+        if self.depth() == 0:
+            return [
+                *value,
+                OpCode("OP_SETGLOBAL", var_redef.span, constant=var_redef.identifier),
+            ]
+
+        idx = self._local_vars.define(name)
+        return [*value, OpCode("OP_SETLOCAL", var_redef.span, local_index=idx)]
+
+    def visit_application(self, application: Application) -> List[OpCode]:
         func_id = application.func_id
         # the println function is emitted as RETURN for now
         if func_id.name == "println":
-            application.args[0].visit(self)
-            self.chunk.add_op(OpCode("OP_RETURN", application.span))
-            return
+            return [
+                *application.args[0].visit(self),
+                OpCode("OP_RETURN", application.span),
+            ]
+        raise NotImplementedError("only println implemented currently")
 
-    def visit_infix_application(self, application: InfixApplication):
+    def visit_infix_application(self, application: InfixApplication) -> List[OpCode]:
         function = get_builtin(application.func_id)
         code_str = ""
         if function == bi_add:
@@ -189,13 +312,33 @@ class ByteCodeProgram:
         else:
             raise NotImplementedError(f"vm can't do {function} yet")
 
-        application.lhs.visit(self)
-        application.rhs.visit(self)
-        self.chunk.add_op(OpCode(code_str, application.span))
+        return [
+            *application.lhs.visit(self),
+            *application.rhs.visit(self),
+            OpCode(code_str, application.span),
+        ]
+
+    def _build_lines(self, lines: list[Node]) -> List[OpCode]:
+        res = []
+        for node in lines:
+            res.extend(node.visit(self))
+        return res
+
+    @scoped("Block")
+    def visit_block(self, block: Block) -> List[OpCode]:
+        block_ops = self._build_lines(block.lines)
+        return [
+            OpCode(
+                "OP_BLOCK", block.span, local_index=self._local_vars.get_num_locals()
+            ),
+            *block_ops,
+            OpCode("OP_EXITBLOCK", block.span),
+        ]
 
     def _build_chunk(self):
-        for line in self.program.syntax_tree.lines:
-            line.visit(self)
+        top_level = self._build_lines(self.program.syntax_tree.lines)
+        for op in top_level:
+            self.chunk.add_op(op)
         self.chunk.add_op(OpCode("OP_EXITVM", Span(0, 0, "META")))
 
 
@@ -271,6 +414,8 @@ class ByteCodeProgramSerializer:
             self._write(opcode.code.to_bytes(1, BYTE_ORDER))
             if opcode.constant_index is not None:
                 self._write(opcode.constant_index.to_bytes(1, BYTE_ORDER))
+            elif opcode.local_index is not None:
+                self._write(opcode.local_index.to_bytes(1, BYTE_ORDER))
 
     def _serialize(self):
         self._write_version()

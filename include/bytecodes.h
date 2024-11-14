@@ -14,6 +14,11 @@ typedef enum {
     OP_DEFGLOBAL,
     OP_GETGLOBAL,
     OP_SETGLOBAL,
+    OP_BLOCK,
+    OP_EXITBLOCK,
+    OP_DEFLOCAL,
+    OP_GETLOCAL,
+    OP_SETLOCAL,
     OP_EXITVM,
 } OpCode;
 

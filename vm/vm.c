@@ -34,14 +34,14 @@
 void push(VM* vm, Value value) {
     *vm->stack_top++ = value;
     #ifdef DEBUG_TRACE_EXECUTION_STACK
-        debug_stack_print(vm, "stack: push");
+        DEBUG_PRINT("stack push\n");
     #endif //#define DEBUG_TRACE_EXECUTION_STACK
 }
 
 Value pop(VM* vm) {
     vm->stack_top--;
     #ifdef DEBUG_TRACE_EXECUTION_STACK
-        debug_stack_print(vm, "stack: pop");
+        DEBUG_PRINT("stack pop\n");
     #endif //#define DEBUG_TRACE_EXECUTION_STACK
     return *vm->stack_top;
 }
@@ -58,6 +58,7 @@ VM* vm_init(program_bytes_t* program) {
     initTable(&vm->globals);
     read_program(vm, program);
     vm->ip = vm->chunk.code;
+    vm->depth = -1;
     vm_stack_reset(vm);
     return vm;
 }
@@ -101,6 +102,9 @@ int interpret(VM* vm) {
             // DEBUG_PRINT("----------\n");
 
         #endif // #define DEBUG_TRACE_EXECUTION_OP
+        #ifdef DEBUG_TRACE_EXECUTION_STACK
+            debug_stack_print(vm, "before");
+        #endif //#define DEBUG_TRACE_EXECUTION_STACK
         OpCode instruction = *vm->ip++;
         switch (instruction) {
         case OP_RETURN: {
@@ -161,6 +165,40 @@ int interpret(VM* vm) {
             tableSet(&vm->globals, identifier, val);
         }
         break;
+        case OP_BLOCK: {
+            vm->depth++;
+            Frame *frame = &vm->frame_stacks[vm->depth];
+            frame->locals = vm->stack_top;
+            int locals_num = *(vm->ip++);
+
+            #ifndef NDEBUG
+            for (size_t i = 0; i < locals_num; i++) {
+                push(vm, VAL_NIL);
+                frame->locals[i] = VAL_NIL;
+            }
+            #endif
+
+            vm->stack_top = frame->locals + locals_num;
+        }
+        break;
+        case OP_EXITBLOCK: {
+            vm->stack_top = vm->frame_stacks[vm->depth].locals;
+            vm->depth--;
+        }
+        break;
+        case OP_DEFLOCAL: {
+            Value val = pop(vm);
+            vm->frame_stacks[vm->depth].locals[*(vm->ip++)] = val;
+        }
+        break;
+        case OP_GETLOCAL: {
+            push(vm, vm->frame_stacks[vm->depth].locals[*(vm->ip++)]);
+        }
+        break;
+        case OP_SETLOCAL: {
+            vm->frame_stacks[vm->depth].locals[*(vm->ip++)] = pop(vm);
+        }
+        break;
         case OP_EXITVM:
             return 0;
         default: {
@@ -170,6 +208,9 @@ int interpret(VM* vm) {
         }
         break;
         }
+        #ifdef DEBUG_TRACE_EXECUTION_STACK
+            debug_stack_print(vm, "after");
+        #endif //#define DEBUG_TRACE_EXECUTION_STACK
     }
     return 1;
 }

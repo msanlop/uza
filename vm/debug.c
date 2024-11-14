@@ -17,6 +17,12 @@ void debug_stack_print(VM* vm, char* str) {
     DEBUG_PRINT(RESET "----------\n");
 }
 
+void debug_local_print(char* code_str, Chunk* chunk, int offset){
+    DEBUG_PRINT("%s    ", code_str);
+    int local = GET_CODE_AT(chunk, offset);
+    DEBUG_PRINT("%3d", local);
+}
+
 void debug_constant_print(char* code_str, Chunk* chunk, int offset){
     DEBUG_PRINT("%s    ", code_str);
     int constant = GET_CODE_AT(chunk, offset);
@@ -62,6 +68,21 @@ int debug_op_print(Chunk* chunk, int offset) {
         debug_constant_print("OP_GETGLOBAL", chunk, offset + 1);
         return 2;
         break;
+    case OP_BLOCK:
+        debug_local_print("OP_BLOCK", chunk, offset + 1);
+        return 2;
+    case OP_EXITBLOCK:
+        DEBUG_PRINT("OP_EXITBLOCK");
+        return 1;
+    case OP_DEFLOCAL:
+        debug_local_print("OP_DEFLOCAL", chunk, offset + 1);
+        return 2;
+    case OP_SETLOCAL:
+        debug_local_print("OP_SETLOCAL", chunk, offset + 1);
+        return 2;
+    case OP_GETLOCAL:
+        debug_local_print("OP_GETLOCAL", chunk, offset + 1);
+        return 2;
     case OP_ADD:
         DEBUG_PRINT("OP_ADD");
         return 1;

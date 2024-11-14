@@ -147,10 +147,14 @@ void load_op(VM *vm, uint16_t line, program_bytes_t* program) {
         case OP_DEFGLOBAL:
         case OP_GETGLOBAL:
         case OP_SETGLOBAL:
+        case OP_BLOCK:
+        case OP_DEFLOCAL:
+        case OP_GETLOCAL:
+        case OP_SETLOCAL:
             chunk_write(chunk, opcode, line);
-            uint8_t constant_idx = 0;
-            PROG_CPY(constant_idx, program, uint8_t);
-            chunk_write(chunk, constant_idx, line);
+            uint8_t u8_arg = 0;
+            PROG_CPY(u8_arg, program, uint8_t);
+            chunk_write(chunk, u8_arg, line);
             break;
         default:
             chunk_write(chunk, opcode, line);

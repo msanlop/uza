@@ -33,6 +33,7 @@ for each opcode
     2B   : line number
     1B   : OpCode
     (1B) : constant if needed
+    (1B) : local variable index
 
 */
 
