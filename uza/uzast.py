@@ -1,14 +1,17 @@
 from abc import ABC
 from typing import List, Optional
+from dataclasses import dataclass, field
 
 from uza.utils import Span
 from uza.token import *
 from uza.type import *
 
-from dataclasses import dataclass, field
-
 
 class Node(ABC):
+    """
+    An uza AST node.
+    """
+
     span: Span
 
     def visit(self, that):

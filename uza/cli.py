@@ -1,6 +1,6 @@
 import argparse
 from pprint import pprint
-import subprocess
+import pathlib
 from sys import stderr, stdin
 import sys  # sys.exit conflict with exit?
 from typing import Sequence
@@ -11,7 +11,6 @@ from uza.typer import Typer
 from uza.bytecode import ByteCodeProgram, ByteCodeProgramSerializer
 from uza.parser import Parser
 from uza.interpreter import Interpreter
-import pathlib
 
 from vm.main import run_vm
 
@@ -109,7 +108,7 @@ def main(argv: Sequence[str] = None) -> int:
     program = Parser(source).parse()
     if args.verbose:
         print(in_color("\n### ast ###\n", ANSIColor.YELLOW), file=stderr)
-        for i, node in enumerate(program.syntax_tree.lines):
+        for _, node in enumerate(program.syntax_tree.lines):
             print(
                 node.span.start, end=": ", file=stderr
             )  # TODO: use line instead of codepoint
@@ -138,8 +137,7 @@ def main(argv: Sequence[str] = None) -> int:
         out = Interpreter(program).evaluate()
         if out and isinstance(out, int):
             return out
-        else:
-            return 0
+        return 0
 
     path = pathlib.Path("./")
     if args.compile:

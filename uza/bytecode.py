@@ -4,7 +4,6 @@ This bytecode module handles bytecode generation to be interpreted by the VM.
 """
 
 from __future__ import annotations
-from collections import deque
 from dataclasses import dataclass, field
 from typing import List, Optional, TypeVar
 import struct
@@ -20,7 +19,7 @@ from uza.uzast import (
     Program,
     VarRedef,
 )
-from uza.utils import Span, SymbolTable
+from uza.utils import Span
 from uza.interpreter import (
     bi_add,
     bi_div,
@@ -145,7 +144,7 @@ class ByteCodeLocals:
     depth: int  # global scope is depth 0
 
     def __init__(self, frames: List[List[str]] | None = None) -> None:
-        if frames == None:
+        if frames is None:
             self.frames = []
         else:
             self.frames = frames
@@ -256,7 +255,7 @@ class ByteCodeProgram:
         if self.depth() == 0:
             return [OpCode("OP_GETGLOBAL", identifier.span, constant=name)]
         res = self._local_vars.get(name)
-        if res == None:
+        if res is None:
             return [OpCode("OP_GETGLOBAL", identifier.span, constant=name)]
 
         frame_idx, idx = res
