@@ -65,7 +65,6 @@ class SymbolicType(Type):
     """
 
     identifier: str
-    span: Span
 
     def resolve_type(self, substitution: Substitution) -> Type:
         t = substitution.get_type_of(self)
@@ -304,7 +303,7 @@ class Typer:
         """
         Return a new unique SymbolicType.
         """
-        return SymbolicType("symbolic_" + str(next(self.symbol_gen)), node.span)
+        return SymbolicType("symbolic_" + str(next(self.symbol_gen)))
 
     def _get_type_of_identifier(self, identifier: str) -> Type:
         return self._symbol_table.get(identifier)[0]
