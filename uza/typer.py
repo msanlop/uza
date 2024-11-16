@@ -339,7 +339,7 @@ class Typer:
         arithmetic_type = UnionType(type_int, type_float)
         arith_constaint = Applies(
             [lhs_type, rhs_type],
-            [rhs.span, rhs.span],
+            [lhs.span, rhs.span],
             ArrowType([arithmetic_type, arithmetic_type], arithmetic_type),
             lhs.span + rhs.span,
         )
