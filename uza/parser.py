@@ -214,7 +214,7 @@ class Parser:
 
     def _consume_white_space_and_peek(self) -> TokenKind:
         temp = self._peek()
-        while temp.kind == token_new_line:
+        while temp and temp.kind == token_new_line:
             self._expect(temp.kind)
             temp = self._peek()
         return temp

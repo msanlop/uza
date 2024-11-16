@@ -80,6 +80,48 @@ println(foo + bar)
 FOO
 hello world!
 
+#test bool true
+var foo = true
+println(foo)
+foo = false
+println(false)
+#expected
+true
+false
+
+#test if works
+if true then println("ok")
+#expected
+ok
+
+#test if else works
+if false then println("WRONG")
+else println("ok")
+#expected
+ok
+
+#test if false no else
+if false then println("ok")
+println(0)
+#expected
+0
+
+#test if with var
+const pred = true
+if true then println("ok")
+#expected
+ok
+
+#test if blocks
+const pred = true
+if true then {
+    const temp = "ok"
+    println(temp)
+}
+else println("WRONG")
+#expected
+ok
+
 //#test min and max builtins
 //const a int = -5
 //const b int = 0

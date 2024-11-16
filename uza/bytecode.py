@@ -148,7 +148,7 @@ class Chunk:
 
         Returns the size in bytes of the opcode.
         """
-        if op.constant:
+        if op.constant is not None:
             idx = self._register_constant(op.constant)
             op.constant_index = idx
             self.code.append(op)

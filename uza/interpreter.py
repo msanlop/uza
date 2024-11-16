@@ -101,9 +101,15 @@ class Interpreter:
         elif func_id == bi_pow:
             ret = lhs**rhs
         elif func_id == bi_print:
+            params = map(
+                lambda p: str(p).lower() if isinstance(p, bool) else p, params
+            )  # hack to fix bools prints
             print(*params, end="")
             ret = None
         elif func_id == bi_println:
+            params = map(
+                lambda p: str(p).lower() if isinstance(p, bool) else p, params
+            )  # hack to fix bools prints
             print(*params)
             ret = None
         elif func_id == bi_max:
@@ -178,4 +184,5 @@ class Interpreter:
         Returns:
             Optional[int | float]: return the evaluated result of the last line
         """
-        return self._program.syntax_tree.visit(self)
+        res = self._program.syntax_tree.visit(self)
+        return res
