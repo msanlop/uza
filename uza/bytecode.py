@@ -88,6 +88,7 @@ class OpCode:
     outer_local_index: Optional[int] = field(default=None)
     jump_offset: Optional[int] = field(default=None)
     code: int = field(init=False)
+    size: int = field(init=False)
 
     def size_in_bytes(self) -> int:
         """
@@ -109,6 +110,7 @@ class OpCode:
 
     def __post_init__(self):
         self.code = opcode_int(self.op_name)
+        self.size = self.size_in_bytes()
 
 
 class Chunk:
@@ -153,7 +155,7 @@ class Chunk:
         else:
             self.code.append(op)
 
-        return op.size_in_bytes()
+        return op.size
 
     def __repr__(self) -> str:
         return f"Chunk({repr(self.code)})"
@@ -291,8 +293,8 @@ class ByteCodeProgram:
             self.chunk.add_op(jump_false_op)
             written_falsy += falsy.visit(self)
             jump_false_op.jump_offset = written_falsy
-            written_falsy += jump_false_op.size_in_bytes()
-            jump_true_op.jump_offset += jump_false_op.size_in_bytes()
+            written_falsy += jump_false_op.size
+            jump_true_op.jump_offset += jump_false_op.size
 
         return written + written_truthy + written_falsy
 
@@ -346,7 +348,10 @@ class ByteCodeProgram:
             )
 
         idx = self._local_vars.define(name)
-        return self.chunk.add_op(OpCode("OP_SETLOCAL", var_redef.span, local_index=idx))
+        return (
+            self.chunk.add_op(OpCode("OP_SETLOCAL", var_redef.span, local_index=idx))
+            + written
+        )
 
     def visit_application(self, application: Application) -> int:
         func_id = application.func_id
@@ -486,9 +491,9 @@ class ByteCodeProgramSerializer:
             elif opcode.jump_offset is not None:
                 offset_bytes = struct.pack("<H", opcode.jump_offset)
                 written += self._write(offset_bytes)
-            if written != opcode.size_in_bytes():
+            if written != opcode.size:
                 raise AssertionError(
-                    f"AssertionError for {opcode=}\n exepected it to be {opcode.size_in_bytes()} in size but wrote {written} instead"
+                    f"AssertionError for {opcode=}\n exepected it to be {opcode.size} in size but wrote {written} instead"
                 )
             written = 0
 
