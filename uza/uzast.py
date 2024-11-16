@@ -39,13 +39,10 @@ class Literal(Node):
 
     def __post_init__(self) -> None:
         kind = self.token.kind
-        if kind == token_boolean:
-            if self.token.repr == "false":
-                self.value = False
-            elif self.token.repr == "true":
-                self.value = True
-            else:
-                raise ValueError("Invalid boolean token")
+        if self.token.kind == token_true:
+            self.value = True
+        elif self.token.kind == token_false:
+            self.value = False
         elif kind == token_string:
             self.value = self.token.repr
         elif kind == token_number:
@@ -73,6 +70,23 @@ class Identifier(Node):
 
     def visit(self, that):
         return that.visit_identifier(self)
+
+
+@dataclass
+class IfElse(Node):
+    predicate: Node
+    truthy_case: Node
+    span: Span = field(compare=False, init=False)
+    falsy_case: Optional[Node] = field(default=None)
+
+    def __post_init__(self) -> None:
+        if self.falsy_case is not None:
+            self.span = self.predicate.span + self.falsy_case.span
+        else:
+            self.span = self.predicate.span + self.truthy_case.span
+
+    def visit(self, that):
+        return that.visit_if_else(self)
 
 
 @dataclass

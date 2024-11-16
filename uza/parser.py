@@ -8,6 +8,7 @@ from uza.uzast import (
     Application,
     Block,
     Identifier,
+    IfElse,
     InfixApplication,
     Literal,
     Node,
@@ -226,6 +227,19 @@ class Parser:
 
         return self._get_expr()
 
+    def _get_if_else(self) -> Node:
+        self._expect(token_if)
+        pred = self._get_expr()
+        self._expect(token_then)
+        t_case = self._get_expr()
+        self._consume_white_space_and_peek()
+        f_case = None
+        tok = self._consume_white_space_and_peek()
+        if tok and tok.kind == token_else:
+            self._expect(token_else)
+            f_case = self._get_expr()
+        return IfElse(pred, t_case, f_case)
+
     def _get_identifier(self) -> Identifier:
         identifier_tok = self._expect(token_identifier)
         identifier = Identifier(identifier_tok, identifier_tok.span)
@@ -332,7 +346,8 @@ class Parser:
             node = self._get_infix(self._get_expr())
             self._expect(token_paren_r)
             return self._get_infix(node)
-
+        elif tok.kind == token_if:
+            return self._get_if_else()
         elif tok.kind == token_bracket_l:
             self._expect(token_bracket_l)
             node = self._parse_block(end_token=token_bracket_r)

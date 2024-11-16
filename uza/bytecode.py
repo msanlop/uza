@@ -12,6 +12,7 @@ from uza.uzast import (
     Application,
     Block,
     Identifier,
+    IfElse,
     InfixApplication,
     Literal,
     Node,
@@ -19,6 +20,7 @@ from uza.uzast import (
     Program,
     VarRedef,
 )
+from uza.token import token_true
 from uza.utils import Span
 from uza.interpreter import (
     bi_add,
@@ -33,11 +35,13 @@ operations = []
 
 OP_CODES = [
     "OP_RETURN",
+    "OP_JUMP",
     "OP_LCONST",
     "OP_DCONST",
     "OP_STRCONST",
     "OP_BOOLTRUE",
     "OP_BOOLFALSE",
+    "OP_JUMP_IF_FALSE",
     "OP_ADD",
     "OP_SUB",
     "OP_MUL",
@@ -82,7 +86,26 @@ class OpCode:
     constant_index: Optional[int] = field(default=None)
     local_index: Optional[int] = field(default=None)
     outer_local_index: Optional[int] = field(default=None)
+    jump_offset: Optional[int] = field(default=None)
     code: int = field(init=False)
+
+    def size_in_bytes(self) -> int:
+        """
+        Returns the size of the opcode in bytes when turned into binary. It
+        does not count the bytes writen for the lines (as these stores aside
+        from the bytecode array).
+        !MODIFY serializer.h too when this is changed.
+        """
+        size = 1  # code
+        if self.constant is not None:
+            size += 1
+        if self.local_index is not None:
+            size += 1
+        if self.outer_local_index is not None:
+            size += 1
+        if self.jump_offset is not None:
+            size += 2
+        return size
 
     def __post_init__(self):
         self.code = opcode_int(self.op_name)
@@ -117,9 +140,11 @@ class Chunk:
             self.constants.append(constant)
         return idx
 
-    def add_op(self, op: OpCode):
+    def add_op(self, op: OpCode) -> int:
         """
         Adds the bytecode to the chunk and the constant if necessary.
+
+        Returns the size in bytes of the opcode.
         """
         if op.constant:
             idx = self._register_constant(op.constant)
@@ -127,6 +152,8 @@ class Chunk:
             self.code.append(op)
         else:
             self.code.append(op)
+
+        return op.size_in_bytes()
 
     def __repr__(self) -> str:
         return f"Chunk({repr(self.code)})"
@@ -169,7 +196,7 @@ class ByteCodeLocals:
         frame_locals = self._get_current_frame()
         already_defined_in_scope = variable_name in frame_locals
         if already_defined_in_scope:
-            raise NameError(f"Unexpected redefinition of {variable_name}")
+            return frame_locals.index(variable_name)
 
         idx = len(frame_locals)
         frame_locals.append(variable_name)
@@ -229,7 +256,7 @@ class ByteCodeProgram:
     def depth(self) -> int:
         return self._local_vars.depth
 
-    def visit_literal(self, literal: Literal) -> List[OpCode]:
+    def visit_literal(self, literal: Literal) -> int:
         type_ = type(literal.value)
         code_name = ""
         if type_ == bool:
@@ -246,56 +273,95 @@ class ByteCodeProgram:
             code_name = "OP_STRCONST"
         else:
             raise NotImplementedError(f"can't do opcode for literal '{literal}'")
-        return [OpCode(code_name, literal.span, constant=literal.value)]
+        return self.chunk.add_op(
+            OpCode(code_name, literal.span, constant=literal.value)
+        )
 
-    def visit_identifier(self, identifier: Identifier) -> List[OpCode]:
+    def visit_if_else(self, if_else: IfElse) -> int:
+        written = if_else.predicate.visit(self)
+        jump_true_op = OpCode("OP_JUMP_IF_FALSE", if_else.predicate.span, jump_offset=0)
+        written += self.chunk.add_op(jump_true_op)
+
+        written_truthy = if_else.truthy_case.visit(self)
+        jump_true_op.jump_offset = written_truthy  # jump over the uint16 offset too
+        written_falsy = 0
+        falsy = if_else.falsy_case
+        if falsy is not None:
+            jump_false_op = OpCode("OP_JUMP", falsy.span, jump_offset=0)
+            self.chunk.add_op(jump_false_op)
+            written_falsy += falsy.visit(self)
+            jump_false_op.jump_offset = written_falsy
+            written_falsy += jump_false_op.size_in_bytes()
+            jump_true_op.jump_offset += jump_false_op.size_in_bytes()
+
+        return written + written_truthy + written_falsy
+
+    def visit_identifier(self, identifier: Identifier) -> int:
         name = identifier.name
         if self.depth() == 0:
-            return [OpCode("OP_GETGLOBAL", identifier.span, constant=name)]
+            return self.chunk.add_op(
+                OpCode("OP_GETGLOBAL", identifier.span, constant=name)
+            )
         res = self._local_vars.get(name)
         if res is None:
-            return [OpCode("OP_GETGLOBAL", identifier.span, constant=name)]
+            return self.chunk.add_op(
+                OpCode("OP_GETGLOBAL", identifier.span, constant=name)
+            )
 
         frame_idx, idx = res
         if frame_idx != 0:
             raise NotImplementedError("variables from outer frames not yet implemented")
-        return [OpCode("OP_GETLOCAL", identifier.span, local_index=idx)]
+        return self.chunk.add_op(
+            OpCode("OP_GETLOCAL", identifier.span, local_index=idx)
+        )
 
-    def visit_var_def(self, var_def: VarDef) -> List[OpCode]:
-        value = var_def.value.visit(self)
+    def visit_var_def(self, var_def: VarDef) -> int:
+        written = var_def.value.visit(self)
         name = var_def.identifier
         if self.depth() == 0:
-            return [
-                *value,
-                OpCode("OP_DEFGLOBAL", var_def.span, constant=var_def.identifier),
-            ]
+            return (
+                self.chunk.add_op(
+                    OpCode("OP_DEFGLOBAL", var_def.span, constant=var_def.identifier)
+                )
+                + written
+            )
 
         idx = self._local_vars.define(name)
-        return [*value, OpCode("OP_DEFLOCAL", var_def.span, local_index=idx)]
+        return (
+            self.chunk.add_op(OpCode("OP_DEFLOCAL", var_def.span, local_index=idx))
+            + written
+        )
 
-    def visit_var_redef(self, var_redef: VarRedef) -> List[OpCode]:
-        value = var_redef.value.visit(self)
+    def visit_var_redef(self, var_redef: VarRedef) -> int:
+        written = var_redef.value.visit(self)
         name = var_redef.identifier
         if self.depth() == 0:
-            return [
-                *value,
-                OpCode("OP_SETGLOBAL", var_redef.span, constant=var_redef.identifier),
-            ]
+            return (
+                self.chunk.add_op(
+                    OpCode(
+                        "OP_SETGLOBAL", var_redef.span, constant=var_redef.identifier
+                    ),
+                )
+                + written
+            )
 
         idx = self._local_vars.define(name)
-        return [*value, OpCode("OP_SETLOCAL", var_redef.span, local_index=idx)]
+        return self.chunk.add_op(OpCode("OP_SETLOCAL", var_redef.span, local_index=idx))
 
-    def visit_application(self, application: Application) -> List[OpCode]:
+    def visit_application(self, application: Application) -> int:
         func_id = application.func_id
         # the println function is emitted as RETURN for now
+        written = application.args[0].visit(self)
         if func_id.name == "println":
-            return [
-                *application.args[0].visit(self),
-                OpCode("OP_RETURN", application.span),
-            ]
+            return (
+                self.chunk.add_op(
+                    OpCode("OP_RETURN", application.span),
+                )
+                + written
+            )
         raise NotImplementedError("only println implemented currently")
 
-    def visit_infix_application(self, application: InfixApplication) -> List[OpCode]:
+    def visit_infix_application(self, application: InfixApplication) -> int:
         function = get_builtin(application.func_id)
         code_str = ""
         if function == bi_add:
@@ -309,38 +375,32 @@ class ByteCodeProgram:
         else:
             raise NotImplementedError(f"vm can't do {function} yet")
 
-        return [
-            *application.lhs.visit(self),
-            *application.rhs.visit(self),
-            OpCode(code_str, application.span),
-        ]
+        written = application.lhs.visit(self)
+        written += application.rhs.visit(self)
+        return self.chunk.add_op(OpCode(code_str, application.span)) + written
 
-    def _build_lines(self, lines: list[Node]) -> List[OpCode]:
+    def _build_lines(self, lines: list[Node]) -> int:
         """
         Generates the bytecode for a sequence of nodes (lines of uza code).
         """
-        res = []
+        written = 0
         for node in lines:
-            res.extend(node.visit(self))
-        return res
+            written += node.visit(self)
+        return written
 
-    def visit_block(self, block: Block) -> List[OpCode]:
+    def visit_block(self, block: Block) -> int:
         with self._local_vars.new_frame():
-            block_ops = self._build_lines(block.lines)
-            return [
-                OpCode(
-                    "OP_BLOCK",
-                    block.span,
-                    local_index=self._local_vars.get_num_locals(),
-                ),
-                *block_ops,
-                OpCode("OP_EXITBLOCK", block.span),
-            ]
+            block_op = OpCode(
+                "OP_BLOCK",
+                block.span,
+                local_index=self._local_vars.get_num_locals(),
+            )
+            written = self.chunk.add_op(block_op)
+            written += self._build_lines(block.lines)
+            return self.chunk.add_op(OpCode("OP_EXITBLOCK", block.span)) + written
 
     def _build_chunk(self):
-        top_level = self._build_lines(self.program.syntax_tree.lines)
-        for op in top_level:
-            self.chunk.add_op(op)
+        self._build_lines(self.program.syntax_tree.lines)
         self.chunk.add_op(OpCode("OP_EXITVM", Span(0, 0, "META")))
 
 
@@ -369,8 +429,10 @@ class ByteCodeProgramSerializer:
         """
         Appends to the bytes buffer for the program.
         """
-        self.written += len(buff)
+        wrote = len(buff)
+        self.written += wrote
         self.bytes_ += buff
+        return wrote
 
     def _write_constants(self):
         """
@@ -406,18 +468,29 @@ class ByteCodeProgramSerializer:
 
     def _write_span(self, span: Span):
         span_pack = struct.pack("<H", span.start)
-        self._write(span_pack)
+        return self._write(span_pack)
 
     def _write_chunk(self):
         self._write_constants()
         code = self.program.chunk.code
+        written = 0
         for opcode in code:
-            self._write_span(opcode.span)
-            self._write(opcode.code.to_bytes(1, BYTE_ORDER))
+            self._write_span(
+                opcode.span
+            )  # line information is stored in different array from bytecode
+            written += self._write(opcode.code.to_bytes(1, BYTE_ORDER))
             if opcode.constant_index is not None:
-                self._write(opcode.constant_index.to_bytes(1, BYTE_ORDER))
+                written += self._write(opcode.constant_index.to_bytes(1, BYTE_ORDER))
             elif opcode.local_index is not None:
-                self._write(opcode.local_index.to_bytes(1, BYTE_ORDER))
+                written += self._write(opcode.local_index.to_bytes(1, BYTE_ORDER))
+            elif opcode.jump_offset is not None:
+                offset_bytes = struct.pack("<H", opcode.jump_offset)
+                written += self._write(offset_bytes)
+            if written != opcode.size_in_bytes():
+                raise AssertionError(
+                    f"AssertionError for {opcode=}\n exepected it to be {opcode.size_in_bytes()} in size but wrote {written} instead"
+                )
+            written = 0
 
     def _serialize(self):
         self._write_version()
