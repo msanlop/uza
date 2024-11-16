@@ -118,6 +118,12 @@ int interpret(VM* vm) {
         case OP_DCONST:
         case OP_LCONST: push(vm, vm->chunk.constants.values[*(vm->ip++)]);
             break;
+        case OP_BOOLTRUE:
+            push(vm, VAL_BOOL(true));
+            break;
+        case OP_BOOLFALSE:
+            push(vm, VAL_BOOL(false));
+            break;
         case OP_ADD: {
             Value top = PEEK(vm);
             if (IS_STRING(top)) {

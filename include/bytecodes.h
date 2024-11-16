@@ -6,6 +6,8 @@ typedef enum {
     OP_LCONST,
     OP_DCONST,
     OP_STRCONST,
+    OP_BOOLTRUE,
+    OP_BOOLFALSE,
     OP_ADD,
     OP_SUB,
     OP_MUL,

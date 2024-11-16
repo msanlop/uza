@@ -117,19 +117,10 @@ class Scanner:
             return new_string_token
         elif char in string.ascii_letters:
             word, end = self._get_next_word()
-            match word:
-                case "const":
-                    type_ = token_const
-                case "var":
-                    type_ = token_var
-                case "and":
-                    type_ = token_and
-                case "true":
-                    type_ = token_boolean
-                case "false":
-                    type_ = token_boolean
-                case _:
-                    type_ = token_identifier
+            if word in token_types:
+                type_ = token_types[word]
+            else:
+                type_ = token_identifier
         elif char == "*":
             if (
                 not self._overflows(self._start + 1)

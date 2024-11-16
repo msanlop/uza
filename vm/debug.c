@@ -56,6 +56,14 @@ int debug_op_print(Chunk* chunk, int offset) {
         debug_constant_print("OP_STRCONST", chunk, offset + 1);
         return 2;
         break;
+    case OP_BOOLTRUE:
+        DEBUG_PRINT("OP_BOOLTRUE");
+        return 1;
+        break;
+    case OP_BOOLFALSE:
+        DEBUG_PRINT("OP_BOOLFALSE");
+        return 1;
+        break;
     case OP_DEFGLOBAL:
         debug_constant_print("OP_DEFGLOBAL", chunk, offset + 1);
         return 2;

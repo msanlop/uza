@@ -36,6 +36,8 @@ OP_CODES = [
     "OP_LCONST",
     "OP_DCONST",
     "OP_STRCONST",
+    "OP_BOOLTRUE",
+    "OP_BOOLFALSE",
     "OP_ADD",
     "OP_SUB",
     "OP_MUL",
@@ -230,6 +232,12 @@ class ByteCodeProgram:
     def visit_literal(self, literal: Literal) -> List[OpCode]:
         type_ = type(literal.value)
         code_name = ""
+        if type_ == bool:
+            if literal.token.kind == token_true:
+                code_name = "OP_BOOLTRUE"
+            else:
+                code_name = "OP_BOOLFALSE"
+            return self.chunk.add_op(OpCode(code_name, literal.span))
         if type_ == int:
             code_name = "OP_LCONST"
         elif type_ == float:
