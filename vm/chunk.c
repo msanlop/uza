@@ -13,20 +13,6 @@ void chunk_init(Chunk* chunk) {
     value_array_init(&chunk->constants);
 }
 
-void chunk_write(Chunk* chunk, OpCode opcode, uint16_t line) {
-    size_t capacity_new = 0;
-    if(chunk->count + 1 > chunk->capacity) {
-        capacity_new = GROW_CAPACITY(chunk->capacity);
-        uint8_t* code_new = GROW_ARRAY(uint8_t, chunk->code, chunk->capacity, capacity_new);
-        uint16_t* lines_new = GROW_ARRAY(uint16_t, chunk->lines, chunk->capacity, capacity_new);
-	chunk->code = code_new;
-        chunk->lines = lines_new;
-    	chunk->capacity = capacity_new;
-    }
-    chunk->code[chunk->count] = opcode;
-    chunk->lines[chunk->count] = line;
-    chunk->count += 1;
-}
 
 void chunk_free(Chunk* chunk) {
     FREE_ARRAY(uint8_t, chunk->code, chunk->count);

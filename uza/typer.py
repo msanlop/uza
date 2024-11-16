@@ -7,6 +7,7 @@ from uza.type import *
 from uza.token import *
 from uza.uzast import (
     Block,
+    IfElse,
     InfixApplication,
     Literal,
     Program,
@@ -65,6 +66,7 @@ class SymbolicType(Type):
     """
 
     identifier: str
+    span: Span  # used for printing typer substitution
 
     def resolve_type(self, substitution: Substitution) -> Type:
         t = substitution.get_type_of(self)
@@ -303,7 +305,7 @@ class Typer:
         """
         Return a new unique SymbolicType.
         """
-        return SymbolicType("symbolic_" + str(next(self.symbol_gen)))
+        return SymbolicType("symbolic_" + str(next(self.symbol_gen)), node.span)
 
     def _get_type_of_identifier(self, identifier: str) -> Type:
         return self._symbol_table.get(identifier)[0]
@@ -369,6 +371,14 @@ class Typer:
         builtin = get_builtin(func_id)
         assert builtin
         return self.visit_builtin(builtin, infix.lhs, infix.rhs)
+
+    def visit_if_else(self, if_else: IfElse) -> Type:
+        pred = if_else.predicate.visit(self)
+        self.add_constaint(IsType(pred, type_bool, if_else.predicate.span))
+        else_type = type_void
+        if if_else.falsy_case is not None:
+            else_type = if_else.falsy_case.visit(self)
+        return UnionType(if_else.truthy_case.visit(self), else_type)
 
     def visit_identifier(self, identifier: Identifier):
         return self._symbol_table.get(identifier.name)[0]
