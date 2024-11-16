@@ -413,7 +413,7 @@ class Parser:
     def parse(self) -> Program:
         top_level_lines = self._parse_lines()
         span = None
-        if len(top_level_lines) > 0:
+        if len(top_level_lines) == 0:
             span = Span(0, 0, "empty scope")
         else:
             span = top_level_lines[0].span + top_level_lines[-1].span
