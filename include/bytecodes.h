@@ -3,9 +3,13 @@
 
 typedef enum {
     OP_RETURN,
+    OP_JUMP,
     OP_LCONST,
     OP_DCONST,
     OP_STRCONST,
+    OP_BOOLTRUE,
+    OP_BOOLFALSE,
+    OP_JUMP_IF_FALSE,
     OP_ADD,
     OP_SUB,
     OP_MUL,

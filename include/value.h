@@ -56,8 +56,11 @@ typedef struct {
       fprintf((out), "%lld", (value).as.integer); break; \
     case TYPE_DOUBLE: \
       fprintf((out), "%.3lf", (value).as.fp); break; \
-    case TYPE_BOOL: \
-      fprintf((out), "%d", (value).as.boolean); break; \
+    case TYPE_BOOL: { \
+      if ((value).as.boolean) fprintf((out), "true"); \
+      else fprintf((out), "false"); \
+    } \
+      break; \
     case TYPE_OBJ: \
       if(AS_OBJECT(value)->type == OBJ_STRING) { \
         fprintf((out), "%s", ((ObjectString*) AS_OBJECT(value))->chars); \

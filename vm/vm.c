@@ -110,14 +110,37 @@ int interpret(VM* vm) {
         case OP_RETURN: {
             // simulate print() to test code, TODO: remove when obsolete
             Value val = pop(vm);
+            DEBUG_PRINT("STDOUT PRINTLN: ");
             PRINT_VALUE(val, stdout);
             printf(NEWLINE);
+        }
+        break;
+        case OP_JUMP: {
+            int offset =  ((uint16_t) *(vm->ip)) + sizeof(uint16_t);
+            vm->ip += offset;
         }
         break;
         case OP_STRCONST:
         case OP_DCONST:
         case OP_LCONST: push(vm, vm->chunk.constants.values[*(vm->ip++)]);
             break;
+        case OP_BOOLTRUE:
+            push(vm, VAL_BOOL(true));
+            break;
+        case OP_BOOLFALSE:
+            push(vm, VAL_BOOL(false));
+            break;
+        case OP_JUMP_IF_FALSE: {
+            Value val = pop(vm);
+            if (!val.as.boolean) {
+                int offset =  ((uint16_t) *(vm->ip)) + sizeof(uint16_t);
+                vm->ip += offset;
+            }
+            else {
+                vm->ip += sizeof(uint16_t);
+            }
+        }
+        break;
         case OP_ADD: {
             Value top = PEEK(vm);
             if (IS_STRING(top)) {

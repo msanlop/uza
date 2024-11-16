@@ -29,6 +29,12 @@ void debug_constant_print(char* code_str, Chunk* chunk, int offset){
     PRINT_VALUE(chunk->constants.values[constant],stderr);
 }
 
+void debug_jump_print(char* code_str, Chunk* chunk, int offset){
+    DEBUG_PRINT("%s    ", code_str);
+    uint16_t jump = GET_CODE_AT_CAST(uint16_t, chunk, offset) + sizeof(uint16_t);
+    DEBUG_PRINT("%u", jump);
+}
+
 int debug_op_print(Chunk* chunk, int offset) {
     DEBUG_PRINT("%04d  ", offset);
     uint16_t line = GET_LINE_AT(chunk, offset);
@@ -44,6 +50,10 @@ int debug_op_print(Chunk* chunk, int offset) {
         DEBUG_PRINT("OP_RETURN");
         return 1;
         break;
+    case OP_JUMP:
+        debug_jump_print("OP_JUMP", chunk, offset + 1);
+        return 3;
+        break;
     case OP_LCONST:
         debug_constant_print("OP_LCONST", chunk, offset + 1);
         return 2;
@@ -55,6 +65,18 @@ int debug_op_print(Chunk* chunk, int offset) {
     case OP_STRCONST:
         debug_constant_print("OP_STRCONST", chunk, offset + 1);
         return 2;
+        break;
+    case OP_BOOLTRUE:
+        DEBUG_PRINT("OP_BOOLTRUE");
+        return 1;
+        break;
+    case OP_BOOLFALSE:
+        DEBUG_PRINT("OP_BOOLFALSE");
+        return 1;
+        break;
+    case OP_JUMP_IF_FALSE:
+        debug_jump_print("OP_JUMP_IF_FALSE", chunk, offset + 1);
+        return 3;
         break;
     case OP_DEFGLOBAL:
         debug_constant_print("OP_DEFGLOBAL", chunk, offset + 1);

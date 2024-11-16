@@ -8,6 +8,7 @@ from uza.uzast import (
     Application,
     Block,
     Identifier,
+    IfElse,
     InfixApplication,
     Literal,
     Node,
@@ -117,19 +118,10 @@ class Scanner:
             return new_string_token
         elif char in string.ascii_letters:
             word, end = self._get_next_word()
-            match word:
-                case "const":
-                    type_ = token_const
-                case "var":
-                    type_ = token_var
-                case "and":
-                    type_ = token_and
-                case "true":
-                    type_ = token_boolean
-                case "false":
-                    type_ = token_boolean
-                case _:
-                    type_ = token_identifier
+            if word in token_types:
+                type_ = token_types[word]
+            else:
+                type_ = token_identifier
         elif char == "*":
             if (
                 not self._overflows(self._start + 1)
@@ -222,7 +214,7 @@ class Parser:
 
     def _consume_white_space_and_peek(self) -> TokenKind:
         temp = self._peek()
-        while temp.kind == token_new_line:
+        while temp and temp.kind == token_new_line:
             self._expect(temp.kind)
             temp = self._peek()
         return temp
@@ -234,6 +226,19 @@ class Parser:
             next_ = self._peek()
 
         return self._get_expr()
+
+    def _get_if_else(self) -> Node:
+        self._expect(token_if)
+        pred = self._get_expr()
+        self._expect(token_then)
+        t_case = self._get_expr()
+        self._consume_white_space_and_peek()
+        f_case = None
+        tok = self._consume_white_space_and_peek()
+        if tok and tok.kind == token_else:
+            self._expect(token_else)
+            f_case = self._get_expr()
+        return IfElse(pred, t_case, f_case)
 
     def _get_identifier(self) -> Identifier:
         identifier_tok = self._expect(token_identifier)
@@ -341,7 +346,8 @@ class Parser:
             node = self._get_infix(self._get_expr())
             self._expect(token_paren_r)
             return self._get_infix(node)
-
+        elif tok.kind == token_if:
+            return self._get_if_else()
         elif tok.kind == token_bracket_l:
             self._expect(token_bracket_l)
             node = self._parse_block(end_token=token_bracket_r)

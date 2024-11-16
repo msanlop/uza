@@ -5,6 +5,7 @@ from typing import Callable, List, Optional, TypeVar
 from uza.uzast import (
     Application,
     Identifier,
+    IfElse,
     InfixApplication,
     Literal,
     Node,
@@ -100,9 +101,15 @@ class Interpreter:
         elif func_id == bi_pow:
             ret = lhs**rhs
         elif func_id == bi_print:
+            params = map(
+                lambda p: str(p).lower() if isinstance(p, bool) else p, params
+            )  # hack to fix bools prints
             print(*params, end="")
             ret = None
         elif func_id == bi_println:
+            params = map(
+                lambda p: str(p).lower() if isinstance(p, bool) else p, params
+            )  # hack to fix bools prints
             print(*params)
             ret = None
         elif func_id == bi_max:
@@ -149,6 +156,15 @@ class Interpreter:
             return self.visit_built_in_application(built_in_id, left, right)
         raise NotImplementedError("no user functions yet, something went wrong")
 
+    def visit_if_else(self, if_else: IfElse):
+        pred = if_else.predicate.visit(self)
+        assert type(pred) == bool
+        if pred:
+            return if_else.truthy_case.visit(self)
+        if if_else.falsy_case is not None:
+            return if_else.falsy_case.visit(self)
+        return None
+
     def _visit_lines(self, lines: List[Node]):
         for node in lines:
             last = node.visit(self)
@@ -168,4 +184,5 @@ class Interpreter:
         Returns:
             Optional[int | float]: return the evaluated result of the last line
         """
-        return self._program.syntax_tree.visit(self)
+        res = self._program.syntax_tree.visit(self)
+        return res

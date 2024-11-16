@@ -53,11 +53,14 @@ void read_program(VM *vm, program_bytes_t* program) {
 void load_chunk(VM *vm, program_bytes_t* program) {
     load_constants(&vm->chunk.constants, program, &vm->strings);
     uint16_t line = 0;
+    int op_count = 0;
     while (program->count != 0) {
         PROG_CPY(line, program, uint16_t);
         if(!system_is_little_endian) line = REV_U16(line);
         load_op(vm, line, program);
+        op_count++;
     }
+    DEBUG_PRINT("opcount: %d\n", op_count);
 }
 
 void load_constants(ValueArray* array, program_bytes_t* program, Table *strings) {
@@ -151,13 +154,20 @@ void load_op(VM *vm, uint16_t line, program_bytes_t* program) {
         case OP_DEFLOCAL:
         case OP_GETLOCAL:
         case OP_SETLOCAL:
-            chunk_write(chunk, opcode, line);
+            CHUNK_WRITE(uint8_t, opcode, line);
             uint8_t u8_arg = 0;
             PROG_CPY(u8_arg, program, uint8_t);
-            chunk_write(chunk, u8_arg, line);
+            CHUNK_WRITE(uint8_t, u8_arg, line);
+            break;
+        case OP_JUMP:
+        case OP_JUMP_IF_FALSE:
+            CHUNK_WRITE(uint8_t, opcode, line);
+            uint16_t offset = 0;
+            PROG_CPY(offset, program, uint16_t);
+            CHUNK_WRITE(uint16_t, offset, line);
             break;
         default:
-            chunk_write(chunk, opcode, line);
+            CHUNK_WRITE(uint8_t, opcode, line);
             break;
     }
 }
