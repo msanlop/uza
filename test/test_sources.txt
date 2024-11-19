@@ -122,6 +122,34 @@ else println("WRONG")
 #expected
 ok
 
+#test boolean 'and' as well as ifelse
+if true and false then println("WRONG")
+else println(true and false)
+if false and true then println("WRONG")
+else println(false and true)
+if false and false then println("WRONG")
+else println(false and false)
+println(true and true)
+#expected
+false
+false
+false
+true
+
+#test boolean 'or' as well as ifelse
+if true or false then println(true or false)
+else println("WRONG")
+if false or true then println(false or true)
+else println("WRONG")
+if false or false then println("WRONG")
+else println(false or false)
+println(true or true)
+#expected
+true
+true
+false
+true
+
 //#test min and max builtins
 //const a int = -5
 //const b int = 0

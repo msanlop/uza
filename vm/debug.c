@@ -54,6 +54,10 @@ int debug_op_print(Chunk* chunk, int offset) {
         debug_jump_print("OP_JUMP", chunk, offset + 1);
         return 3;
         break;
+    case OP_POP:
+        DEBUG_PRINT("OP_POP");
+        return 1;
+        break;
     case OP_LCONST:
         debug_constant_print("OP_LCONST", chunk, offset + 1);
         return 2;
@@ -76,6 +80,10 @@ int debug_op_print(Chunk* chunk, int offset) {
         break;
     case OP_JUMP_IF_FALSE:
         debug_jump_print("OP_JUMP_IF_FALSE", chunk, offset + 1);
+        return 3;
+        break;
+    case OP_JUMP_IF_TRUE:
+        debug_jump_print("OP_JUMP_IF_TRUE", chunk, offset + 1);
         return 3;
         break;
     case OP_DEFGLOBAL:

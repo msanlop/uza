@@ -33,6 +33,7 @@ typedef struct {
 
 
 void  push(VM* vm, Value value);
+Value peek(VM* vm);
 Value pop(VM* vm);
 
 VM*  vm_init(program_bytes_t* program);

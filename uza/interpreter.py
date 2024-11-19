@@ -1,7 +1,8 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Callable, List, Optional, TypeVar
+from typing import List, Optional, TypeVar
 
+from uza.type import ArrowType
 from uza.uzast import (
     Application,
     Identifier,
@@ -27,6 +28,7 @@ class BuiltIn:
     """
 
     identifier: str
+    # TODO define type
     _builtins_dict: dict[str, BuiltIn]
 
     def __post_init__(self):
@@ -43,7 +45,8 @@ bi_sub = BuiltIn("-", _builtins)
 bi_mul = BuiltIn("*", _builtins)
 bi_div = BuiltIn("/", _builtins)
 bi_pow = BuiltIn("**", _builtins)
-bi_land = BuiltIn("and", _builtins)
+bi_and = BuiltIn("and", _builtins)
+bi_or = BuiltIn("or", _builtins)
 bi_print = BuiltIn("print", _builtins)
 bi_println = BuiltIn("println", _builtins)
 bi_max = BuiltIn("max", _builtins)
@@ -96,8 +99,10 @@ class Interpreter:
                 ret = lhs // casted
             else:
                 ret = lhs / casted
-        elif func_id == bi_land:
+        elif func_id == bi_and:
             ret = lhs and rhs
+        elif func_id == bi_or:
+            ret = lhs or rhs
         elif func_id == bi_pow:
             ret = lhs**rhs
         elif func_id == bi_print:
@@ -116,6 +121,8 @@ class Interpreter:
             ret = max(lhs, rhs)
         elif func_id == bi_min:
             ret = min(lhs, rhs)
+        else:
+            raise NotImplementedError(f"for : {func_id}")
 
         return ret
 

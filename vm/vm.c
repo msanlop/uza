@@ -31,11 +31,28 @@
     } while (false); \
 
 
+#define JUMP_IF(value) \
+    do {                                                                       \
+        if (value) {                                                 \
+            int offset =  ((uint16_t) *(vm->ip)) + sizeof(uint16_t);           \
+            vm->ip += offset;                                                  \
+        }                                                                      \
+        else {                                                                 \
+            vm->ip += sizeof(uint16_t);                                        \
+        }                                                                      \
+    } while (0);
+
+
+
 void push(VM* vm, Value value) {
     *vm->stack_top++ = value;
     #ifdef DEBUG_TRACE_EXECUTION_STACK
         DEBUG_PRINT("stack push\n");
     #endif //#define DEBUG_TRACE_EXECUTION_STACK
+}
+
+inline Value peek(VM* vm) {
+    return vm->stack_top[-1];
 }
 
 Value pop(VM* vm) {
@@ -120,6 +137,9 @@ int interpret(VM* vm) {
             vm->ip += offset;
         }
         break;
+        case OP_POP:
+            pop(vm);
+            break;
         case OP_STRCONST:
         case OP_DCONST:
         case OP_LCONST: push(vm, vm->chunk.constants.values[*(vm->ip++)]);
@@ -131,14 +151,13 @@ int interpret(VM* vm) {
             push(vm, VAL_BOOL(false));
             break;
         case OP_JUMP_IF_FALSE: {
-            Value val = pop(vm);
-            if (!val.as.boolean) {
-                int offset =  ((uint16_t) *(vm->ip)) + sizeof(uint16_t);
-                vm->ip += offset;
-            }
-            else {
-                vm->ip += sizeof(uint16_t);
-            }
+            Value val = peek(vm);
+            JUMP_IF(!val.as.boolean);
+        }
+        break;
+        case OP_JUMP_IF_TRUE: {
+            Value val = peek(vm);
+            JUMP_IF(val.as.boolean);
         }
         break;
         case OP_ADD: {

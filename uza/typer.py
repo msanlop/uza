@@ -1,6 +1,6 @@
 from abc import ABC
 from dataclasses import dataclass, field
-from typing import List
+from typing import Iterator, List
 from itertools import count, permutations
 
 from uza.type import *
@@ -360,9 +360,19 @@ class Typer:
             self.add_constaint(polymorphic)
             return lhs_type
 
-        if func_id in (bi_sub, bi_mul, bi_div):
+        elif func_id in (bi_sub, bi_mul, bi_div):
             self.add_constaint(arith_constaint)
             return arithmetic_type
+        elif func_id in (bi_and, bi_or):
+            bool_func_types = arithmetic_type + type_bool + type_void
+            bool_constraint = Applies(
+                [lhs_type, rhs_type],
+                [lhs.span, rhs.span],
+                ArrowType([bool_func_types, bool_func_types], type_bool),
+                lhs.span + rhs.span,
+            )
+            self.add_constaint(bool_constraint)
+            return type_bool
 
         raise NotImplementedError(f"not implemented for {func_id}")
 

@@ -161,6 +161,7 @@ void load_op(VM *vm, uint16_t line, program_bytes_t* program) {
             break;
         case OP_JUMP:
         case OP_JUMP_IF_FALSE:
+        case OP_JUMP_IF_TRUE:
             CHUNK_WRITE(uint8_t, opcode, line);
             uint16_t offset = 0;
             PROG_CPY(offset, program, uint16_t);

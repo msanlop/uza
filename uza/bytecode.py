@@ -27,6 +27,8 @@ from uza.interpreter import (
     bi_div,
     bi_mul,
     bi_sub,
+    bi_and,
+    bi_or,
     get_builtin,
 )
 
@@ -36,12 +38,14 @@ operations = []
 OP_CODES = [
     "OP_RETURN",
     "OP_JUMP",
+    "OP_POP",
     "OP_LCONST",
     "OP_DCONST",
     "OP_STRCONST",
     "OP_BOOLTRUE",
     "OP_BOOLFALSE",
     "OP_JUMP_IF_FALSE",
+    "OP_JUMP_IF_TRUE",
     "OP_ADD",
     "OP_SUB",
     "OP_MUL",
@@ -284,16 +288,26 @@ class ByteCodeProgram:
         jump_true_op = OpCode("OP_JUMP_IF_FALSE", if_else.predicate.span, jump_offset=0)
         written += self.chunk.add_op(jump_true_op)
 
-        written_truthy = if_else.truthy_case.visit(self)
+        pop_pred = OpCode("OP_POP", if_else.predicate.span)
+        written_truthy = self.chunk.add_op(pop_pred)
+        written_truthy += if_else.truthy_case.visit(self)
         jump_true_op.jump_offset = written_truthy  # jump over the uint16 offset too
         written_falsy = 0
         falsy = if_else.falsy_case
         if falsy is not None:
-            jump_false_op = OpCode("OP_JUMP", falsy.span, jump_offset=0)
+            jump_false_op = OpCode(
+                "OP_JUMP", falsy.span, jump_offset=0
+            )  # truthy case, skip else clause
             self.chunk.add_op(jump_false_op)
+            pop_pred = OpCode("OP_POP", if_else.predicate.span)
+            self.chunk.add_op(pop_pred)
+
+            written_falsy += pop_pred.size
             written_falsy += falsy.visit(self)
             jump_false_op.jump_offset = written_falsy
             written_falsy += jump_false_op.size
+
+            # skip over the new jump at the end of truthy case if pred == false
             jump_true_op.jump_offset += jump_false_op.size
 
         return written + written_truthy + written_falsy
@@ -366,6 +380,24 @@ class ByteCodeProgram:
             )
         raise NotImplementedError("only println implemented currently")
 
+    def _and(self, and_app: InfixApplication) -> int:
+        written = and_app.lhs.visit(self)
+        short_circuit_op = OpCode("OP_JUMP_IF_FALSE", and_app.span, jump_offset=0)
+        written += self.chunk.add_op(short_circuit_op)
+        written_rhs = self.chunk.add_op(OpCode("OP_POP", and_app.span))
+        written_rhs += and_app.rhs.visit(self)
+        short_circuit_op.jump_offset = written_rhs
+        return written + written_rhs
+
+    def _or(self, or_app: InfixApplication) -> int:
+        written = or_app.lhs.visit(self)
+        short_circuit_op = OpCode("OP_JUMP_IF_TRUE", or_app.span, jump_offset=0)
+        written += self.chunk.add_op(short_circuit_op)
+        written_rhs = self.chunk.add_op(OpCode("OP_POP", or_app.span))
+        written_rhs += or_app.rhs.visit(self)
+        short_circuit_op.jump_offset = written_rhs
+        return written + written_rhs
+
     def visit_infix_application(self, application: InfixApplication) -> int:
         function = get_builtin(application.func_id)
         code_str = ""
@@ -377,6 +409,10 @@ class ByteCodeProgram:
             code_str = "OP_MUL"
         elif function == bi_div:
             code_str = "OP_DIV"
+        elif function == bi_and:
+            return self._and(application)
+        elif function == bi_or:
+            return self._or(application)
         else:
             raise NotImplementedError(f"vm can't do {function} yet")
 
