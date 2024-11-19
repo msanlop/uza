@@ -338,7 +338,7 @@ class Typer:
 
         lhs_type = lhs.visit(self)
         rhs_type = rhs.visit(self)
-        arithmetic_type = UnionType(type_int, type_float)
+        arithmetic_type = type_int | type_float
         arith_constaint = Applies(
             [lhs_type, rhs_type],
             [lhs.span, rhs.span],
@@ -364,7 +364,7 @@ class Typer:
             self.add_constaint(arith_constaint)
             return arithmetic_type
         elif func_id in (bi_and, bi_or):
-            bool_func_types = arithmetic_type + type_bool + type_void
+            bool_func_types = arithmetic_type | type_bool | type_void
             bool_constraint = Applies(
                 [lhs_type, rhs_type],
                 [lhs.span, rhs.span],

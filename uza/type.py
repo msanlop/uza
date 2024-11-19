@@ -30,6 +30,13 @@ class Type:
         """
         return self
 
+    def __or__(self, that: object) -> bool:
+        if isinstance(that, BuiltInType):
+            return UnionType(self, that)
+        if isinstance(that, UnionType):
+            return UnionType(self, that.types)
+        raise NotImplementedError
+
 
 @dataclass(frozen=True, eq=True)
 class UnionType(Type):
@@ -54,7 +61,7 @@ class UnionType(Type):
             raise NotImplementedError
         return all(a == b for (a, b) in zip(self.types, that.types))
 
-    def __add__(self, that: object) -> bool:
+    def __or__(self, that: object) -> bool:
         if isinstance(that, BuiltInType):
             return UnionType(*self.types, that)
         if isinstance(that, UnionType):
