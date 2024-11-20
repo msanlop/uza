@@ -122,15 +122,15 @@ class SymbolTable:
     the (variable name and it's associated value) pairs.
     """
 
-    frames: List[List[tuple[str, T]]]
+    frames: List[List[list[str, T]]]
 
-    def __init__(self, frames: List[List[tuple[str, T]]] | None = None) -> None:
+    def __init__(self, frames: List[List[list[str, T]]] | None = None) -> None:
         if not frames:
-            self.frames: List[List[tuple[str, T]]] = [[]]
+            self.frames: List[List[list[str, T]]] = [[]]
         else:
             self.frames = frames
 
-    def _get_locals(self) -> List[tuple[str, T]]:
+    def _get_locals(self) -> List[list[str, T]]:
         return self.frames[-1]
 
     def new_frame(self) -> SymbolTable:
@@ -150,7 +150,7 @@ class SymbolTable:
             if local[0] == variable_name:
                 return False
 
-        frame_locals.append((variable_name, value))
+        frame_locals.append([variable_name, value])
         return True
 
     def get(self, identifier: str) -> Optional[T]:
@@ -165,15 +165,16 @@ class SymbolTable:
         return None
 
     def reassign(self, identifier: str, new_value: T) -> None:
-        frame_locals = self._get_locals()
-        idx = 0
-        while idx < len(frame_locals):
-            if frame_locals[idx][0] == identifier:
-                frame_locals[idx] = (identifier, new_value)
-                return
-            idx += 1
+        idx = len(self.frames) - 1
+        while idx >= 0:
+            frame = self.frames[idx]
+            for j in range(len(frame)):
+                if frame[j][0] == identifier:
+                    frame[j][1] = new_value
+                    return
+            idx -= 1
 
-        frame_locals.append((identifier, new_value))
+        raise NameError(f"{identifier} not defined in scope")
 
     def __enter__(self):
         """

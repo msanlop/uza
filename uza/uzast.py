@@ -179,6 +179,16 @@ class Block(Scope):
 
 
 @dataclass
+class WhileLoop(Node):
+    cond: Node
+    loop: Node
+    span: Span = field(compare=False)
+
+    def visit(self, that):
+        return that.visit_while_loop(self)
+
+
+@dataclass
 class Error(Node):
     error_message: str
     span: Span = field(compare=False)

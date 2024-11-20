@@ -150,6 +150,27 @@ true
 false
 true
 
+#test while loop
+var i = 0
+const run = true
+while run {
+    println(i)
+    if i == 5 {
+        run = false
+    }
+    i = i + 1
+}
+println("end")
+#expected
+0
+1
+2
+3
+4
+5
+end
+
+
 //#test min and max builtins
 //const a int = -5
 //const b int = 0

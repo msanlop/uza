@@ -15,6 +15,7 @@ from uza.uzast import (
     VarDef,
     Error,
     VarRedef,
+    WhileLoop,
 )
 from uza.interpreter import *
 from uza.utils import in_bold, in_color, ANSIColor
@@ -434,6 +435,10 @@ class Typer:
     def visit_block(self, scope: Block):
         with self._symbol_table.new_frame():
             return self._check(scope.lines)
+
+    def visit_while_loop(self, wl: WhileLoop):
+        self.add_constaint(IsType(wl.cond.visit(self), type_bool, wl.span))
+        return type_void
 
     def visit_scope(self, scope: Block):
         return self._check(scope.lines)

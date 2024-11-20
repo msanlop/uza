@@ -4,6 +4,7 @@
 typedef enum {
     OP_RETURN,
     OP_JUMP,
+    OP_LOOP,
     OP_POP,
     OP_LCONST,
     OP_DCONST,
@@ -17,6 +18,7 @@ typedef enum {
     OP_MUL,
     OP_DIV,
     OP_NEG,
+    OP_EQ,
     OP_DEFGLOBAL,
     OP_GETGLOBAL,
     OP_SETGLOBAL,

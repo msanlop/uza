@@ -160,6 +160,7 @@ void load_op(VM *vm, uint16_t line, program_bytes_t* program) {
             CHUNK_WRITE(uint8_t, u8_arg, line);
             break;
         case OP_JUMP:
+        case OP_LOOP:
         case OP_JUMP_IF_FALSE:
         case OP_JUMP_IF_TRUE:
             CHUNK_WRITE(uint8_t, opcode, line);

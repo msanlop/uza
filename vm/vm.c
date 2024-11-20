@@ -137,6 +137,11 @@ int interpret(VM* vm) {
             vm->ip += offset;
         }
         break;
+        case OP_LOOP: {
+            int offset =  ((uint16_t) *(vm->ip)) + 1;
+            vm->ip -= offset;
+        }
+        break;
         case OP_POP:
             pop(vm);
             break;
@@ -187,6 +192,13 @@ int interpret(VM* vm) {
         break;
         case OP_DIV: {
             BINARY_OP(vm, /);
+        }
+        break;
+        case OP_EQ: {
+            BINARY_OP(vm, ==);
+            #ifndef NDEBUG
+                vm->stack_top[-1].type = TYPE_BOOL;
+            #endif
         }
         break;
         case OP_DEFGLOBAL: {

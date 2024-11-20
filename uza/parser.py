@@ -18,6 +18,7 @@ from uza.uzast import (
     Error,
     Program,
     VarRedef,
+    WhileLoop,
 )
 
 from uza.utils import Span, SymbolTable
@@ -103,6 +104,12 @@ class Scanner:
         elif char == ",":
             end = self._start + 1
             type_ = token_comma
+        elif char == "=":
+            end = self._start + 1
+            type_ = token_eq
+            if not self._overflows(end) and self._char_at(end) == "=":
+                end += 1
+                type_ = token_eq_double
         elif char == '"':
             word, end = self._get_next_string()
             end += 1
@@ -230,8 +237,12 @@ class Parser:
     def _get_if_else(self) -> Node:
         self._expect(token_if)
         pred = self._get_expr()
-        self._expect(token_then)
-        t_case = self._get_expr()
+        tok = self._peek()
+        if tok and tok.kind == token_bracket_l:
+            t_case = self._parse_block(end_token=token_bracket_r)
+        else:
+            self._expect(token_then)
+            t_case = self._get_expr()
         self._consume_white_space_and_peek()
         f_case = None
         tok = self._consume_white_space_and_peek()
@@ -328,13 +339,28 @@ class Parser:
         return expressions
 
     def _parse_block(self, end_token: Optional[TokenKind] = None) -> Block:
+        self._expect(token_bracket_l)
+
         with self._symbol_table.new_frame():
             lines = self._parse_lines(end_token)
             if len(lines) > 0:
                 span = lines[0].span + lines[-1].span
             else:
                 span = Span(0, 0, "empty block")
+
+        self._expect(token_bracket_r)
         return Block(lines, span)
+
+    def _get_while_loop(self) -> WhileLoop:
+        self._expect(token_while)
+        cond = self._get_expr()
+        tok = self._peek()
+        if tok and tok.kind == token_bracket_l:
+            interior = self._parse_block(end_token=token_bracket_r)
+            return WhileLoop(cond, interior, cond.span + interior.span)
+        self._expect(token_do)
+        interior = self._get_expr()
+        return WhileLoop(cond, interior, cond.span + interior.span)
 
     def _get_expr(self) -> Node:
         tok = self._consume_white_space_and_peek()
@@ -346,12 +372,12 @@ class Parser:
             node = self._get_infix(self._get_expr())
             self._expect(token_paren_r)
             return self._get_infix(node)
+        elif tok.kind == token_while:
+            return self._get_while_loop()
         elif tok.kind == token_if:
             return self._get_if_else()
         elif tok.kind == token_bracket_l:
-            self._expect(token_bracket_l)
             node = self._parse_block(end_token=token_bracket_r)
-            self._expect(token_bracket_r)
             return self._get_infix(node)
         elif tok.kind == token_identifier:
             identifier = self._get_identifier()

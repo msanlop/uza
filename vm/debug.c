@@ -54,6 +54,10 @@ int debug_op_print(Chunk* chunk, int offset) {
         debug_jump_print("OP_JUMP", chunk, offset + 1);
         return 3;
         break;
+    case OP_LOOP:
+        debug_jump_print("OP_LOOP", chunk, offset + 1);
+        return 3;
+        break;
     case OP_POP:
         DEBUG_PRINT("OP_POP");
         return 1;
@@ -115,6 +119,10 @@ int debug_op_print(Chunk* chunk, int offset) {
         return 2;
     case OP_ADD:
         DEBUG_PRINT("OP_ADD");
+        return 1;
+        break;
+    case OP_EQ:
+        DEBUG_PRINT("OP_EQ");
         return 1;
         break;
     case OP_SUB:

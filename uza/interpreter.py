@@ -17,6 +17,7 @@ from uza.uzast import (
     VarDef,
     Program,
     VarRedef,
+    WhileLoop,
 )
 from uza.utils import SymbolTable
 
@@ -49,6 +50,7 @@ bi_and = BuiltIn("and", _builtins)
 bi_or = BuiltIn("or", _builtins)
 bi_print = BuiltIn("print", _builtins)
 bi_println = BuiltIn("println", _builtins)
+bi_eq = BuiltIn("==", _builtins)
 bi_max = BuiltIn("max", _builtins)
 bi_min = BuiltIn("min", _builtins)
 
@@ -121,6 +123,8 @@ class Interpreter:
             ret = max(lhs, rhs)
         elif func_id == bi_min:
             ret = min(lhs, rhs)
+        elif func_id == bi_eq:
+            ret = lhs == rhs
         else:
             raise NotImplementedError(f"for : {func_id}")
 
@@ -180,6 +184,10 @@ class Interpreter:
     def visit_block(self, block: Block):
         with self._context.new_frame():
             return self._visit_lines(block.lines)
+
+    def visit_while_loop(self, wl: WhileLoop):
+        while wl.cond.visit(self):
+            wl.loop.visit(self)
 
     def visit_scope(self, scope: Scope):
         return self._visit_lines(scope.lines)

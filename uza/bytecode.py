@@ -20,6 +20,7 @@ from uza.uzast import (
     VarDef,
     Program,
     VarRedef,
+    WhileLoop,
 )
 from uza.token import token_true
 from uza.utils import Span
@@ -31,6 +32,7 @@ from uza.interpreter import (
     bi_and,
     bi_or,
     get_builtin,
+    bi_eq,
 )
 
 BYTE_ORDER = "little"
@@ -40,6 +42,7 @@ operations = []
 class OPCODE(Enum):
     RETURN = 0
     JUMP = auto()
+    LOOP = auto()
     POP = auto()
     LCONST = auto()
     DCONST = auto()
@@ -53,6 +56,7 @@ class OPCODE(Enum):
     MUL = auto()
     DIV = auto()
     NEG = auto()
+    EQ = auto()
     DEFGLOBAL = auto()
     GETGLOBAL = auto()
     SETGLOBAL = auto()
@@ -224,7 +228,7 @@ class ByteCodeLocals:
             except ValueError:
                 pass
 
-        return None
+        return None, None
 
     def __enter__(self):
         """
@@ -311,13 +315,12 @@ class ByteCodeProgram:
             return self.chunk.add_op(
                 Op(OPCODE.GETGLOBAL, identifier.span, constant=name)
             )
-        res = self._local_vars.get(name)
-        if res is None:
+        frame_idx, idx = self._local_vars.get(name)
+        if frame_idx is None:
             return self.chunk.add_op(
                 Op(OPCODE.GETGLOBAL, identifier.span, constant=name)
             )
 
-        frame_idx, idx = res
         if frame_idx != 0:
             raise NotImplementedError("variables from outer frames not yet implemented")
         return self.chunk.add_op(Op(OPCODE.GETLOCAL, identifier.span, local_index=idx))
@@ -342,15 +345,17 @@ class ByteCodeProgram:
     def visit_var_redef(self, var_redef: VarRedef) -> int:
         written = var_redef.value.visit(self)
         name = var_redef.identifier
-        if self.depth() == 0:
+        frame_idx, idx = self._local_vars.get(name)
+
+        if self.depth() == 0 or frame_idx is None:
             return (
                 self.chunk.add_op(
                     Op(OPCODE.SETGLOBAL, var_redef.span, constant=var_redef.identifier),
                 )
                 + written
             )
-
-        idx = self._local_vars.define(name)
+        if frame_idx != 0:
+            raise NotImplementedError("only current frame locals are implemented")
         return (
             self.chunk.add_op(Op(OPCODE.SETLOCAL, var_redef.span, local_index=idx))
             + written
@@ -402,6 +407,8 @@ class ByteCodeProgram:
             return self._and(application)
         elif function == bi_or:
             return self._or(application)
+        elif function == bi_eq:
+            opc = OPCODE.EQ
         else:
             raise NotImplementedError(f"vm can't do {function} yet")
 
@@ -428,6 +435,25 @@ class ByteCodeProgram:
             written = self.chunk.add_op(block_op)
             written += self._build_lines(block.lines)
             return self.chunk.add_op(Op(OPCODE.EXITBLOCK, block.span)) + written
+
+    def visit_while_loop(self, wl: WhileLoop) -> int:
+        w_cond = wl.cond.visit(self)
+        cond_false = Op(OPCODE.JUMP_IF_FALSE, wl.cond.span, jump_offset=0)
+        w_false = self.chunk.add_op(cond_false)
+        pop = Op(OPCODE.POP, wl.cond.span)
+        w_pop_true = self.chunk.add_op(pop)
+
+        w_interior = wl.loop.visit(self)
+        loop = Op(
+            OPCODE.LOOP,
+            wl.loop.span,
+            jump_offset=w_cond + w_interior + w_pop_true + w_false,
+        )
+        w_loop = self.chunk.add_op(loop)
+        w_pop_false = self.chunk.add_op(pop)
+
+        cond_false.jump_offset = w_interior + w_loop + w_pop_true
+        return w_cond + w_false + w_pop_true + w_interior + w_loop + w_pop_false
 
     def _build_chunk(self):
         self._build_lines(self.program.syntax_tree.lines)
