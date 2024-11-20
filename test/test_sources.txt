@@ -152,7 +152,7 @@ true
 
 #test while loop
 var i = 0
-const run = true
+var run = true
 while run {
     println(i)
     if i == 5 {

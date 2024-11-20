@@ -364,6 +364,16 @@ class Typer:
         elif func_id in (bi_sub, bi_mul, bi_div):
             self.add_constaint(arith_constaint)
             return arithmetic_type
+        elif func_id == bi_eq:
+            type_cmp = type_int | type_bool | type_string
+            cmp_constraint = Applies(
+                [lhs_type, rhs_type],
+                [lhs.span, rhs.span],
+                ArrowType([type_cmp, type_cmp], type_bool),
+                lhs.span + rhs.span,
+            )
+            self.add_constaint(cmp_constraint)
+            return type_bool
         elif func_id in (bi_and, bi_or):
             bool_func_types = arithmetic_type | type_bool | type_void
             bool_constraint = Applies(
@@ -438,6 +448,7 @@ class Typer:
 
     def visit_while_loop(self, wl: WhileLoop):
         self.add_constaint(IsType(wl.cond.visit(self), type_bool, wl.span))
+        wl.loop.visit(self)
         return type_void
 
     def visit_scope(self, scope: Block):
