@@ -1,4 +1,5 @@
 from __future__ import annotations
+from dataclasses import field
 from typing import List
 
 from uza.token import *
@@ -9,8 +10,6 @@ class Type:
     """
     A uza Type.
     """
-
-    identifier: str
 
     def resolve_type(self, substitution) -> Type:
         """
@@ -37,6 +36,14 @@ class Type:
             return UnionType(self, that.types)
         raise NotImplementedError
 
+    @staticmethod
+    def matches(a: Type, b: Type):
+        if isinstance(b, UnionType):
+            if isinstance(a, UnionType):
+                return a == b
+            return a in b
+        return a == b
+
 
 @dataclass(frozen=True, eq=True)
 class UnionType(Type):
@@ -44,22 +51,26 @@ class UnionType(Type):
     Represents a union type.
     """
 
-    types: List[Type]
+    types: List[Type] = field(init=False)
 
     def __init__(self, *types: List[Type]) -> None:
-        super().__init__("union")
         object.__setattr__(self, "types", types)
 
     def __str__(self) -> str:
         union = " | ".join(str(t) for t in self.types)
-        return f"{union}"
+        return union
 
     def __eq__(self, that: object) -> bool:
+        if isinstance(that, UnionType):
+            return all(a == b for (a, b) in zip(self.types, that.types))
+        if issubclass(that.__class__, Type):
+            return False
+        raise NotImplementedError
+
+    def __contains__(self, that: object):
         if issubclass(that.__class__, Type):
             return that in self.types
-        if not isinstance(that, UnionType):
-            raise NotImplementedError
-        return all(a == b for (a, b) in zip(self.types, that.types))
+        raise NotImplementedError
 
     def __or__(self, that: object) -> bool:
         if isinstance(that, BuiltInType):
@@ -78,18 +89,13 @@ class ArrowType(Type):
     parameters: list[Type]
     returns: Type
 
-    def __init__(self, parameters: list[Type], returns: Type) -> None:
-        super().__init__("arrow")
-        object.__setattr__(self, "parameters", parameters)
-        object.__setattr__(self, "returns", returns)
-
     def __str__(self) -> str:
         return (
             f"({', '.join((str(p) for p in self.parameters))}) -> {str(self.returns)}"
         )
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=True)
 class BuiltInType(Type):
     """
     A BuiltInType is a type that is part of the standard library.

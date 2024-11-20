@@ -206,7 +206,7 @@ class Applies(Constraint):
         for a, b, span in zip(self.args, self.b.parameters, self.args_span):
             type_a = a.resolve_type(substitution)
             type_b = b.resolve_type(substitution)
-            if type_a != type_b:
+            if not Type.matches(type_a, type_b):
                 solved = False
                 if not isinstance(a, SymbolicType):
                     type_str = str(self.b)
@@ -349,7 +349,7 @@ class Typer:
             string_add_constaint = Applies(
                 [lhs_type, rhs_type],
                 [lhs.span, rhs.span],
-                ArrowType([type_string, type_string], arithmetic_type),
+                ArrowType([type_string, type_string], type_string),
                 lhs.span + rhs.span,
             )
 
