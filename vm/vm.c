@@ -88,28 +88,6 @@ void vm_free(VM* vm){
 }
 
 int interpret(VM* vm) {
-
-        // char* string = "Hello ";
-        // int string_len = strlen(string);
-        // ObjectString* new_string = calloc(
-        //     1,
-        //     sizeof(Obj) + sizeof(int) + string_len + 1
-        // );
-        // new_string->length = string_len;
-        // new_string->obj.type = OBJ_STRING;
-        // strlcpy(new_string->chars, string, string_len + 1);
-        // push(vm, (Value) {.type=TYPE_OBJ, .as.object=new_string});
-
-        // char* string1 = "world!";
-        // int string_len1 = strlen(string1);
-        // ObjectString* new_string1 = calloc(
-        //     1,
-        //     sizeof(Obj) + sizeof(int) + string_len1 + 1
-        // );
-        // new_string1->length = string_len1;
-        // new_string1->obj.type = OBJ_STRING;
-        // strlcpy(new_string1->chars, string1, string_len1 + 1);
-        // push(vm, (Value) {.type=TYPE_OBJ, .as.object=new_string1});
     while(true) {
 
         #ifdef DEBUG_TRACE_EXECUTION_OP
