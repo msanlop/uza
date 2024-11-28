@@ -55,6 +55,22 @@ class Span:
     end: int
     source: str
 
+    @staticmethod
+    def from_list(spanned_object_list, empty_case: Optional[Span] = None) -> Span:
+        """
+        Returns the span of the list of spanned objects.
+
+        Args:
+            spanned_object_list (List[_ObjectWithSpan_]): list
+            empty_case (Optional[Span], optional): A span to default if the list
+            is empty. Defaults to None. Example: if list of function arguments
+            is empty, sensible default would be the span of the function
+            identifier or the '(' token.
+        """
+        if len(spanned_object_list) == 0:
+            return empty_case
+        return spanned_object_list[0].span + spanned_object_list[-1].span
+
     def _get_line(self) -> tuple[str, int, int]:
         """
         Return the entire line for this span.

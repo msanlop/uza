@@ -19,6 +19,7 @@ typedef enum {
     OP_DIV,
     OP_NEG,
     OP_EQ,
+    OP_LT,
     OP_DEFGLOBAL,
     OP_GETGLOBAL,
     OP_SETGLOBAL,

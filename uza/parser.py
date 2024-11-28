@@ -4,16 +4,18 @@ import string
 from typing import Callable, List, Optional, TypeVar
 
 from uza.interpreter import get_builtin
-from uza.uzast import (
+from uza.ast import (
     Application,
     Block,
+    ExpressionList,
+    ForLoop,
     Identifier,
     IfElse,
     InfixApplication,
     Literal,
+    NoOp,
     Node,
     PrefixApplication,
-    Scope,
     VarDef,
     Error,
     Program,
@@ -358,9 +360,41 @@ class Parser:
         if tok and tok.kind == token_bracket_l:
             interior = self._parse_block(end_token=token_bracket_r)
             return WhileLoop(cond, interior, cond.span + interior.span)
+        self._consume_white_space_and_peek()
         self._expect(token_do)
         interior = self._get_expr()
         return WhileLoop(cond, interior, cond.span + interior.span)
+
+    def _get_for_loop(self) -> ForLoop:
+        for_tok = self._expect(token_for)
+        tok = self._peek()
+        if tok and tok.kind == token_semicolon:
+            init = NoOp(for_tok.span)
+        else:
+            init = self._get_expr()
+        self._expect(token_semicolon)
+        tok = self._peek()
+        if tok and tok.kind == token_semicolon:
+            cond = Literal(Token(token_true, for_tok.span))
+        else:
+            cond = self._get_expr()
+        self._expect(token_semicolon)
+        tok = self._peek()
+        if tok and tok.kind in (token_bracket_l, token_do):
+            incr = NoOp(for_tok.span)
+        else:
+            incr = self._get_expr()
+        tok = self._peek()
+        if tok and tok.kind == token_bracket_l:
+            self._expect(token_bracket_l)
+            interior_lines = self._parse_lines(end_token=token_bracket_r)
+            self._expect(token_bracket_r)
+            interior = ExpressionList(interior_lines, Span.from_list(interior_lines))
+            return ForLoop(init, cond, incr, interior, for_tok.span + interior.span)
+        self._consume_white_space_and_peek()
+        self._expect(token_do)
+        interior = self._get_expr()
+        return ForLoop(init, cond, incr, interior, for_tok.span + interior.span)
 
     def _get_expr(self) -> Node:
         tok = self._consume_white_space_and_peek()
@@ -374,6 +408,8 @@ class Parser:
             return self._get_infix(node)
         elif tok.kind == token_while:
             return self._get_while_loop()
+        elif tok.kind == token_for:
+            return self._get_for_loop()
         elif tok.kind == token_if:
             return self._get_if_else()
         elif tok.kind == token_bracket_l:
@@ -444,11 +480,8 @@ class Parser:
 
     def parse(self) -> Program:
         top_level_lines = self._parse_lines()
-        span = None
-        if len(top_level_lines) == 0:
-            span = Span(0, 0, "empty scope")
-        else:
-            span = top_level_lines[0].span + top_level_lines[-1].span
+        span = Span(0, 0, "")
+        span = Span.from_list(top_level_lines, span)
 
-        top_level = Scope(top_level_lines, span)
+        top_level = Block(top_level_lines, span)
         return Program(top_level, self._errors, self.failed_nodes)

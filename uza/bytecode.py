@@ -9,9 +9,11 @@ from enum import Enum, IntEnum, auto
 from typing import List, Optional, TypeVar
 import struct
 from uza import __version_tuple__
-from uza.uzast import (
+from uza.ast import (
     Application,
     Block,
+    ExpressionList,
+    ForLoop,
     Identifier,
     IfElse,
     InfixApplication,
@@ -33,6 +35,7 @@ from uza.interpreter import (
     bi_or,
     get_builtin,
     bi_eq,
+    bi_lt,
 )
 
 BYTE_ORDER = "little"
@@ -57,6 +60,7 @@ class OPCODE(Enum):
     DIV = auto()
     NEG = auto()
     EQ = auto()
+    LT = auto()
     DEFGLOBAL = auto()
     GETGLOBAL = auto()
     SETGLOBAL = auto()
@@ -251,15 +255,25 @@ class ByteCodeProgram:
     program: Program
     chunk: Chunk
     _local_vars: ByteCodeLocals
+    _written: int
 
     def __init__(self, program: Program) -> None:
         self.program = program
+        self._written = 0
         self.chunk = Chunk()
         self._local_vars = ByteCodeLocals()
         self._build_chunk()
 
+    def emit_op(self, op: Op) -> int:
+        self.chunk.add_op(op)
+        self._written += op.size
+        return self._written
+
     def depth(self) -> int:
         return self._local_vars.depth
+
+    def visit_no_op(self, _):
+        pass
 
     def visit_literal(self, literal: Literal) -> int:
         type_ = type(literal.value)
@@ -269,7 +283,7 @@ class ByteCodeProgram:
                 opc = OPCODE.BOOLTRUE
             else:
                 opc = OPCODE.BOOLFALSE
-            return self.chunk.add_op(Op(opc, literal.span))
+            return self.emit_op(Op(opc, literal.span))
         if type_ == int:
             opc = OPCODE.LCONST
         elif type_ == float:
@@ -278,119 +292,101 @@ class ByteCodeProgram:
             opc = OPCODE.STRCONST
         else:
             raise NotImplementedError(f"can't do opcode for literal '{literal}'")
-        return self.chunk.add_op(Op(opc, literal.span, constant=literal.value))
+        return self.emit_op(Op(opc, literal.span, constant=literal.value))
 
     def visit_if_else(self, if_else: IfElse) -> int:
-        written = if_else.predicate.visit(self)
-        jump_true_op = Op(OPCODE.JUMP_IF_FALSE, if_else.predicate.span, jump_offset=0)
-        written += self.chunk.add_op(jump_true_op)
+        if_else.predicate.visit(self)
+        skip_truthy = Op(OPCODE.JUMP_IF_FALSE, if_else.predicate.span, jump_offset=0)
+        self.emit_op(skip_truthy)
+        skip_truthy_point = self._written
 
         pop_pred = Op(OPCODE.POP, if_else.predicate.span)
-        written_truthy = self.chunk.add_op(pop_pred)
-        written_truthy += if_else.truthy_case.visit(self)
-        jump_true_op.jump_offset = written_truthy  # jump over the uint16 offset too
-        written_falsy = 0
+        self.emit_op(pop_pred)
+        if_else.truthy_case.visit(self)
+        skip_truthy.jump_offset = (
+            self._written - skip_truthy_point
+        )  # jump over the uint16 offset too
         falsy = if_else.falsy_case
         if falsy is not None:
             jump_false_op = Op(
                 OPCODE.JUMP, falsy.span, jump_offset=0
             )  # truthy case, skip else clause
-            self.chunk.add_op(jump_false_op)
-            pop_pred = Op(OPCODE.POP, if_else.predicate.span)
-            self.chunk.add_op(pop_pred)
-
-            written_falsy += pop_pred.size
-            written_falsy += falsy.visit(self)
-            jump_false_op.jump_offset = written_falsy
-            written_falsy += jump_false_op.size
-
+            self.emit_op(jump_false_op)
+            skip_falsy_point = self._written
             # skip over the new jump at the end of truthy case if pred == false
-            jump_true_op.jump_offset += jump_false_op.size
+            skip_truthy.jump_offset = self._written - skip_truthy_point
 
-        return written + written_truthy + written_falsy
+            falsy.visit(self)
+            self.emit_op(pop_pred)
+            jump_false_op.jump_offset = self._written - skip_falsy_point
+
+        return self._written
 
     def visit_identifier(self, identifier: Identifier) -> int:
         name = identifier.name
         if self.depth() == 0:
-            return self.chunk.add_op(
-                Op(OPCODE.GETGLOBAL, identifier.span, constant=name)
-            )
+            return self.emit_op(Op(OPCODE.GETGLOBAL, identifier.span, constant=name))
         frame_idx, idx = self._local_vars.get(name)
         if frame_idx is None:
-            return self.chunk.add_op(
-                Op(OPCODE.GETGLOBAL, identifier.span, constant=name)
-            )
+            return self.emit_op(Op(OPCODE.GETGLOBAL, identifier.span, constant=name))
 
         if frame_idx != 0:
             raise NotImplementedError("variables from outer frames not yet implemented")
-        return self.chunk.add_op(Op(OPCODE.GETLOCAL, identifier.span, local_index=idx))
+        return self.emit_op(Op(OPCODE.GETLOCAL, identifier.span, local_index=idx))
 
     def visit_var_def(self, var_def: VarDef) -> int:
-        written = var_def.value.visit(self)
+        var_def.value.visit(self)
         name = var_def.identifier
         if self.depth() == 0:
-            return (
-                self.chunk.add_op(
-                    Op(OPCODE.DEFGLOBAL, var_def.span, constant=var_def.identifier)
-                )
-                + written
+            return self.emit_op(
+                Op(OPCODE.DEFGLOBAL, var_def.span, constant=var_def.identifier)
             )
 
         idx = self._local_vars.define(name)
-        return (
-            self.chunk.add_op(Op(OPCODE.DEFLOCAL, var_def.span, local_index=idx))
-            + written
-        )
+        return self.emit_op(Op(OPCODE.DEFLOCAL, var_def.span, local_index=idx))
 
     def visit_var_redef(self, var_redef: VarRedef) -> int:
-        written = var_redef.value.visit(self)
+        var_redef.value.visit(self)
         name = var_redef.identifier
         frame_idx, idx = self._local_vars.get(name)
 
         if self.depth() == 0 or frame_idx is None:
-            return (
-                self.chunk.add_op(
-                    Op(OPCODE.SETGLOBAL, var_redef.span, constant=var_redef.identifier),
-                )
-                + written
+            return self.emit_op(
+                Op(OPCODE.SETGLOBAL, var_redef.span, constant=var_redef.identifier),
             )
         if frame_idx != 0:
             raise NotImplementedError("only current frame locals are implemented")
-        return (
-            self.chunk.add_op(Op(OPCODE.SETLOCAL, var_redef.span, local_index=idx))
-            + written
-        )
+        return self.emit_op(Op(OPCODE.SETLOCAL, var_redef.span, local_index=idx))
 
     def visit_application(self, application: Application) -> int:
         func_id = application.func_id
         # the println function is emitted as RETURN for now
-        written = application.args[0].visit(self)
+        application.args[0].visit(self)
         if func_id.name == "println":
-            return (
-                self.chunk.add_op(
-                    Op(OPCODE.RETURN, application.span),
-                )
-                + written
+            return self.emit_op(
+                Op(OPCODE.RETURN, application.span),
             )
         raise NotImplementedError("only println implemented currently")
 
     def _and(self, and_app: InfixApplication) -> int:
-        written = and_app.lhs.visit(self)
+        and_app.lhs.visit(self)
         short_circuit_op = Op(OPCODE.JUMP_IF_FALSE, and_app.span, jump_offset=0)
-        written += self.chunk.add_op(short_circuit_op)
-        written_rhs = self.chunk.add_op(Op(OPCODE.POP, and_app.span))
-        written_rhs += and_app.rhs.visit(self)
-        short_circuit_op.jump_offset = written_rhs
-        return written + written_rhs
+        self.emit_op(short_circuit_op)
+        jump_point = self._written
+        self.emit_op(Op(OPCODE.POP, and_app.span))
+        and_app.rhs.visit(self)
+        short_circuit_op.jump_offset = self._written - jump_point
+        return -1
 
     def _or(self, or_app: InfixApplication) -> int:
-        written = or_app.lhs.visit(self)
+        or_app.lhs.visit(self)
         short_circuit_op = Op(OPCODE.JUMP_IF_TRUE, or_app.span, jump_offset=0)
-        written += self.chunk.add_op(short_circuit_op)
-        written_rhs = self.chunk.add_op(Op(OPCODE.POP, or_app.span))
-        written_rhs += or_app.rhs.visit(self)
-        short_circuit_op.jump_offset = written_rhs
-        return written + written_rhs
+        self.emit_op(short_circuit_op)
+        jump_point = self._written
+        self.emit_op(Op(OPCODE.POP, or_app.span))
+        or_app.rhs.visit(self)
+        short_circuit_op.jump_offset = self._written - jump_point
+        return -1
 
     def visit_infix_application(self, application: InfixApplication) -> int:
         function = get_builtin(application.func_id)
@@ -409,55 +405,100 @@ class ByteCodeProgram:
             return self._or(application)
         elif function == bi_eq:
             opc = OPCODE.EQ
+        elif function == bi_lt:
+            opc = OPCODE.LT
         else:
             raise NotImplementedError(f"vm can't do {function} yet")
 
-        written = application.lhs.visit(self)
-        written += application.rhs.visit(self)
-        return self.chunk.add_op(Op(opc, application.span)) + written
+        application.lhs.visit(self)
+        application.rhs.visit(self)
+        return self.emit_op(Op(opc, application.span))
 
     def _build_lines(self, lines: list[Node]) -> int:
         """
         Generates the bytecode for a sequence of nodes (lines of uza code).
         """
-        written = 0
         for node in lines:
-            written += node.visit(self)
-        return written
+            node.visit(self)
+        return self._written
+
+    def visit_expression_list(self, expr_list: ExpressionList):
+        return self._build_lines(expr_list.lines)
 
     def visit_block(self, block: Block) -> int:
         with self._local_vars.new_frame():
             block_op = Op(
                 OPCODE.BLOCK,
                 block.span,
-                local_index=self._local_vars.get_num_locals(),
+                local_index=-1,
             )
-            written = self.chunk.add_op(block_op)
-            written += self._build_lines(block.lines)
-            return self.chunk.add_op(Op(OPCODE.EXITBLOCK, block.span)) + written
+            self.emit_op(block_op)
+            self._build_lines(block.lines)
+            block_op.local_index = self._local_vars.get_num_locals()
+        return self.emit_op(Op(OPCODE.EXITBLOCK, block.span))
+
+    def visit_for_loop(self, fl: ForLoop) -> int:
+        with self._local_vars.new_frame():
+            block_op = Op(
+                OPCODE.BLOCK,
+                fl.span,
+                local_index=-1,
+            )
+            self.emit_op(block_op)
+
+            fl.init.visit(self)
+            jump_first_increment = Op(OPCODE.JUMP, fl.span, jump_offset=0)
+            self.emit_op(jump_first_increment)
+            jump_first_incr_point = self._written
+
+            fl.incr.visit(self)
+            jump_first_increment.jump_offset = self._written - jump_first_incr_point
+
+            fl.cond.visit(self)
+            end_loop = Op(OPCODE.JUMP_IF_FALSE, fl.cond.span, jump_offset=0)
+            self.emit_op(end_loop)
+            end_loop_point = self._written
+            pop = Op(OPCODE.POP, fl.cond.span)
+            self.emit_op(pop)
+
+            fl.interior.visit(self)
+            loop = Op(
+                OPCODE.LOOP,
+                fl.interior.span,
+                jump_offset=self._written - jump_first_incr_point,
+            )
+            self.emit_op(loop)
+            end_loop.jump_offset = self._written - end_loop_point
+            self.emit_op(pop)
+
+            block_op.local_index = self._local_vars.get_num_locals()
+
+        return self.emit_op(Op(OPCODE.EXITBLOCK, fl.span))
 
     def visit_while_loop(self, wl: WhileLoop) -> int:
-        w_cond = wl.cond.visit(self)
-        cond_false = Op(OPCODE.JUMP_IF_FALSE, wl.cond.span, jump_offset=0)
-        w_false = self.chunk.add_op(cond_false)
+        cond_point = self._written
+        wl.cond.visit(self)
+        end_loop = Op(OPCODE.JUMP_IF_FALSE, wl.cond.span, jump_offset=0)
+        self.emit_op(end_loop)
+        end_loop_point = self._written
         pop = Op(OPCODE.POP, wl.cond.span)
-        w_pop_true = self.chunk.add_op(pop)
+        self.emit_op(pop)
 
-        w_interior = wl.loop.visit(self)
+        wl.loop.visit(self)
         loop = Op(
             OPCODE.LOOP,
             wl.loop.span,
-            jump_offset=w_cond + w_interior + w_pop_true + w_false,
+            jump_offset=self._written - cond_point,
         )
-        w_loop = self.chunk.add_op(loop)
-        w_pop_false = self.chunk.add_op(pop)
+        self.emit_op(loop)
+        self.emit_op(pop)
 
-        cond_false.jump_offset = w_interior + w_loop + w_pop_true
-        return w_cond + w_false + w_pop_true + w_interior + w_loop + w_pop_false
+        end_loop.jump_offset = self._written - end_loop_point
+        return self._written
 
     def _build_chunk(self):
         self._build_lines(self.program.syntax_tree.lines)
-        self.chunk.add_op(Op(OPCODE.EXITVM, Span(0, 0, "META")))
+        return self.emit_op(Op(OPCODE.EXITVM, Span(0, 0, "META")))
 
 
 class ByteCodeProgramSerializer:
@@ -494,7 +535,6 @@ class ByteCodeProgramSerializer:
         """
         Write the constant pool to self.file.
         """
-        # TODO: pack 8 const type flags into 1 byte
         constants = self.program.chunk.constants
         self._write((len(constants)).to_bytes(1, BYTE_ORDER))
         for constant in constants:

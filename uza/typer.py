@@ -5,13 +5,15 @@ from itertools import count, permutations
 
 from uza.type import *
 from uza.token import *
-from uza.uzast import (
+from uza.ast import (
     Block,
+    ExpressionList,
+    ForLoop,
     IfElse,
     InfixApplication,
     Literal,
+    NoOp,
     Program,
-    Scope,
     VarDef,
     Error,
     VarRedef,
@@ -339,6 +341,8 @@ class Typer:
 
         lhs_type = lhs.visit(self)
         rhs_type = rhs.visit(self)
+        type_cmp = type_int | type_bool | type_string
+
         arithmetic_type = type_int | type_float
         arith_constaint = Applies(
             [lhs_type, rhs_type],
@@ -365,7 +369,15 @@ class Typer:
             self.add_constaint(arith_constaint)
             return arithmetic_type
         elif func_id == bi_eq:
-            type_cmp = type_int | type_bool | type_string
+            cmp_constraint = Applies(
+                [lhs_type, rhs_type],
+                [lhs.span, rhs.span],
+                ArrowType([type_cmp, type_cmp], type_bool),
+                lhs.span + rhs.span,
+            )
+            self.add_constaint(cmp_constraint)
+            return type_bool
+        elif func_id == bi_lt:
             cmp_constraint = Applies(
                 [lhs_type, rhs_type],
                 [lhs.span, rhs.span],
@@ -386,6 +398,9 @@ class Typer:
             return type_bool
 
         raise NotImplementedError(f"not implemented for {func_id}")
+
+    def visit_no_op(self, _):
+        return type_void
 
     def visit_infix_application(self, infix: InfixApplication):
         func_id = infix.func_id
@@ -442,6 +457,10 @@ class Typer:
     def visit_error(self, error: Error):
         raise RuntimeError(f"Unexpected visit to error node :{error} in typer")
 
+    def visit_expression_list(self, expr_list: ExpressionList):
+        with self._symbol_table.new_frame():
+            return self._check(expr_list.lines)
+
     def visit_block(self, scope: Block):
         with self._symbol_table.new_frame():
             return self._check(scope.lines)
@@ -450,6 +469,17 @@ class Typer:
         self.add_constaint(IsType(wl.cond.visit(self), type_bool, wl.span))
         wl.loop.visit(self)
         return type_void
+
+    def visit_for_loop(self, fl: ForLoop):
+        with self._symbol_table.new_frame():
+            if fl.init:
+                fl.init.visit(self)
+            if not isinstance(fl.cond, NoOp):
+                self.add_constaint(IsType(fl.cond.visit(self), type_bool, fl.span))
+            if fl.incr:
+                fl.incr.visit(self)
+            fl.interior.visit(self)
+            return type_void
 
     def visit_scope(self, scope: Block):
         return self._check(scope.lines)

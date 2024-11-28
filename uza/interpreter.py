@@ -3,8 +3,10 @@ from dataclasses import dataclass
 from typing import List, Optional, TypeVar
 
 from uza.type import ArrowType
-from uza.uzast import (
+from uza.ast import (
     Application,
+    ExpressionList,
+    ForLoop,
     Identifier,
     IfElse,
     InfixApplication,
@@ -12,7 +14,6 @@ from uza.uzast import (
     Node,
     PrefixApplication,
     Block,
-    Scope,
     Value,
     VarDef,
     Program,
@@ -51,6 +52,7 @@ bi_or = BuiltIn("or", _builtins)
 bi_print = BuiltIn("print", _builtins)
 bi_println = BuiltIn("println", _builtins)
 bi_eq = BuiltIn("==", _builtins)
+bi_lt = BuiltIn("<", _builtins)
 bi_max = BuiltIn("max", _builtins)
 bi_min = BuiltIn("min", _builtins)
 
@@ -78,6 +80,9 @@ class Interpreter:
 
     T = TypeVar("T")
     R = TypeVar("R")
+
+    def visit_no_op(self, _):
+        pass
 
     def visit_built_in_application(self, func_id, *params) -> Optional[Value]:
         ret = None
@@ -125,6 +130,8 @@ class Interpreter:
             ret = min(lhs, rhs)
         elif func_id == bi_eq:
             ret = lhs == rhs
+        elif func_id == bi_lt:
+            ret = lhs < rhs
         else:
             raise NotImplementedError(f"for : {func_id}")
 
@@ -181,6 +188,9 @@ class Interpreter:
             last = node.visit(self)
         return last
 
+    def visit_expression_list(self, expr_list: ExpressionList):
+        self._visit_lines(expr_list.lines)
+
     def visit_block(self, block: Block):
         with self._context.new_frame():
             return self._visit_lines(block.lines)
@@ -189,8 +199,12 @@ class Interpreter:
         while wl.cond.visit(self):
             wl.loop.visit(self)
 
-    def visit_scope(self, scope: Scope):
-        return self._visit_lines(scope.lines)
+    def visit_for_loop(self, fl: ForLoop):
+        with self._context.new_frame():
+            fl.init.visit(self)
+            while fl.cond.visit(self):
+                fl.interior.visit(self)
+                fl.incr.visit(self)
 
     def evaluate(self) -> Optional[Value]:
         """

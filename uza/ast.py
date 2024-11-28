@@ -157,23 +157,26 @@ class VarRedef(Node):
 
 
 @dataclass
-class Scope(Node):
+class ExpressionList(Node):
     """
-    A Scope is is a list of Nodes. For example the function scope, or the top
-    level scope.
-
-    TODO: rename, ambiguous
+    An ExpressionList is a list of nodes.
     """
 
     lines: List[Node]
     span: Span = field(compare=False)
 
     def visit(self, that):
-        return that.visit_scope(self)
+        return that.visit_expression_list(self)
 
 
 @dataclass
-class Block(Scope):
+class Block(ExpressionList):
+    """
+    A block is a list of nodes. Creates a new scope.
+    """
+
+    type_: Type = type_void
+
     def visit(self, that):
         return that.visit_block(self)
 
@@ -189,12 +192,36 @@ class WhileLoop(Node):
 
 
 @dataclass
+class ForLoop(Node):
+    init: Optional[Node]
+    cond: Optional[Node]
+    incr: Optional[Node]
+    interior: Node
+    span: Span = field(compare=False)
+
+    def visit(self, that):
+        return that.visit_for_loop(self)
+
+
+@dataclass
 class Error(Node):
     error_message: str
     span: Span = field(compare=False)
 
     def visit(self, that):
         return that.visit_error(self)
+
+
+@dataclass
+class NoOp(Node):
+    """
+    Do nothing.
+    """
+
+    span: Span = field(compare=False)
+
+    def visit(self, that):
+        return that.visit_no_op(self)
 
 
 @dataclass
@@ -210,6 +237,6 @@ class Value:
 
 @dataclass
 class Program:
-    syntax_tree: Scope
+    syntax_tree: Block
     errors: int
     failed_nodes: List[Error]

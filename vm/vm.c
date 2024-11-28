@@ -179,6 +179,13 @@ int interpret(VM* vm) {
             #endif
         }
         break;
+        case OP_LT: {
+            BINARY_OP(vm, <);
+            #ifndef NDEBUG
+                vm->stack_top[-1].type = TYPE_BOOL;
+            #endif
+        }
+        break;
         case OP_DEFGLOBAL: {
             ObjectString *identifier = (ObjectString *) vm->chunk.constants.values[*(vm->ip++)].as.object;
             tableSet(&vm->globals, identifier, pop(vm));

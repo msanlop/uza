@@ -125,6 +125,10 @@ int debug_op_print(Chunk* chunk, int offset) {
         DEBUG_PRINT("OP_EQ");
         return 1;
         break;
+    case OP_LT:
+        DEBUG_PRINT("OP_LT ( < )");
+        return 1;
+        break;
     case OP_SUB:
         DEBUG_PRINT("OP_SUB");
         return 1;

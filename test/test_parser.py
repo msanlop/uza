@@ -1,6 +1,6 @@
 # pylint: disable=wildcard-import unused-import missing-function-docstring
 import pytest
-from uza.uzast import *
+from uza.ast import *
 from uza.parser import Parser
 from uza.interpreter import Interpreter
 
@@ -156,3 +156,28 @@ def test_undefined_func_raises_name_error():
     failing_source = source + "\ndewit(foo)"
     with pytest.raises(NameError):
         Parser(failing_source).parse().syntax_tree.lines[0]
+
+
+def test_do_notation():
+    source_a = """for var i = 0;i < 3; i = i + 1 do
+        {println(i)}
+    while true do
+    {
+        println(i)
+    }
+    """
+    source_b = """for var i = 0;i < 3; i = i + 1 do {println(i)}
+    while true do {
+        println(i)
+    }
+    """
+    source_c = """for var i = 0;i < 3; i = i + 1
+    do {println(i)}
+    while true
+    do {
+        println(i)
+    }
+    """
+    assert (
+        Parser(source_a).parse() == Parser(source_b).parse() == Parser(source_c).parse()
+    )

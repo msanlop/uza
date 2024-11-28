@@ -170,6 +170,79 @@ println("end")
 5
 end
 
+#test for loop
+for var i = 0;i < 3; i = i + 1 {
+    println(i)
+}
+println("end")
+#expected
+0
+1
+2
+end
+
+#test for loop without initializer
+var i = 0
+for ;i < 3; i = i + 1 {
+    println(i)
+}
+println("end")
+#expected
+0
+1
+2
+end
+
+#test for loop clauses (making suuureee)
+var i = 0
+for println("initialize");i < 2; println("increment") {
+    println(i)
+    i = i + 1
+}
+println("end")
+#expected
+initialize
+0
+increment
+1
+increment
+end
+
+#test for loop without incr
+for var i = 0;i < 3; {
+    println(i)
+    i = i + 1
+}
+println("end")
+#expected
+0
+1
+2
+end
+
+#test for loop only cond
+var i = 0
+for ;i < 3; {
+    println(i)
+    i = i + 1
+}
+println("end")
+#expected
+0
+1
+2
+end
+
+#test for loop do notation
+for var i = 0;i < 3; i = i + 1 do
+    println(i)
+println("end")
+#expected
+0
+1
+2
+end
+
 
 //#test min and max builtins
 //const a int = -5
