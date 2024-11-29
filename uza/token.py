@@ -51,7 +51,11 @@ token_types: dict[str, TokenKind] = {}
 
 token_new_line = TokenKind("NL", token_types)
 token_plus = TokenKind("+", token_types, 1)
+token_plus_plus = TokenKind("++", token_types)
+token_plus_eq = TokenKind("+=", token_types)
 token_minus = TokenKind("-", token_types, 1)
+token_minus_minus = TokenKind("--", token_types)
+token_minus_eq = TokenKind("-=", token_types)
 token_star = TokenKind("*", token_types, 2)
 token_slash = TokenKind("/", token_types, 3)
 token_star_double = TokenKind("**", token_types, 9, right_assoc=True)

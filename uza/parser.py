@@ -112,6 +112,22 @@ class Scanner:
             if not self._overflows(end) and self._char_at(end) == "=":
                 end += 1
                 type_ = token_eq_double
+        elif char == "+":
+            idx = self._start + 1
+            if self._overflows(idx):
+                end = idx
+                type_ = token_plus
+            else:
+                second = self._char_at(idx)
+                if second == "+":
+                    end = idx + 1
+                    type_ = token_plus_plus
+                elif second == "=":
+                    end = idx + 1
+                    type_ = token_plus_eq
+                else:
+                    end = idx
+                    type_ = token_plus
         elif char == '"':
             word, end = self._get_next_string()
             end += 1
@@ -271,15 +287,31 @@ class Parser:
                 )
         return identifier
 
-    def _get_var_redef(self, identifier) -> Node:
+    def _get_var_redef(self, identifier: Identifier) -> Node:
         if self._peek().kind == token_identifier:
             type_tok = self._expect(token_identifier)
             type_ = typer.identifier_to_uza_type(type_tok)
         else:
             type_ = None
-        self._expect(token_eq)
-        value = self._get_expr()
-        is_immutable = self._symbol_table.get(identifier.name)
+
+        tok = self._expect(
+            token_eq, token_plus_eq, token_plus_plus, token_minus_eq, token_minus_minus
+        )
+        if tok.kind == token_eq:
+            value = self._get_expr()
+        else:
+            # syntactic sugar for +=, -=, ++, --
+            rhs = None
+            if tok.kind in (token_plus_plus, token_plus_eq):
+                op = "+"
+            else:
+                op = "-"
+            if tok.kind in (token_plus_eq, token_minus_eq):
+                rhs = self._get_expr()
+            else:
+                rhs = Literal(Token(token_number, tok.span, "1"))
+
+            value = InfixApplication(identifier, Identifier(op, tok.span), rhs)
 
         return VarRedef(identifier.name, value, identifier.span + value.span)
 
@@ -420,7 +452,7 @@ class Parser:
             tok = self._peek()
             if not tok:
                 return identifier
-            elif tok.kind == token_eq:
+            elif tok.kind in (token_eq, token_plus_eq, token_plus_plus):
                 return self._get_var_redef(identifier)
             elif tok.kind == token_paren_l:
                 self._expect(token_paren_l)
