@@ -398,34 +398,37 @@ class Parser:
         return WhileLoop(cond, interior, cond.span + interior.span)
 
     def _get_for_loop(self) -> ForLoop:
-        for_tok = self._expect(token_for)
-        tok = self._peek()
-        if tok and tok.kind == token_semicolon:
-            init = NoOp(for_tok.span)
-        else:
-            init = self._get_expr()
-        self._expect(token_semicolon)
-        tok = self._peek()
-        if tok and tok.kind == token_semicolon:
-            cond = Literal(Token(token_true, for_tok.span))
-        else:
-            cond = self._get_expr()
-        self._expect(token_semicolon)
-        tok = self._peek()
-        if tok and tok.kind in (token_bracket_l, token_do):
-            incr = NoOp(for_tok.span)
-        else:
-            incr = self._get_expr()
-        tok = self._peek()
-        if tok and tok.kind == token_bracket_l:
-            self._expect(token_bracket_l)
-            interior_lines = self._parse_lines(end_token=token_bracket_r)
-            self._expect(token_bracket_r)
-            interior = ExpressionList(interior_lines, Span.from_list(interior_lines))
-            return ForLoop(init, cond, incr, interior, for_tok.span + interior.span)
-        self._consume_white_space_and_peek()
-        self._expect(token_do)
-        interior = self._get_expr()
+        with self._symbol_table.new_frame():
+            for_tok = self._expect(token_for)
+            tok = self._peek()
+            if tok and tok.kind == token_semicolon:
+                init = NoOp(for_tok.span)
+            else:
+                init = self._get_expr()
+            self._expect(token_semicolon)
+            tok = self._peek()
+            if tok and tok.kind == token_semicolon:
+                cond = Literal(Token(token_true, for_tok.span))
+            else:
+                cond = self._get_expr()
+            self._expect(token_semicolon)
+            tok = self._peek()
+            if tok and tok.kind in (token_bracket_l, token_do):
+                incr = NoOp(for_tok.span)
+            else:
+                incr = self._get_expr()
+            tok = self._peek()
+            if tok and tok.kind == token_bracket_l:
+                self._expect(token_bracket_l)
+                interior_lines = self._parse_lines(end_token=token_bracket_r)
+                self._expect(token_bracket_r)
+                interior = ExpressionList(
+                    interior_lines, Span.from_list(interior_lines)
+                )
+                return ForLoop(init, cond, incr, interior, for_tok.span + interior.span)
+            self._consume_white_space_and_peek()
+            self._expect(token_do)
+            interior = self._get_expr()
         return ForLoop(init, cond, incr, interior, for_tok.span + interior.span)
 
     def _get_expr(self) -> Node:

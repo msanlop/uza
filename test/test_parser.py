@@ -161,18 +161,21 @@ def test_undefined_func_raises_name_error():
 def test_do_notation():
     source_a = """for var i = 0;i < 3; i = i + 1 do
         {println(i)}
+    const i = 0
     while true do
     {
         println(i)
     }
     """
     source_b = """for var i = 0;i < 3; i = i + 1 do {println(i)}
+    const i = 0
     while true do {
         println(i)
     }
     """
     source_c = """for var i = 0;i < 3; i = i + 1
     do {println(i)}
+    const i = 0
     while true
     do {
         println(i)
