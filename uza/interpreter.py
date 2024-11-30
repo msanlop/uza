@@ -21,48 +21,7 @@ from uza.ast import (
     WhileLoop,
 )
 from uza.utils import SymbolTable
-
-
-@dataclass(frozen=True)
-class BuiltIn:
-    """
-    A BuiltIn is a function that is part of the standard library.
-    """
-
-    identifier: str
-    # TODO define type
-    _builtins_dict: dict[str, BuiltIn]
-
-    def __post_init__(self):
-        """adds itself to the dict that holds all the builtins"""
-        self._builtins_dict[self.identifier] = self
-
-    def __repr__(self) -> str:
-        return f"BuiltIn({self.identifier})"
-
-
-_builtins: dict[str, BuiltIn] = {}
-bi_add = BuiltIn("+", _builtins)
-bi_sub = BuiltIn("-", _builtins)
-bi_mul = BuiltIn("*", _builtins)
-bi_div = BuiltIn("/", _builtins)
-bi_pow = BuiltIn("**", _builtins)
-bi_and = BuiltIn("and", _builtins)
-bi_or = BuiltIn("or", _builtins)
-bi_print = BuiltIn("print", _builtins)
-bi_println = BuiltIn("println", _builtins)
-bi_eq = BuiltIn("==", _builtins)
-bi_lt = BuiltIn("<", _builtins)
-bi_max = BuiltIn("max", _builtins)
-bi_min = BuiltIn("min", _builtins)
-
-
-def get_builtin(identifier: Identifier) -> Optional[BuiltIn]:
-    """
-    Returns a _BuiltIn_ with the given who's name matches the _identifier_
-    if it exists.
-    """
-    return _builtins.get(identifier.name)
+from uza.builtins import *
 
 
 class Interpreter:
@@ -84,58 +43,13 @@ class Interpreter:
     def visit_no_op(self, _):
         pass
 
-    def visit_built_in_application(self, func_id, *params) -> Optional[Value]:
+    def visit_built_in_application(self, func_id: BuiltIn, *params) -> Optional[Value]:
         ret = None
         lhs, rhs = params[0], None
         if len(params) > 1:
             rhs = params[1]
 
-        if func_id == bi_add:
-            ret = lhs + rhs
-        elif func_id == bi_sub:
-            if len(params) == 1:
-                ret = -lhs
-            else:
-                ret = lhs - rhs
-        elif func_id == bi_mul:
-            ret = lhs * rhs
-        elif func_id == bi_div:
-            # C division casts the rhs to the lhs's type TODO: false
-            casted = type(lhs)(rhs)
-            if isinstance(lhs, int):
-                ret = lhs // casted
-            else:
-                ret = lhs / casted
-        elif func_id == bi_and:
-            ret = lhs and rhs
-        elif func_id == bi_or:
-            ret = lhs or rhs
-        elif func_id == bi_pow:
-            ret = lhs**rhs
-        elif func_id == bi_print:
-            params = map(
-                lambda p: str(p).lower() if isinstance(p, bool) else p, params
-            )  # hack to fix bools prints
-            print(*params, end="")
-            ret = None
-        elif func_id == bi_println:
-            params = map(
-                lambda p: str(p).lower() if isinstance(p, bool) else p, params
-            )  # hack to fix bools prints
-            print(*params)
-            ret = None
-        elif func_id == bi_max:
-            ret = max(lhs, rhs)
-        elif func_id == bi_min:
-            ret = min(lhs, rhs)
-        elif func_id == bi_eq:
-            ret = lhs == rhs
-        elif func_id == bi_lt:
-            ret = lhs < rhs
-        else:
-            raise NotImplementedError(f"for : {func_id}")
-
-        return ret
+        return func_id.interpret(*params)
 
     def visit_var_def(self, definition: VarDef):
         value = definition.value.visit(self)

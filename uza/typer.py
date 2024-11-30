@@ -325,79 +325,33 @@ class Typer:
         """
         self.constaints.append(constraint)
 
-    def visit_builtin(self, func_id: BuiltIn, *arguments: Node):
-        lhs, rhs = arguments[0], None
-        if len(arguments) == 2:
-            rhs = arguments[1]
-
-        ### PRINT FUNCTIONS ###
-
-        if func_id in (bi_print, bi_println):
-            for arg in arguments:
-                arg.visit(self)
-            return type_void
-
-        ### INFIX ARITHMETIC ###
-
-        lhs_type = lhs.visit(self)
-        rhs_type = rhs.visit(self)
-        type_cmp = type_int | type_bool | type_string
-
-        arithmetic_type = type_int | type_float
-        arith_constaint = Applies(
-            [lhs_type, rhs_type],
-            [lhs.span, rhs.span],
-            ArrowType([arithmetic_type, arithmetic_type], arithmetic_type),
-            lhs.span + rhs.span,
-        )
-        if func_id == bi_add:
-            string_add_constaint = Applies(
-                [lhs_type, rhs_type],
-                [lhs.span, rhs.span],
-                ArrowType([type_string, type_string], type_string),
-                lhs.span + rhs.span,
+    def visit_builtin(self, bi: BuiltIn, *arguments: Node):
+        arg_types = [arg.visit(self) for arg in arguments]
+        signatures = bi.type_signatures
+        if len(signatures) > 1:
+            constraints = []
+            for signature in signatures:
+                constraints.append(
+                    Applies(
+                        list(arg_types),
+                        [arg.span for arg in arguments],
+                        signature,
+                        Span.from_list(arguments),
+                    )
+                )
+            self.add_constaint(OneOf(constraints, Span.from_list(arguments)))
+            return arg_types[0]
+        else:
+            func_type = signatures[0]
+            self.add_constaint(
+                Applies(
+                    list(arg_types),
+                    [arg.span for arg in arguments],
+                    func_type,
+                    Span.from_list(arguments),
+                )
             )
-
-            polymorphic = OneOf(
-                [arith_constaint, string_add_constaint],
-                arguments[0].span + arguments[-1].span,
-            )
-            self.add_constaint(polymorphic)
-            return lhs_type
-
-        elif func_id in (bi_sub, bi_mul, bi_div):
-            self.add_constaint(arith_constaint)
-            return arithmetic_type
-        elif func_id == bi_eq:
-            cmp_constraint = Applies(
-                [lhs_type, rhs_type],
-                [lhs.span, rhs.span],
-                ArrowType([type_cmp, type_cmp], type_bool),
-                lhs.span + rhs.span,
-            )
-            self.add_constaint(cmp_constraint)
-            return type_bool
-        elif func_id == bi_lt:
-            cmp_constraint = Applies(
-                [lhs_type, rhs_type],
-                [lhs.span, rhs.span],
-                ArrowType([type_cmp, type_cmp], type_bool),
-                lhs.span + rhs.span,
-            )
-            self.add_constaint(cmp_constraint)
-            return type_bool
-        elif func_id in (bi_and, bi_or):
-            bool_func_types = arithmetic_type | type_bool | type_void
-            bool_constraint = Applies(
-                [lhs_type, rhs_type],
-                [lhs.span, rhs.span],
-                ArrowType([bool_func_types, bool_func_types], type_bool),
-                lhs.span + rhs.span,
-            )
-            self.add_constaint(bool_constraint)
-            return type_bool
-
-        raise NotImplementedError(f"not implemented for {func_id}")
+            return func_type.returns
 
     def visit_no_op(self, _):
         return type_void

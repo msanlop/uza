@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import field
 from typing import List
-
+from functools import reduce
 from uza.token import *
 
 
@@ -122,6 +122,9 @@ type_string = BuiltInType("string", _builtin_types)
 type_bool = BuiltInType("bool", _builtin_types)
 type_void = BuiltInType("void", _builtin_types)
 
+type_any = reduce(lambda x, y: x | y, _builtin_types.values())
+type_arithmetic = type_int | type_float
+type_bool_logic = type_bool | type_int | type_float
 
 _python_to_uza = {
     int: type_int,

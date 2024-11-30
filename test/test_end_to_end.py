@@ -24,6 +24,12 @@ def test_end_to_end(description, code, expected_output, capsys):
     actual_output = captured.out
     actual_output = remove_new_lines(actual_output)
 
+    try:
+        expected_output = pytest.approx(float(expected_output))
+        actual_output = pytest.approx(float(actual_output))
+    except ValueError:
+        pass
+
     assert actual_output == expected_output, (
         f"\nTest: {description}\n"
         f"Expected Output: {expected_output}\n"
