@@ -42,7 +42,7 @@
         }                                                                      \
     } while (0);
 
-
+extern bool stop_interpreting;
 
 void push(VM* vm, Value value) {
     *vm->stack_top++ = value;
@@ -88,7 +88,7 @@ void vm_free(VM* vm){
 }
 
 int interpret(VM* vm) {
-    while(true) {
+    while(!stop_interpreting) {
 
         #ifdef DEBUG_TRACE_EXECUTION_OP
             DEBUG_PRINT(PURPLE "running op\n  " RESET);

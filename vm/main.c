@@ -2,18 +2,41 @@
 #include <stdio.h>
 #include "debug.h"
 #include <string.h>
+#include <signal.h>
 
-int test_print(int a, char** words) {
-    printf("%s", words[0]);
-    printf("%s", words[1]);
-    return a;
+bool stop_interpreting = false;
+
+#if defined(_WIN32) || defined(WIN32)
+#include <windows.h>
+
+// Handler for Ctrl+C events
+BOOL CtrlHandler(DWORD fdwCtrlType) {
+    if (fdwCtrlType == CTRL_C_EVENT) {
+        stop_interpreting = true;
+        return TRUE;
+    }
+    return FALSE;
 }
+#else
+static void sigint_handler(int sig) {
+    (void) sig;
+    stop_interpreting = true;
+}
+#endif
 
 #if defined(_WIN32) || defined(WIN32)
 __declspec(dllexport)
 #endif
 int run_vm(int byte_count, char* code) {
     program_bytes_t program = {byte_count, code};
+
+#if defined(_WIN32) || defined(WIN32)
+    if (!SetConsoleCtrlHandler(CtrlHandler, TRUE)) {
+        fprintf(stderr, "Error setting control handler.\n");
+    }
+#else
+    signal(SIGINT, sigint_handler);
+#endif
 
     VM* vm = vm_init(&program);
     if (vm == NULL) {
@@ -34,4 +57,3 @@ int run_vm(int byte_count, char* code) {
     // fflush(stderr);
     return res;
 }
-
