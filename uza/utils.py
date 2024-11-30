@@ -127,34 +127,39 @@ class Span:
 T = TypeVar("T")
 
 
+@dataclass
+class Symbol:
+    """
+    An uza program symbol.
+    """
+
+    key: str
+    val: T
+
+
 class SymbolTable:
     """
     Symbol table that keeps track of the defined symbols for each stack frame.
-    This class is used in in different contexts so the typevar T can take
-    different types, e.g. type 'Value' for the interpret, or type 'bool' for
-    the parser to keep track of symbols and const variables.
-
-    _frames_ is queue of locals, a tuple with the context name and a dict with
-    the (variable name and it's associated value) pairs.
     """
 
-    frames: List[List[list[str, T]]]
+    # List of frames, each frame contains list of symbols
+    _frames: List[List[Symbol]]
 
-    def __init__(self, frames: List[List[list[str, T]]] | None = None) -> None:
+    def __init__(self, frames: List[List[Symbol]] | None = None) -> None:
         if not frames:
-            self.frames: List[List[list[str, T]]] = [[]]
+            self._frames: List[List[Symbol]] = [[]]
         else:
-            self.frames = frames
+            self._frames = frames
 
-    def _get_locals(self) -> List[list[str, T]]:
-        return self.frames[-1]
+    def _get_locals(self) -> List[Symbol]:
+        return self._frames[-1]
 
     def new_frame(self) -> SymbolTable:
-        self.frames.append([])
+        self._frames.append([])
         return self
 
     def pop_frame(self) -> SymbolTable:
-        self.frames = self.frames[:-1]
+        self._frames = self._frames[:-1]
 
     def define(self, variable_name: str, value: T) -> bool:
         """
@@ -162,31 +167,31 @@ class SymbolTable:
         false if the given variable name is already been defined in this scope.
         """
         frame_locals = self._get_locals()
-        for local in frame_locals:
-            if local[0] == variable_name:
+        for symbol in frame_locals:
+            if symbol.key == variable_name:
                 return False
 
-        frame_locals.append([variable_name, value])
+        frame_locals.append(Symbol(variable_name, value))
         return True
 
     def get(self, identifier: str) -> Optional[T]:
-        idx = len(self.frames) - 1
+        idx = len(self._frames) - 1
         while idx >= 0:
-            frame = self.frames[idx]
-            for name, val in frame:
-                if name == identifier:
-                    return val
+            frame = self._frames[idx]
+            for symbol in frame:
+                if symbol.key == identifier:
+                    return symbol.val
             idx -= 1
 
         return None
 
     def reassign(self, identifier: str, new_value: T) -> None:
-        idx = len(self.frames) - 1
+        idx = len(self._frames) - 1
         while idx >= 0:
-            frame = self.frames[idx]
+            frame = self._frames[idx]
             for j in range(len(frame)):
-                if frame[j][0] == identifier:
-                    frame[j][1] = new_value
+                if frame[j].key == identifier:
+                    frame[j].val = new_value
                     return
             idx -= 1
 
