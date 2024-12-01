@@ -15,6 +15,7 @@ from uza.ast import (
     Node,
     PrefixApplication,
     Block,
+    Return,
     Value,
     VarDef,
     Program,
@@ -23,6 +24,15 @@ from uza.ast import (
 )
 from uza.utils import SymbolTable
 from uza.builtins import *
+
+
+@dataclass
+class FunctionReturn(Exception):
+    """
+    Exception to bubble up function returns to the application.
+    """
+
+    value: Optional[Return]
 
 
 class Interpreter:
@@ -56,6 +66,10 @@ class Interpreter:
     def visit_function(self, func: Function):
         self._context.define(func.identifier, func)
 
+    def visit_return(self, ret: Return):
+        val = ret.value.visit(self)
+        raise FunctionReturn(val)
+
     def visit_var_def(self, definition: VarDef):
         value = definition.value.visit(self)
         self._context.define(definition.identifier, value)
@@ -79,8 +93,10 @@ class Interpreter:
             func: Function = self._context.get(application.func_id)
             for arg, param in zip(evaluated, func.param_names):
                 self._context.define(param.name, arg)
-            func.body.visit(self)
-            return None
+            try:
+                func.body.visit(self)
+            except FunctionReturn as fr:
+                return fr.value
 
     def visit_prefix_application(self, prefix_app: PrefixApplication):
         evaluated = prefix_app.expr.visit(self)

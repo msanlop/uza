@@ -30,6 +30,8 @@ class Type:
         return self
 
     def __or__(self, that: object) -> bool:
+        if Type.matches(self, that):
+            return self
         if isinstance(that, BuiltInType):
             return UnionType(self, that)
         if isinstance(that, UnionType):

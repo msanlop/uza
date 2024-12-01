@@ -122,12 +122,15 @@ def main(argv: Sequence[str] = None) -> int:
     if args.parse:
         return 0
 
-    type_err, type_msg, substitution_str = Typer(program).check_types(
+    type_err, type_msg, warning_msg, substitution_str = Typer(program).check_types(
         output_substitution=args.verbose
     )
     if args.verbose:
         print(in_color("\n### inferred types ###\n", ANSIColor.YELLOW), file=stderr)
         print(substitution_str, file=stderr)
+    if warning_msg:
+        for msg in warning_msg:
+            print(msg, file=stderr)
     if args.typecheck or type_err > 0:
         if type_msg:
             print(type_msg, file=stderr)

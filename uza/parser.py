@@ -18,6 +18,7 @@ from uza.ast import (
     NoOp,
     Node,
     PrefixApplication,
+    Return,
     VarDef,
     Error,
     Program,
@@ -278,12 +279,12 @@ class Parser:
         with self._symbol_table.new_frame():
             self._expect(token_paren_l)
             tok = self._peek()
-            args = []
+            params = []
             types = []
             while tok.kind != token_paren_r:
                 tok = self._expect(token_identifier)
                 param = Identifier(tok, tok.span)
-                args.append(param)
+                params.append(param)
                 self._symbol_table.define(param.name, False)
                 self._expect(token_colon)
                 types.append(self._get_type())
@@ -297,12 +298,14 @@ class Parser:
             self._consume_white_space_and_peek()
             bracket_tok = self._expect(token_bracket_l)
             lines = self._parse_lines(end_token=token_bracket_r)
-            body = ExpressionList(lines, Span.from_list(lines, bracket_tok.span))
-            self._expect(token_bracket_r)
+            tok_r = self._expect(token_bracket_r)
+            body = ExpressionList(
+                lines, Span.from_list(lines, bracket_tok.span) + tok_r.span
+            )
 
         return Function(
             func_name,
-            args,
+            params,
             ArrowType(types, ret_type),
             body,
             span=func_name.span + body.span,
@@ -388,7 +391,8 @@ class Parser:
         decl_token = self._expect(token_var, token_const)
         immutable = decl_token.kind == token_const
         identifier = self._expect(token_identifier)
-        if self._peek().kind == token_identifier:
+        if self._peek().kind == token_colon:
+            type_tok = self._expect(token_colon)
             type_tok = self._expect(token_identifier)
             type_ = typer.identifier_to_uza_type(type_tok)
         else:
@@ -512,6 +516,13 @@ class Parser:
             return self._get_infix(node)
         elif tok.kind == token_while:
             return self._get_while_loop()
+        elif tok.kind == token_return:
+            ret_tok = self._expect(token_return)
+            if self._peek().kind == token_new_line:
+                val = NoOp(ret_tok.span)
+            else:
+                val = self._get_expr()
+            return Return(val, val.span)
         elif tok.kind == token_for:
             return self._get_for_loop()
         elif tok.kind == token_if:
@@ -587,5 +598,5 @@ class Parser:
         span = Span(0, 0, "")
         span = Span.from_list(top_level_lines, span)
 
-        top_level = Block(top_level_lines, span)
+        top_level = ExpressionList(top_level_lines, span)
         return Program(top_level, self._errors, self.failed_nodes)

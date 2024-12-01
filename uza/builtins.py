@@ -77,6 +77,7 @@ def _lower_str_bool(func, **kwargs):
 
     def decorated(*args):
         new_args = map(lambda a: str(a).lower() if isinstance(a, bool) else a, args)
+        new_args = map(lambda a: "V O I D" if a is None else a, args)
         return func(*new_args, **kwargs)
 
     return decorated

@@ -101,18 +101,22 @@ class Span:
         Returns:
             str: _description_
         """
-        line, start, _ = self._get_line()
-        line = f"'{line}'"
-        line += "\n"
-        line += " " * (padding + 1)  # 1 for '
-        line += " " * (self.start - start)
+        source, start, _ = self._get_line()
+        lines = source.split("\n")
+        source = f"'{source}'"
+        source += "\n"
         if _is_terminal:
-            line += ANSIColor.RED
-        line += "^" * (self.end - self.start)
-        line += error_message
+            source += ANSIColor.RED
+        if len(lines) > 1:
+            source += "^" * (max((len(l) for l in lines)) + padding)
+        else:
+            source += " " * (padding + 1)  # 1 for '
+            source += " " * (self.start - start)
+            source += "^" * (self.end - self.start)
+        source += error_message + "\n"
         if _is_terminal:
-            line += ANSIColor.END
-        return line
+            source += ANSIColor.END
+        return source
 
     def __add__(self, that: object) -> Span:
         if not isinstance(that, Span):

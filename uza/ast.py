@@ -186,6 +186,20 @@ class Function(Node):
 
 
 @dataclass
+class Return(Node):
+    """
+    A return statement.
+    """
+
+    value: Node
+    span: Span = field(compare=False)
+    type_: Type = field(init=False, default=type_void)
+
+    def visit(self, that):
+        return that.visit_return(self)
+
+
+@dataclass
 class Block(ExpressionList):
     """
     A block is a list of nodes. Creates a new scope.
@@ -253,6 +267,6 @@ class Value:
 
 @dataclass
 class Program:
-    syntax_tree: Block
+    syntax_tree: ExpressionList
     errors: int
     failed_nodes: List[Error]
