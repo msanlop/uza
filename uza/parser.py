@@ -18,6 +18,7 @@ from uza.ast import (
     NoOp,
     Node,
     PrefixApplication,
+    Range,
     Return,
     VarDef,
     Error,
@@ -504,6 +505,28 @@ class Parser:
             interior = self._get_expr()
         return ForLoop(init, cond, incr, interior, for_tok.span + interior.span)
 
+    def _get_range(self, node: Node) -> Range:
+        self._expect(token_square_bracket_l)
+        tok = self._peek()
+        if tok.kind == token_colon:
+            start = 0
+        else:
+            start = self._get_expr()
+
+        tok = self._peek()
+        single_item = True
+        end = None
+
+        if tok.kind == token_colon:
+            single_item = False
+            self._expect(token_colon)
+            tok = self._peek()
+            if tok.kind != token_square_bracket_r:
+                end = self._get_expr()
+        bracket_tok = self._expect(token_square_bracket_r)
+
+        return Range(node, start, end, single_item, node.span + bracket_tok.span)
+
     def _get_expr(self) -> Node:
         tok = self._consume_white_space_and_peek()
 
@@ -578,6 +601,11 @@ class Parser:
         """
         valid_op, curr_op_precedence = self._peek_valid_op(precedence)
         while valid_op:
+            if self._peek().kind == token_square_bracket_l:
+                lhs = self._get_range(lhs)
+                valid_op, curr_op_precedence = self._peek_valid_op(precedence)
+                continue
+
             op = self._expect(op=True)
             rhs = self._get_expr()
 

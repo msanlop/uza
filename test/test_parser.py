@@ -79,7 +79,7 @@ def test_pow_precedence_right_associative():
 
 
 def test_declarations():
-    source = "const my_val float = 123.53 ** 2"
+    source = "const my_val: float = 123.53 ** 2"
     actual = Parser(source).parse().syntax_tree.lines[0]
     expected = VarDef(
         "my_val",

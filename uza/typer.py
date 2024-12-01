@@ -16,6 +16,7 @@ from uza.ast import (
     Literal,
     NoOp,
     Program,
+    Range,
     Return,
     VarDef,
     Error,
@@ -256,7 +257,9 @@ class Applies(Constraint):
     def fail_message(self) -> str:
         if self._args_num_incorrect:
             args, params = self._args_num_incorrect
-            return f"Expected {params} arguments but found {args}"
+            return self.span.get_underlined(
+                f"Expected {params} arguments but found {args}"
+            )
 
         return self._err_msgs
 
@@ -304,6 +307,11 @@ class IsNotVoid(Constraint):
         return type_void not in self.types
 
 
+# the return type of a tree node. If equal to type_node then either no Return nodes
+# are inside the tree, or some node returns type_void
+ReturnType = Type
+
+
 class Typer:
     """
     Represents a typer than can typecheck a uza program.
@@ -343,11 +351,11 @@ class Typer:
         """
         self.constaints.append(constraint)
 
-    def visit_return(self, ret: Return) -> tuple[Type, Type]:
+    def visit_return(self, ret: Return) -> tuple[Type, ReturnType]:
         ret_type, _ = ret.value.visit(self)
         return type_void, ret_type
 
-    def visit_function(self, func: Function) -> tuple[Type, Type]:
+    def visit_function(self, func: Function) -> tuple[Type, ReturnType]:
         f_signature = func.type_signature
         self._functions.define(func.identifier, func)
         with self._symbol_table.new_frame():
@@ -356,8 +364,9 @@ class Typer:
             _, body_ret = func.body.visit(self)
             if (
                 isinstance(body_ret, IncompleteBranchType)
-                and f_signature.return_type != type_void
+                and type_void not in f_signature.return_type
             ):
+                # warning only because I'm not entirely convinced of my implementation
                 warning = func.span.get_underlined(
                     in_color(
                         f" Warning: function branches might not always return '{f_signature.return_type}'",
@@ -369,14 +378,23 @@ class Typer:
                     IsType(body_ret.path_type, f_signature.return_type, func.span)
                 )
             else:
+                if isinstance(body_ret, IncompleteBranchType):
+                    body_ret = body_ret.path_type | type_void
                 self.add_constaint(IsType(body_ret, f_signature.return_type, func.span))
 
         return f_signature.return_type, None
 
-    def visit_builtin(self, bi: BuiltIn, *arguments: Node) -> tuple[Type, Type]:
+    def visit_builtin(self, bi: BuiltIn, *arguments: Node) -> tuple[Type, ReturnType]:
         arg_types = [arg.visit(self)[0] for arg in arguments]
         signatures = bi.type_signatures
-        if len(signatures) > 1:
+
+        span_zero = None
+        if len(arguments) == 0:
+            span_zero = Span(
+                len(bi.identifier), len(bi.identifier + "()"), bi.identifier + "()"
+            )
+
+        if len(signatures) > 1:  # polymorphic
             constraints = []
             for signature in signatures:
                 constraints.append(
@@ -384,10 +402,14 @@ class Typer:
                         list(arg_types),
                         [arg.span for arg in arguments],
                         signature,
-                        Span.from_list(arguments),
+                        Span.from_list(
+                            arguments,
+                        ),
                     )
                 )
-            self.add_constaint(OneOf(constraints, Span.from_list(arguments)))
+            self.add_constaint(
+                OneOf(constraints, Span.from_list(arguments, empty_case=span_zero))
+            )
             return arg_types[0], type_void
         else:
             func_type = signatures[0]
@@ -396,21 +418,23 @@ class Typer:
                     list(arg_types),
                     [arg.span for arg in arguments],
                     func_type,
-                    Span.from_list(arguments),
+                    Span.from_list(arguments, empty_case=span_zero),
                 )
             )
             return func_type.return_type, type_void
 
-    def visit_no_op(self, _) -> tuple[Type, Type]:
+    def visit_no_op(self, _) -> tuple[Type, ReturnType]:
         return type_void, type_void
 
-    def visit_infix_application(self, infix: InfixApplication) -> tuple[Type, Type]:
+    def visit_infix_application(
+        self, infix: InfixApplication
+    ) -> tuple[Type, ReturnType]:
         func_id = infix.func_id
         builtin = get_builtin(func_id)
         assert builtin
         return self.visit_builtin(builtin, infix.lhs, infix.rhs)
 
-    def visit_if_else(self, if_else: IfElse) -> tuple[Type, Type]:
+    def visit_if_else(self, if_else: IfElse) -> tuple[Type, ReturnType]:
         pred, pred_ret = if_else.predicate.visit(self)
         self.add_constaint(IsType(pred, type_bool, if_else.predicate.span))
         truthy_type, truthy_type_ret = if_else.truthy_case.visit(self)
@@ -434,10 +458,10 @@ class Typer:
 
         return truthy_type | falsy_type, ret_type
 
-    def visit_identifier(self, identifier: Identifier) -> tuple[Type, Type]:
+    def visit_identifier(self, identifier: Identifier) -> tuple[Type, ReturnType]:
         return self._symbol_table.get(identifier.name)[0], type_void
 
-    def visit_application(self, app: Application) -> tuple[Type, Type]:
+    def visit_application(self, app: Application) -> tuple[Type, ReturnType]:
         func_id = app.func_id
         builtin = get_builtin(func_id)
         if builtin:
@@ -450,13 +474,13 @@ class Typer:
 
         return func_type.return_type, type_void
 
-    def visit_var_def(self, var_def: VarDef) -> tuple[Type, Type]:
+    def visit_var_def(self, var_def: VarDef) -> tuple[Type, ReturnType]:
         t = var_def.type_ if var_def.type_ else self._create_new_symbol(var_def)
         self.constaints.append(IsType(t, var_def.value.visit(self)[0], var_def.span))
         self._symbol_table.define(var_def.identifier, (t, var_def.immutable))
         return type_void, type_void
 
-    def visit_var_redef(self, redef: VarRedef) -> tuple[Type, Type]:
+    def visit_var_redef(self, redef: VarRedef) -> tuple[Type, ReturnType]:
         identifier = redef.identifier
         is_immutable = self._var_is_immutable(identifier)
         if is_immutable is None:
@@ -478,25 +502,39 @@ class Typer:
         )
         return type_void, type_void
 
-    def visit_literal(self, literal: Literal) -> tuple[Type, Type]:
+    def visit_literal(self, literal: Literal) -> tuple[Type, ReturnType]:
         return python_type_to_uza_type(type(literal.value)), type_void
 
-    def visit_error(self, error: Error) -> tuple[Type, Type]:
+    def visit_error(self, error: Error) -> tuple[Type, ReturnType]:
         raise RuntimeError(f"Unexpected visit to error node :{error} in typer")
 
-    def visit_expression_list(self, expr_list: ExpressionList) -> tuple[Type, Type]:
+    def visit_expression_list(
+        self, expr_list: ExpressionList
+    ) -> tuple[Type, ReturnType]:
         return self._check_lines(expr_list.lines)
 
-    def visit_block(self, scope: Block) -> tuple[Type, Type]:
+    def visit_block(self, scope: Block) -> tuple[Type, ReturnType]:
         with self._symbol_table.new_frame():
             return self._check_lines(scope.lines)
 
-    def visit_while_loop(self, wl: WhileLoop) -> tuple[Type, Type]:
+    def visit_while_loop(self, wl: WhileLoop) -> tuple[Type, ReturnType]:
         self.add_constaint(IsType(wl.cond.visit(self)[0], type_bool, wl.span))
         _, loop_ret = wl.loop.visit(self)
         return type_void, loop_ret
 
-    def visit_for_loop(self, fl: ForLoop) -> tuple[Type, Type]:
+    def visit_range(self, range: Range) -> tuple[Type, ReturnType]:
+        indexee_type, _ = range.node.visit(self)
+        self.add_constaint(IsType(indexee_type, type_string, range.node.span))
+        if range.start is not None:
+            start_type, _ = range.start.visit(self)
+            self.add_constaint(IsType(start_type, type_int, range.start.span))
+        if range.end is not None:
+            start_type, _ = range.end.visit(self)
+            self.add_constaint(IsType(start_type, type_int, range.end.span))
+
+        return indexee_type, type_void
+
+    def visit_for_loop(self, fl: ForLoop) -> tuple[Type, ReturnType]:
         with self._symbol_table.new_frame():
             if fl.init:
                 fl.init.visit(self)
@@ -504,8 +542,8 @@ class Typer:
                 self.add_constaint(IsType(fl.cond.visit(self)[0], type_bool, fl.span))
             if fl.incr:
                 fl.incr.visit(self)
-            fl.interior.visit(self)
-            return type_void
+            _, interior_ret = fl.interior.visit(self)
+            return type_void, interior_ret
 
     def _check_with_sub(
         self, constaints: list[Constraint], substitution: Substitution
@@ -602,5 +640,7 @@ class Typer:
         else:
             verbose_map = ""
 
+        errors += len(self._error_strings)
+        err_str = "\n".join(self._error_strings) + err_str
         # TODO: diagnostic into the program or create some class
         return errors, err_str, self._warnings, verbose_map

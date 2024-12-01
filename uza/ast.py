@@ -200,6 +200,22 @@ class Return(Node):
 
 
 @dataclass
+class Range(Node):
+    """
+    A sublist or substring.
+    """
+
+    node: Node
+    start: Optional[Node]
+    end: Optional[Node]
+    index_one: bool
+    span: Span = field(compare=False)
+
+    def visit(self, that):
+        return that.visit_range(self)
+
+
+@dataclass
 class Block(ExpressionList):
     """
     A block is a list of nodes. Creates a new scope.

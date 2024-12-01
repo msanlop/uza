@@ -15,6 +15,7 @@ from uza.ast import (
     Node,
     PrefixApplication,
     Block,
+    Range,
     Return,
     Value,
     VarDef,
@@ -134,6 +135,23 @@ class Interpreter:
     def visit_block(self, block: Block):
         with self._context.new_frame():
             return self._visit_lines(block.lines)
+
+    def visit_range(self, range: Range):
+        node = range.node.visit(self)
+        if range.start:
+            start = range.start.visit(self)
+        else:
+            start = 0
+
+        if range.index_one:
+            return node[start]
+
+        if range.end:
+            end = range.end.visit(self)
+        else:
+            end = len(node)
+
+        return node[start:end]
 
     def visit_while_loop(self, wl: WhileLoop):
         while wl.cond.visit(self):

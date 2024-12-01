@@ -38,11 +38,16 @@ class Type:
             return UnionType(self, that.types)
         raise NotImplementedError
 
+    def __contains__(self, that: object):
+        if issubclass(that.__class__, Type):
+            return False
+        raise NotImplementedError
+
     @staticmethod
     def matches(a: Type, b: Type):
         if isinstance(b, UnionType):
             if isinstance(a, UnionType):
-                return a == b
+                return a in b
             return a in b
         return a == b
 
@@ -64,12 +69,19 @@ class UnionType(Type):
 
     def __eq__(self, that: object) -> bool:
         if isinstance(that, UnionType):
-            return all(a == b for (a, b) in zip(self.types, that.types))
+            for own, their in zip(self.types, that.types):
+                if own not in that.types:
+                    return False
+                if their not in self.types:
+                    return False
+            return True
         if issubclass(that.__class__, Type):
             return False
         raise NotImplementedError
 
     def __contains__(self, that: object):
+        if isinstance(that, self.__class__):
+            return all(map(lambda t: t in self.types, that.types))
         if issubclass(that.__class__, Type):
             return that in self.types
         raise NotImplementedError
