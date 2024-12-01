@@ -7,6 +7,7 @@ from uza.ast import (
     Application,
     ExpressionList,
     ForLoop,
+    Function,
     Identifier,
     IfElse,
     InfixApplication,
@@ -34,6 +35,7 @@ class Interpreter:
     """
 
     def __init__(self, program: Program | Node):
+        # either [variable_name, Value] or [function_name, Function instance]
         self._context = SymbolTable()
         self._program = program
 
@@ -51,6 +53,9 @@ class Interpreter:
 
         return func_id.interpret(*params)
 
+    def visit_function(self, func: Function):
+        self._context.define(func.identifier, func)
+
     def visit_var_def(self, definition: VarDef):
         value = definition.value.visit(self)
         self._context.define(definition.identifier, value)
@@ -59,7 +64,7 @@ class Interpreter:
         value = redef.value.visit(self)
         self._context.reassign(redef.identifier, value)
 
-    def visit_identifier(self, identifier: Identifier):
+    def visit_identifier(self, identifier: Identifier) -> Value | Function:
         return self._context.get(identifier.name)
 
     def visit_literal(self, literal: Literal):
@@ -70,7 +75,12 @@ class Interpreter:
         build_in_id = get_builtin(application.func_id)
         if build_in_id:
             return self.visit_built_in_application(build_in_id, *evaluated)
-        raise NotImplementedError("no user functions yet, something went wrong")
+        with self._context.new_frame():
+            func: Function = self._context.get(application.func_id)
+            for arg, param in zip(evaluated, func.param_names):
+                self._context.define(param.name, arg)
+            func.body.visit(self)
+            return None
 
     def visit_prefix_application(self, prefix_app: PrefixApplication):
         evaluated = prefix_app.expr.visit(self)

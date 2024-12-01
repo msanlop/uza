@@ -86,13 +86,11 @@ class ArrowType(Type):
     An arrow type takes in a type and returns another type.
     """
 
-    parameters: list[Type]
-    returns: Type
+    param_types: list[Type]
+    return_type: Type
 
     def __str__(self) -> str:
-        return (
-            f"({', '.join((str(p) for p in self.parameters))}) -> {str(self.returns)}"
-        )
+        return f"({', '.join((str(p) for p in self.param_types))}) -> {str(self.return_type)}"
 
 
 @dataclass(frozen=True, eq=True)

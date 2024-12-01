@@ -170,6 +170,22 @@ class ExpressionList(Node):
 
 
 @dataclass
+class Function(Node):
+    """
+    A function declaration.
+    """
+
+    identifier: Identifier
+    param_names: List[Identifier]
+    type_signature: ArrowType
+    body: ExpressionList
+    span: Span = field(compare=False)
+
+    def visit(self, that):
+        return that.visit_function(self)
+
+
+@dataclass
 class Block(ExpressionList):
     """
     A block is a list of nodes. Creates a new scope.

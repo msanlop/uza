@@ -1,5 +1,6 @@
 from __future__ import annotations
 from collections import deque
+from functools import reduce
 import string
 from typing import Callable, List, Optional, TypeVar
 
@@ -9,6 +10,7 @@ from uza.ast import (
     Block,
     ExpressionList,
     ForLoop,
+    Function,
     Identifier,
     IfElse,
     InfixApplication,
@@ -23,6 +25,7 @@ from uza.ast import (
     WhileLoop,
 )
 
+from uza.type import ArrowType, Type, identifier_to_uza_type
 from uza.utils import Span, SymbolTable
 from uza.token import *
 from uza import typer
@@ -109,9 +112,13 @@ class Scanner:
         elif char == "=":
             end = self._start + 1
             type_ = token_eq
-            if not self._overflows(end) and self._char_at(end) == "=":
-                end += 1
-                type_ = token_eq_double
+            if not self._overflows(end):
+                if self._char_at(end) == "=":
+                    end += 1
+                    type_ = token_eq_double
+                elif self._char_at(end) == ">":
+                    end += 1
+                    type_ = token_arrow
         elif char == "+":
             idx = self._start + 1
             if self._overflows(idx):
@@ -212,7 +219,7 @@ class Parser:
         self._errors = 0
         self.failed_nodes = []
 
-        # map of (identifier -> bool) for mutability
+        # map of (Identifier -> bool) for mutability
         self._symbol_table = SymbolTable()
 
     def _log_error(self, error: Error):
@@ -244,12 +251,71 @@ class Parser:
             temp = self._peek()
         return temp
 
+    def _get_type(self) -> Type:
+        types = []
+        tok = self._expect(token_identifier)
+        type_ = identifier_to_uza_type(tok)
+        types.append(type_)
+        tok = self._peek()
+        while tok.kind == token_pipe:
+            self._expect(token_pipe)
+            tok = self._expect(token_identifier)
+            type_ = identifier_to_uza_type(tok)
+            types.append(type_)
+            tok = self._peek()
+
+        if len(types) > 1:
+            return reduce(lambda x, y: x | y, types)
+        return types[0]
+
+    def _get_function(self) -> Function:
+        func_tok = self._expect(token_func)
+        id_tok = self._expect(token_identifier)
+        func_name = Identifier(id_tok, id_tok.span)
+
+        # define soon to allow recursion
+        self._symbol_table.define(func_name, True)
+        with self._symbol_table.new_frame():
+            self._expect(token_paren_l)
+            tok = self._peek()
+            args = []
+            types = []
+            while tok.kind != token_paren_r:
+                tok = self._expect(token_identifier)
+                param = Identifier(tok, tok.span)
+                args.append(param)
+                self._symbol_table.define(param.name, False)
+                self._expect(token_colon)
+                types.append(self._get_type())
+                tok = self._peek()
+                if tok.kind == token_comma:
+                    self._expect(token_comma)
+
+            self._expect(token_paren_r)
+            self._expect(token_arrow)
+            ret_type = self._get_type()
+            self._consume_white_space_and_peek()
+            bracket_tok = self._expect(token_bracket_l)
+            lines = self._parse_lines(end_token=token_bracket_r)
+            body = ExpressionList(lines, Span.from_list(lines, bracket_tok.span))
+            self._expect(token_bracket_r)
+
+        return Function(
+            func_name,
+            args,
+            ArrowType(types, ret_type),
+            body,
+            span=func_name.span + body.span,
+        )
+
     def _get_top_level(self) -> Node:
         next_ = self._peek()
         while next_.kind == token_new_line:
             self._expect(token_new_line)
             next_ = self._peek()
 
+        if next_.kind == token_func:
+            return self._get_function()
         return self._get_expr()
 
     def _get_if_else(self) -> Node:
@@ -273,7 +339,10 @@ class Parser:
         identifier_tok = self._expect(token_identifier)
         identifier = Identifier(identifier_tok, identifier_tok.span)
         if self._peek().kind == token_paren_l:
-            if get_builtin(identifier) == None:
+            if (
+                get_builtin(identifier) == None
+                and self._symbol_table.get(identifier) is None
+            ):
                 raise NameError(
                     "\n" + identifier_tok.span.get_underlined("function is undefined")
                 )

@@ -9,6 +9,7 @@ from uza.ast import (
     Block,
     ExpressionList,
     ForLoop,
+    Function,
     IfElse,
     InfixApplication,
     Literal,
@@ -198,7 +199,7 @@ class Applies(Constraint):
     def solve(self, substitution: Substitution):
         self._err_msgs = ""
         num_args = len(self.args)
-        num_params = len(self.b.parameters)
+        num_params = len(self.b.param_types)
         if num_args != num_params:
             self._args_num_incorrect = (num_args, num_params)
             return False, None
@@ -206,7 +207,7 @@ class Applies(Constraint):
         fatal = False
         solved = True
         option = substitution
-        for a, b, span in zip(self.args, self.b.parameters, self.args_span):
+        for a, b, span in zip(self.args, self.b.param_types, self.args_span):
             type_a = a.resolve_type(substitution)
             type_b = b.resolve_type(substitution)
             if not Type.matches(type_a, type_b):
@@ -299,6 +300,7 @@ class Typer:
 
         # map from identifier in frame to tuple[Type, true if const, false if var]
         self._symbol_table = SymbolTable()
+        self._functions = SymbolTable()
 
         self.symbol_gen = count()
         self.substitution = Substitution({})
@@ -324,6 +326,16 @@ class Typer:
         Adds a constraint to the typed program.
         """
         self.constaints.append(constraint)
+
+    def visit_function(self, func: Function):
+        f_signature = func.type_signature
+        self._functions.define(func.identifier, func)
+        with self._symbol_table.new_frame():
+            for ident, type_ in zip(func.param_names, f_signature.param_types):
+                self._symbol_table.define(ident.name, (type_, False))
+            func.body.visit(self)
+
+        return f_signature.return_type
 
     def visit_builtin(self, bi: BuiltIn, *arguments: Node):
         arg_types = [arg.visit(self) for arg in arguments]
@@ -351,7 +363,7 @@ class Typer:
                     Span.from_list(arguments),
                 )
             )
-            return func_type.returns
+            return func_type.return_type
 
     def visit_no_op(self, _):
         return type_void
@@ -376,8 +388,15 @@ class Typer:
     def visit_application(self, app: Application):
         func_id = app.func_id
         builtin = get_builtin(func_id)
-        assert builtin
-        return self.visit_builtin(builtin, *app.args)
+        if builtin:
+            return self.visit_builtin(builtin, *app.args)
+        func: Function = self._functions.get(func_id)
+        func_type = func.type_signature
+        app_types = (arg.visit(self) for arg in app.args)
+        for a, b, spannable in zip(app_types, func_type.param_types, app.args):
+            self.add_constaint(IsType(a, b, spannable.span))
+
+        return func_type.return_type
 
     def visit_var_def(self, var_def: VarDef):
         t = var_def.type_ if var_def.type_ else self._create_new_symbol(var_def)
@@ -412,8 +431,7 @@ class Typer:
         raise RuntimeError(f"Unexpected visit to error node :{error} in typer")
 
     def visit_expression_list(self, expr_list: ExpressionList):
-        with self._symbol_table.new_frame():
-            return self._check(expr_list.lines)
+        return self._check(expr_list.lines)
 
     def visit_block(self, scope: Block):
         with self._symbol_table.new_frame():

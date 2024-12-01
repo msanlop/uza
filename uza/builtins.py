@@ -1,5 +1,5 @@
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from operator import add, and_, eq, lt, mul, or_, pow, truediv
 from typing import Callable, List, Optional
 from uza.type import (
@@ -34,10 +34,12 @@ class BuiltIn:
     identifier: str
     interpret: Callable[..., Value]  # tree walk interpretation in python
     type_signatures: List[ArrowType]  # len == 1 if not polymorphic
+    arity: int = field(init=False)
 
     def __post_init__(self):
         # adds itself to the dict that holds all the builtins
         _builtins[self.identifier] = self
+        object.__setattr__(self, "arity", len(self.type_signatures[0].param_types))
 
     def __str__(self) -> str:
         return f"BuiltIn({self.identifier}, {self.type_signatures})"
