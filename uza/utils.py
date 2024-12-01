@@ -121,7 +121,7 @@ class Span:
     def __add__(self, that: object) -> Span:
         if not isinstance(that, Span):
             return NotImplemented
-        assert self.source == that.source
+        # assert self.source == that.source
         return Span(self.start, that.end, self.source)
 
     def __repr__(self) -> str:
@@ -173,7 +173,7 @@ class SymbolTable:
         frame_locals = self._get_locals()
         for symbol in frame_locals:
             if symbol.key == variable_name:
-                return False
+                symbol.val = value
 
         frame_locals.append(Symbol(variable_name, value))
         return True

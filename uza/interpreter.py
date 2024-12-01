@@ -57,11 +57,6 @@ class Interpreter:
         pass
 
     def visit_built_in_application(self, func_id: BuiltIn, *params) -> Optional[Value]:
-        ret = None
-        lhs, rhs = params[0], None
-        if len(params) > 1:
-            rhs = params[1]
-
         return func_id.interpret(*params)
 
     def visit_function(self, func: Function):
@@ -83,7 +78,15 @@ class Interpreter:
         return self._context.get(identifier.name)
 
     def visit_literal(self, literal: Literal):
+        if type(literal.value) is str:
+            return str(literal.value)
         return literal.value
+
+    def _short_circuit_and(self, *args):
+        for arg in args:
+            if not arg.visit(self):
+                return False
+        return True
 
     def visit_application(self, application: Application):
         evaluated = [param.visit(self) for param in application.args]
@@ -107,6 +110,8 @@ class Interpreter:
         raise NotImplementedError("no user functions yet, something went wrong")
 
     def visit_infix_application(self, infix_app: InfixApplication):
+        if infix_app.func_id.name == "and":
+            return self._short_circuit_and(infix_app.lhs, infix_app.rhs)
         left = infix_app.lhs.visit(self)
         right = infix_app.rhs.visit(self)
         identifier = infix_app.func_id
@@ -127,7 +132,7 @@ class Interpreter:
     def _visit_lines(self, lines: List[Node]):
         for node in lines:
             last = node.visit(self)
-        return last
+        return None
 
     def visit_expression_list(self, expr_list: ExpressionList):
         self._visit_lines(expr_list.lines)
@@ -154,8 +159,10 @@ class Interpreter:
         return node[start:end]
 
     def visit_while_loop(self, wl: WhileLoop):
-        while wl.cond.visit(self):
+        cond = wl.cond.visit(self)
+        while cond:
             wl.loop.visit(self)
+            cond = wl.cond.visit(self)
 
     def visit_for_loop(self, fl: ForLoop):
         with self._context.new_frame():

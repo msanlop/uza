@@ -105,6 +105,13 @@ class Scanner:
                 else:
                     end = self._get_next_comment()
                     type_ = token_comment
+        elif char == "!":
+            end = self._start + 1
+            type_ = token_bang
+            if not self._overflows(end):
+                if self._char_at(end) == "=":
+                    end += 1
+                    type_ = token_bang_eq
         elif char in string.digits:
             end = self._next_numeral()
             type_ = token_number
@@ -146,7 +153,7 @@ class Scanner:
             new_string_token = Token(
                 type_,
                 Span(str_start - 1, str_end + 1, self._source),  # span includes quotes
-                self._source[str_start:str_end],
+                self._source[str_start:str_end].replace("\\n", "\n"),  # horrible hack
             )
             self._start = end
             return new_string_token

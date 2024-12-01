@@ -1,12 +1,15 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
-from operator import add, and_, eq, lt, mul, or_, pow, truediv
+from operator import add, and_, eq, lt, mul, ne, or_, pow, truediv
 from typing import Callable, List, Optional
 from uza.type import (
     ArrowType,
     type_any,
     type_bool,
+    type_int,
+    type_float,
     type_string,
+    type_array,
     type_void,
     type_arithmetic,
     type_bool_logic,
@@ -85,14 +88,28 @@ def _lower_str_bool(func, **kwargs):
 
 _bi_print_type = ArrowType([type_any], type_void)
 
-bi_print = BuiltIn("print", _lower_str_bool(print, end=None), [_bi_print_type])
+bi_print = BuiltIn("print", _lower_str_bool(print, end=""), [_bi_print_type])
 bi_println = BuiltIn("println", _lower_str_bool(print), [_bi_print_type])
 
 # BOOLEAN STUFF
 
-_bool_func_type = ArrowType([type_bool_logic, type_bool_logic], type_bool)
+_bool_func_type = ArrowType([type_any, type_any], type_bool)
 
 bi_and = BuiltIn("and", and_, [_bool_func_type])
 bi_or = BuiltIn("or", or_, [_bool_func_type])
 bi_eq = BuiltIn("==", eq, [_bool_func_type])
+bi_eq = BuiltIn("!=", ne, [_bool_func_type])
 bi_lt = BuiltIn("<", lt, [_bool_func_type])
+
+bi_to_int = BuiltIn(
+    "toInt", int, [ArrowType([type_string | type_float | type_int], type_int)]
+)
+
+bi_new_list = BuiltIn("list", list, [ArrowType([], type_array)])
+bi_len = BuiltIn("len", len, [ArrowType([type_array | type_string], type_int)])
+bi_append = BuiltIn(
+    "append",
+    list.append,
+    [ArrowType([type_array, type_string | type_int | type_float], type_void)],
+)
+bi_sort = BuiltIn("sort", list.sort, [ArrowType([type_array], type_void)])

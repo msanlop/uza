@@ -182,7 +182,10 @@ class IsSubType(Constraint):
     def solve(self, substitution: Substitution):
         self.substitution = substitution
         type_a = self.a.resolve_type(substitution)
-        types_b = (t.resolve_type(substitution) for t in self.b.types)
+        if isinstance(self.b, UnionType):
+            types_b = (t.resolve_type(substitution) for t in self.b.types)
+        else:
+            types_b = (self.b.resolve_type(substitution),)
         for possible_type in types_b:
             if type_a == possible_type:
                 return True, None
@@ -434,6 +437,14 @@ class Typer:
         assert builtin
         return self.visit_builtin(builtin, infix.lhs, infix.rhs)
 
+    def visit_prefix_application(
+        self, prefix: PrefixApplication
+    ) -> tuple[Type, ReturnType]:
+        func_id = prefix.func_id
+        builtin = get_builtin(func_id)
+        assert builtin
+        return self.visit_builtin(builtin, prefix.expr)
+
     def visit_if_else(self, if_else: IfElse) -> tuple[Type, ReturnType]:
         pred, pred_ret = if_else.predicate.visit(self)
         self.add_constaint(IsType(pred, type_bool, if_else.predicate.span))
@@ -524,7 +535,14 @@ class Typer:
 
     def visit_range(self, range: Range) -> tuple[Type, ReturnType]:
         indexee_type, _ = range.node.visit(self)
-        self.add_constaint(IsType(indexee_type, type_string, range.node.span))
+        index_constraint = OneOf(
+            [
+                IsSubType(indexee_type, type_string, range.node.span),
+                IsSubType(indexee_type, type_array, range.node.span),
+            ],
+            range.span,
+        )
+        self.add_constaint(index_constraint)
         if range.start is not None:
             start_type, _ = range.start.visit(self)
             self.add_constaint(IsType(start_type, type_int, range.start.span))
@@ -532,7 +550,9 @@ class Typer:
             start_type, _ = range.end.visit(self)
             self.add_constaint(IsType(start_type, type_int, range.end.span))
 
-        return indexee_type, type_void
+        if indexee_type == type_string:
+            return type_string, type_void
+        return type_int | type_string, type_void
 
     def visit_for_loop(self, fl: ForLoop) -> tuple[Type, ReturnType]:
         with self._symbol_table.new_frame():

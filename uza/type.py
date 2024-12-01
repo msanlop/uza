@@ -87,7 +87,7 @@ class UnionType(Type):
         raise NotImplementedError
 
     def __or__(self, that: object) -> bool:
-        if isinstance(that, BuiltInType):
+        if isinstance(that, Type):
             return UnionType(*self.types, that)
         if isinstance(that, UnionType):
             return UnionType(self.types, that.types)
@@ -133,6 +133,7 @@ type_float = BuiltInType("float", _builtin_types)
 type_string = BuiltInType("string", _builtin_types)
 type_bool = BuiltInType("bool", _builtin_types)
 type_void = BuiltInType("void", _builtin_types)
+type_array = BuiltInType("array", _builtin_types)
 
 type_any = reduce(lambda x, y: x | y, _builtin_types.values())
 type_arithmetic = type_int | type_float
@@ -142,6 +143,7 @@ _python_to_uza = {
     int: type_int,
     float: type_float,
     str: type_string,
+    list: type_array,
     bool: type_bool,
     None: type_void,
 }
@@ -152,6 +154,7 @@ _id_to_uza = {
     "string": type_string,
     "bool": type_bool,
     "void": type_void,
+    "array": type_array,
 }
 
 

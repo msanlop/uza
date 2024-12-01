@@ -31,6 +31,9 @@ def main(argv: Sequence[str] = None) -> int:
     # input_group = parser.add_mutually_exclusive_group(required=True)
     parser.add_argument("file", nargs="?", type=str, help="The input source file")
     parser.add_argument("-s", "--source", type=str, help="The source code string")
+    parser.add_argument(
+        "--notypechecking", action="store_true", help="Disable typechecking"
+    )
 
     action_group = parser.add_mutually_exclusive_group()
     action_group.add_argument(
@@ -122,19 +125,20 @@ def main(argv: Sequence[str] = None) -> int:
     if args.parse:
         return 0
 
-    type_err, type_msg, warning_msg, substitution_str = Typer(program).check_types(
-        output_substitution=args.verbose
-    )
-    if args.verbose:
-        print(in_color("\n### inferred types ###\n", ANSIColor.YELLOW), file=stderr)
-        print(substitution_str, file=stderr)
-    if warning_msg:
-        for msg in warning_msg:
-            print(msg, file=stderr)
-    if args.typecheck or type_err > 0:
-        if type_msg:
-            print(type_msg, file=stderr)
-        return type_err
+    if not args.notypechecking:
+        type_err, type_msg, warning_msg, substitution_str = Typer(program).check_types(
+            output_substitution=args.verbose
+        )
+        if args.verbose:
+            print(in_color("\n### inferred types ###\n", ANSIColor.YELLOW), file=stderr)
+            print(substitution_str, file=stderr)
+        if warning_msg:
+            for msg in warning_msg:
+                print(msg, file=stderr)
+        if args.typecheck or type_err > 0:
+            if type_msg:
+                print(type_msg, file=stderr)
+            return type_err
 
     if args.interpret:
         out = Interpreter(program).evaluate()
