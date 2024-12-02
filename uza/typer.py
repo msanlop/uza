@@ -99,6 +99,11 @@ class IncompleteBranchType(Type):
     def complete(self, that: Type):
         return self.path_type | that
 
+    def __or__(self, that: object) -> bool:
+        if isinstance(that, self.__class__):
+            return self.path_type | that.path_type
+        return self.complete(that)
+
 
 class Constraint(ABC):
     span: Span

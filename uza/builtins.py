@@ -91,6 +91,14 @@ _bi_print_type = ArrowType([type_any], type_void)
 bi_print = BuiltIn("print", _lower_str_bool(print, end=""), [_bi_print_type])
 bi_println = BuiltIn("println", _lower_str_bool(print), [_bi_print_type])
 
+
+def _read_file(file_name):
+    with open(file_name) as file:
+        return file.read()
+
+
+bi_readAll = BuiltIn("readAll", _read_file, [ArrowType([type_string], type_string)])
+
 # BOOLEAN STUFF
 
 _bool_func_type = ArrowType([type_any, type_any], type_bool)
@@ -110,6 +118,20 @@ bi_len = BuiltIn("len", len, [ArrowType([type_array | type_string], type_int)])
 bi_append = BuiltIn(
     "append",
     list.append,
-    [ArrowType([type_array, type_string | type_int | type_float], type_void)],
+    [
+        ArrowType(
+            [type_array, type_string | type_int | type_float | type_array], type_void
+        )
+    ],
 )
+
+
+def _del_item(array, idx):
+    del array[idx]
+
+
+bi_append = BuiltIn(
+    "removeAt", _del_item, [ArrowType([type_array, type_int], type_void)]
+)
+bi_append = BuiltIn("copy", list.copy, [ArrowType([type_array], type_array)])
 bi_sort = BuiltIn("sort", list.sort, [ArrowType([type_array], type_void)])

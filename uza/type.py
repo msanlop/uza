@@ -36,7 +36,9 @@ class Type:
             return UnionType(self, that)
         if isinstance(that, UnionType):
             return UnionType(self, that.types)
-        raise NotImplementedError
+        if issubclass(Type, that.__class__):
+            return that | self
+        raise NotImplementedError(f"for {self} | {that}")
 
     def __contains__(self, that: object):
         if issubclass(that.__class__, Type):

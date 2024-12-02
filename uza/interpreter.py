@@ -118,7 +118,7 @@ class Interpreter:
         built_in_id = get_builtin(identifier)
         if built_in_id:
             return self.visit_built_in_application(built_in_id, left, right)
-        raise NotImplementedError("no user functions yet, something went wrong")
+        raise NotImplementedError(f"not implemented for {infix_app}")
 
     def visit_if_else(self, if_else: IfElse):
         pred = if_else.predicate.visit(self)

@@ -1,0 +1,79 @@
+const input_str = readAll("aoc2.txt")
+const levels = list()
+
+func parse_lines(input: string) => array {
+    var start: int = 0
+    var end: int = 0
+    const lines = list()
+    const input_len = len(input)
+    while end < input_len {
+        while ((end < input_len) and (input[end] != "\n")) {
+            end+=1
+        }
+        append(lines, input[start: end])
+        start = end + 1
+        end += 1
+    }
+    return lines
+}
+
+func parse_ints(line: string, levels: array) => void {
+    var start = 0
+    var end = 0
+    const line_len = len(line)
+    const level = list()
+    while end < line_len {
+        for ;(end < line_len) and (line[end] != " "); do end += 1
+        append(level, toInt(line[start: end]))
+        while (end < line_len) and (line[end] == " ") do end += 1
+        start = end
+    }
+    append(levels, level)
+}
+
+func checkLevel(level: array) => bool {
+    const level_count = len(level)
+    const increasing = if (level[0] < level[1]) then true else false
+    if increasing {
+        for var i = 0; i < (level_count - 1); i+=1 {
+            const delta = level[i + 1] - level[i]
+            if (delta < 1) or (3 < delta) then return false
+        }
+        return true
+    }
+    else
+        for var i = 0; i < (level_count - 1); i+=1 {
+            const delta = level[i] - level[i + 1]
+            if (delta < 1) or (3 < delta) then return false
+        }
+        return true
+}
+
+func checkLevelWithDampener(level: array) => bool {
+    const level_count = len(level)
+    if checkLevel(level) then return true
+
+    for var i=0; i < level_count; i+=1 {
+        const cpy = copy(level)
+        removeAt(cpy, i)
+        if checkLevel(cpy) then return true
+    }
+    return false
+}
+
+const lines = parse_lines(input_str)
+for var i = 0; i < len(lines); i+=1 {
+    parse_ints(lines[i], levels)
+}
+
+var sum1 = 0
+var sum2 = 0
+for var i = 0; i < len(levels); i+=1 {
+    if checkLevel(levels[i]) then sum1 += 1
+    if checkLevelWithDampener(levels[i]) then sum2 += 1
+}
+
+print("PART 1: the number of safe reports is: ")
+println(sum1)
+print("PART 2: the number of safe reports is: ")
+println(sum2)
