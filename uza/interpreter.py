@@ -36,6 +36,15 @@ class FunctionReturn(Exception):
     value: Optional[Return]
 
 
+@dataclass
+class Exit(Exception):
+    """
+    Uza exit with status code.
+    """
+
+    value: int
+
+
 class Interpreter:
     """
     A class that takes in a program and interprets it by walking the AST.
@@ -45,7 +54,7 @@ class Interpreter:
     VM interpretation and to more easily test ideas.
     """
 
-    def __init__(self, program: Program | Node):
+    def __init__(self, program: Program):
         # either [variable_name, Value] or [function_name, Function instance]
         self._context = SymbolTable()
         self._program = program
@@ -176,7 +185,9 @@ class Interpreter:
         The main _Interpreter_ function that evaluates the top level nodes.
 
         Returns:
-            Optional[int | float]: return the evaluated result of the last line
+            Optional[int | float]: exit value
         """
-        res = self._program.syntax_tree.visit(self)
-        return res
+        try:
+            self._program.syntax_tree.visit(self)
+        except Exit as e:
+            return e.value

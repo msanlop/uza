@@ -105,12 +105,14 @@ def test_math_expressions():
     1 and 1
     0 and 1"""
 
-    expressions = Parser(source).parse().syntax_tree.lines
+    lines = source.splitlines()
+
+    expressions = [Parser(s).parse() for s in lines]
     outputs = [
-        Interpreter(Program(Block([expr], Span(0, 0, "top_level")), 0, [])).evaluate()
+        expr.syntax_tree.lines[0].visit(Interpreter(None))  # hacky
         for expr in expressions
     ]
-    real = [eval(line) for line in source.splitlines()]
+    real = [eval(line) for line in lines]
     for actual, expected in zip(outputs, real):
         assert actual == expected
 

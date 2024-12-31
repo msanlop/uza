@@ -44,7 +44,7 @@
 
 extern bool stop_interpreting;
 
-void push(VM* vm, Value value) {
+inline void push(VM* vm, Value value) {
     *vm->stack_top++ = value;
     #ifdef DEBUG_TRACE_EXECUTION_STACK
         DEBUG_PRINT("stack push\n");
@@ -55,7 +55,7 @@ inline Value peek(VM* vm) {
     return vm->stack_top[-1];
 }
 
-Value pop(VM* vm) {
+inline Value pop(VM* vm) {
     vm->stack_top--;
     #ifdef DEBUG_TRACE_EXECUTION_STACK
         DEBUG_PRINT("stack pop\n");
@@ -64,7 +64,7 @@ Value pop(VM* vm) {
 }
 
 
-void vm_stack_reset(VM* vm) {
+inline void vm_stack_reset(VM* vm) {
     vm->stack_top = vm->stack;
 }
 
@@ -75,7 +75,7 @@ VM* vm_init(program_bytes_t* program) {
     initTable(&vm->globals);
     read_program(vm, program);
     vm->ip = vm->chunk.code;
-    vm->depth = -1;
+    vm->depth = 0;
     vm_stack_reset(vm);
     return vm;
 }
@@ -99,6 +99,7 @@ int interpret(VM* vm) {
         #endif // #define DEBUG_TRACE_EXECUTION_OP
         #ifdef DEBUG_TRACE_EXECUTION_STACK
             debug_stack_print(vm, "before");
+            debug_locals_print(vm, "locals");
         #endif //#define DEBUG_TRACE_EXECUTION_STACK
         OpCode instruction = *vm->ip++;
         switch (instruction) {
@@ -209,6 +210,7 @@ int interpret(VM* vm) {
             Frame *frame = &vm->frame_stacks[vm->depth];
             frame->locals = vm->stack_top;
             int locals_num = *(vm->ip++);
+            frame->locals_count = locals_num;
 
             #ifndef NDEBUG
             for (size_t i = 0; i < locals_num; i++) {

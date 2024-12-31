@@ -12,6 +12,7 @@
 #define FRAMES_MAX (1000)
 
 typedef struct {
+    size_t locals_count;
     Value *locals;
 } Frame;
 

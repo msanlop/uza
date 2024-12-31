@@ -62,7 +62,9 @@ def _sub_or_neg(*args):
     return args[0] - args[1]
 
 
-bi_sub = BuiltIn("-", _sub_or_neg, [_bi_arith_type])
+bi_sub = BuiltIn(
+    "-", _sub_or_neg, [_bi_arith_type, ArrowType([type_arithmetic], type_arithmetic)]
+)
 bi_mul = BuiltIn("*", mul, [_bi_arith_type])
 bi_div = BuiltIn("/", truediv, [_bi_arith_type])
 bi_pow = BuiltIn("**", pow, [_bi_arith_type])
@@ -106,7 +108,7 @@ _bool_func_type = ArrowType([type_any, type_any], type_bool)
 bi_and = BuiltIn("and", and_, [_bool_func_type])
 bi_or = BuiltIn("or", or_, [_bool_func_type])
 bi_eq = BuiltIn("==", eq, [_bool_func_type])
-bi_eq = BuiltIn("!=", ne, [_bool_func_type])
+bi_ne = BuiltIn("!=", ne, [_bool_func_type])
 bi_lt = BuiltIn("<", lt, [_bool_func_type])
 
 bi_to_int = BuiltIn(

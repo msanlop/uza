@@ -17,6 +17,19 @@ void debug_stack_print(VM* vm, char* str) {
     DEBUG_PRINT(RESET "----------\n");
 }
 
+void debug_locals_print(VM* vm, char* str) {
+    DEBUG_PRINT("%s :\n" CYAN , str);
+    if (vm->depth > 0) {
+        Frame *frame = &vm->frame_stacks[vm->depth];
+        for (int i = 0; i < frame->locals_count; i++) {
+            DEBUG_PRINT("local #%d: ", i);
+            PRINT_VALUE((frame->locals[i]), stderr);
+            DEBUG_PRINT("\n")
+        }
+    }
+    DEBUG_PRINT(RESET "----------\n");
+}
+
 void debug_local_print(char* code_str, Chunk* chunk, int offset){
     DEBUG_PRINT("%s    ", code_str);
     int local = GET_CODE_AT(chunk, offset);
