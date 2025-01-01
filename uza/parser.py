@@ -33,8 +33,8 @@ class Scanner:
     The Scanner class is a iterator over the token of a given source file.
     """
 
-    def __init__(self, source: str, keep_comments=False):
-        self._keep_comments = keep_comments
+    def __init__(self, source: str, discard_style=True):
+        self._discard_style = discard_style
         self._source = source
         self._source_len = len(source)
         self._start = 0
@@ -47,14 +47,7 @@ class Scanner:
             return i >= self._source_len
         return self._start >= self._source_len
 
-    def _consume_white_space(self):
-        i = self._start
-        # while i < self._source_len and self._source[i] in string.whitespace:
-        while i < self._source_len and self._source[i] == " ":
-            i += 1
-        self._start = i
-
-    def _get_next_word(self) -> tuple[str, int]:
+    def _get_next_word(self) -> int:
         end = self._start + 1
         while not self._overflows(end):
             char = self._char_at(end)
@@ -64,113 +57,24 @@ class Scanner:
                 break
             end += 1
 
-        return self._source[self._start : end], end
+        return end
 
-    def _get_next_string(self) -> tuple[str, int]:
+    def _get_next_string(self) -> int:
         end = self._start + 1
         while self._char_at(end) != '"':
+            # TODO: multiline strings
+            if self._char_at(end) == "\n":
+                raise SyntaxError(
+                    rf"found \n in string literal at {self._source[self._start: end]}"
+                )
             end += 1
-        return self._source[self._start : end], end
+        return end
 
     def _get_next_comment(self) -> int:
         end = self._start + 1
         while not self._overflows(end) and self._char_at(end) != "\n":
             end += 1
         return end
-
-    def _next_token(self) -> Optional[Token]:
-        self._consume_white_space()
-        if self._overflows():
-            return None
-
-        char = self._char_at(self._start)
-        if char == "\n":
-            end = self._start + 1
-            type_ = token_new_line
-        elif char == "/":
-            idx = self._start + 1
-            if self._overflows(idx):
-                end = idx
-                type_ = token_slash
-            else:
-                second = self._char_at(idx)
-                if second != "/":
-                    end = idx
-                    type_ = token_slash
-                else:
-                    end = self._get_next_comment()
-                    type_ = token_comment
-        elif char in string.digits:
-            end = self._next_numeral()
-            type_ = token_number
-        elif char == ",":
-            end = self._start + 1
-            type_ = token_comma
-        elif char == "=":
-            end = self._start + 1
-            type_ = token_eq
-            if not self._overflows(end) and self._char_at(end) == "=":
-                end += 1
-                type_ = token_eq_double
-        elif char == "+":
-            idx = self._start + 1
-            if self._overflows(idx):
-                end = idx
-                type_ = token_plus
-            else:
-                second = self._char_at(idx)
-                if second == "+":
-                    end = idx + 1
-                    type_ = token_plus_plus
-                elif second == "=":
-                    end = idx + 1
-                    type_ = token_plus_eq
-                else:
-                    end = idx
-                    type_ = token_plus
-        elif char == '"':
-            word, end = self._get_next_string()
-            end += 1
-            type_ = token_string
-            str_start = self._start + 1
-            str_end = end - 1
-            new_string_token = Token(
-                type_,
-                Span(str_start - 1, str_end + 1, self._source),  # span includes quotes
-                self._source[str_start:str_end],
-            )
-            self._start = end
-            return new_string_token
-        elif char in string.ascii_letters:
-            word, end = self._get_next_word()
-            if word in token_types:
-                type_ = token_types[word]
-            else:
-                type_ = token_identifier
-        elif char == "*":
-            if (
-                not self._overflows(self._start + 1)
-                and self._char_at(self._start + 1) == "*"
-            ):
-                end = self._start + 2
-                type_ = token_star_double
-
-            else:
-                end = self._start + 1
-                type_ = token_star
-        else:
-            type_maybe = token_types.get(char)
-            if type_maybe is None:
-                raise RuntimeError(f"could not tokenize {char} at {self._start}")
-            type_ = type_maybe
-            end = self._start + 1
-
-        assert self._start <= end
-        new_token = Token(
-            type_, Span(self._start, end, self._source), self._source[self._start : end]
-        )
-        self._start = end
-        return new_token
 
     def _next_numeral(self):
         end = self._start
@@ -185,14 +89,71 @@ class Scanner:
             end += 1
         return end
 
+    def _next_token(self) -> Optional[Token]:
+        """
+        Scans the next token, at self._start in Scanner source.
+        Return None if there are no more tokens.
+        """
+        if self._overflows():
+            return None
+
+        char = self._char_at(self._start)
+        if char in string.digits:
+            end = self._next_numeral()
+            type_ = token_number
+        elif char == '"':
+            end = self._get_next_string()
+            end += 1
+            type_ = token_string
+            str_start = self._start + 1
+            str_end = end - 1
+            new_string_token = Token(
+                type_,
+                Span(str_start - 1, str_end + 1, self._source),  # span includes quotes
+                self._source[str_start:str_end],
+            )
+            self._start = end
+            return new_string_token
+        elif char in string.ascii_letters:
+            end = self._get_next_word()
+            word = self._source[self._start : end]
+            if word in token_types:
+                type_ = token_types[word]
+            else:
+                type_ = token_identifier
+        else:
+            end = self._start + 2
+            maybe_double_token = None
+            if not self._overflows(end):
+                maybe_double_token = token_types.get(self._source[self._start : end])
+
+            if maybe_double_token:
+                type_ = maybe_double_token
+                if type_ == token_slash_slash:
+                    type_ = token_comment
+                    end = self._get_next_comment()
+            else:
+                type_maybe = token_types.get(char)
+                if type_maybe is None:
+                    raise RuntimeError(f"could not tokenize {char} at {self._start}")
+                type_ = type_maybe
+                end = self._start + 1
+
+        assert self._start <= end
+        new_token = Token(
+            type_, Span(self._start, end, self._source), self._source[self._start : end]
+        )
+        self._start = end
+        return new_token
+
     def __iter__(self):
         return self
 
     def __next__(self):
         while self._start < self._source_len:
             token = self._next_token()
-            if not self._keep_comments:
-                while token and token.kind == token_comment:
+            if self._discard_style:
+                while token and token.kind in (token_comment, token_space):
                     token = self._next_token()
 
             if token is None:
@@ -207,7 +168,7 @@ class Parser:
     """
 
     def __init__(self, source: str):
-        self._tokens = deque(Scanner(source))
+        self._tokens = deque(Scanner(source))  # TODO: use the iter directly
         self._source = source
         self._errors = 0
         self.failed_nodes = []
@@ -294,15 +255,13 @@ class Parser:
         else:
             type_ = None
 
-        tok = self._expect(
-            token_eq, token_plus_eq, token_plus_plus, token_minus_eq, token_minus_minus
-        )
+        tok = self._expect(token_eq, token_plus_eq, token_minus_eq)
         if tok.kind == token_eq:
             value = self._get_expr()
         else:
-            # syntactic sugar for +=, -=, ++, --
+            # syntactic sugar for +=, -= #TODO: different node for optimized VM op
             rhs = None
-            if tok.kind in (token_plus_plus, token_plus_eq):
+            if tok.kind == token_plus_eq:
                 op = "+"
             else:
                 op = "-"
@@ -455,7 +414,7 @@ class Parser:
             tok = self._peek()
             if not tok:
                 return identifier
-            elif tok.kind in (token_eq, token_plus_eq, token_plus_plus):
+            elif tok.kind in (token_eq, token_plus_eq):
                 return self._get_var_redef(identifier)
             elif tok.kind == token_paren_l:
                 self._expect(token_paren_l)

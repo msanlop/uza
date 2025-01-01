@@ -195,10 +195,4 @@ def test_increment_sugar():
     var i = 0
     i += 1
     """
-    source_c = """
-    var i=0
-    i++
-    """
-    assert (
-        Parser(source_a).parse() == Parser(source_b).parse() == Parser(source_c).parse()
-    )
+    assert Parser(source_a).parse() == Parser(source_b).parse()
