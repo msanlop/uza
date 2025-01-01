@@ -158,7 +158,7 @@ while run {
     if i == 5 {
         run = false
     }
-    i++
+    i+=1
 }
 println("end")
 #expected
@@ -171,7 +171,7 @@ println("end")
 end
 
 #test for loop
-for var i = 0;i < 3; i++ {
+for var i = 0;i < 3; i+=1 {
     println(i)
 }
 println("end")
@@ -183,7 +183,7 @@ end
 
 #test for loop without initializer
 var i = 0
-for ;i < 3; i++ {
+for ;i < 3; i+=1 {
     println(i)
 }
 println("end")
@@ -234,7 +234,7 @@ println("end")
 end
 
 #test for loop do notation
-for var i = 0;i < 3; i++ do
+for var i = 0;i < 3; i+=1 do
     println(i)
 println("end")
 #expected
