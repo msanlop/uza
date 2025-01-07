@@ -16,6 +16,19 @@
 
 #define PEEK(vm) (*(vm->stack_top - 1))
 
+#ifndef NDEBUG
+#define DEBUG_SET_STACK_VALUE_TO_BOOL (vm->stack_top[-1].type = TYPE_BOOL)
+#else
+#define DEBUG_SET_STACK_VALUE_TO_BOOL
+#endif
+
+
+#define IP_FETCH_INCR (*(vm->ip++))
+#define CURR_FRAME ()
+
+#define CONSTANT(constant_offset) (vm->chunk.constants.values[constant_offset])
+
+
 #define BINARY_OP(vm, op) \
     do { \
         Value rhs = pop(vm); \
@@ -90,6 +103,8 @@ void vm_free(VM* vm){
 int interpret(VM* vm) {
     while(!stop_interpreting) {
 
+        Frame curr_frame = vm->frame_stacks[vm->depth];
+
         #ifdef DEBUG_TRACE_EXECUTION_OP
             DEBUG_PRINT(PURPLE "running op\n  " RESET);
             debug_op_print(&vm->chunk, (int) (vm->ip - vm->chunk.code));
@@ -126,7 +141,7 @@ int interpret(VM* vm) {
             break;
         case OP_STRCONST:
         case OP_DCONST:
-        case OP_LCONST: push(vm, vm->chunk.constants.values[*(vm->ip++)]);
+        case OP_LCONST: push(vm, CONSTANT(IP_FETCH_INCR));
             break;
         case OP_BOOLTRUE:
             push(vm, VAL_BOOL(true));
@@ -175,32 +190,31 @@ int interpret(VM* vm) {
         break;
         case OP_EQ: {
             BINARY_OP(vm, ==);
-            #ifndef NDEBUG
-                vm->stack_top[-1].type = TYPE_BOOL;
-            #endif
+            DEBUG_SET_STACK_VALUE_TO_BOOL;
         }
         break;
         case OP_LT: {
             BINARY_OP(vm, <);
-            #ifndef NDEBUG
-                vm->stack_top[-1].type = TYPE_BOOL;
-            #endif
+            DEBUG_SET_STACK_VALUE_TO_BOOL;
         }
         break;
         case OP_DEFGLOBAL: {
-            ObjectString *identifier = (ObjectString *) vm->chunk.constants.values[*(vm->ip++)].as.object;
+            int constant = IP_FETCH_INCR;
+            ObjectString *identifier = AS_STRING(CONSTANT(constant));
             tableSet(&vm->globals, identifier, pop(vm));
         }
         break;
         case OP_GETGLOBAL: {
-            ObjectString *identifier = (ObjectString *) vm->chunk.constants.values[*(vm->ip++)].as.object;
+            int constant = IP_FETCH_INCR;
+            ObjectString *identifier = AS_STRING(CONSTANT(constant));
             Value val = {0};
             tableGet(&vm->globals, identifier, &val);
             push(vm, val);
         }
         break;
         case OP_SETGLOBAL: {
-            ObjectString *identifier = (ObjectString *) vm->chunk.constants.values[*(vm->ip++)].as.object;
+            int constant = IP_FETCH_INCR;
+            ObjectString *identifier = AS_STRING(CONSTANT(constant));
             Value val = pop(vm);
             tableSet(&vm->globals, identifier, val);
         }
@@ -209,7 +223,7 @@ int interpret(VM* vm) {
             vm->depth++;
             Frame *frame = &vm->frame_stacks[vm->depth];
             frame->locals = vm->stack_top;
-            int locals_num = *(vm->ip++);
+            int locals_num = IP_FETCH_INCR;
             frame->locals_count = locals_num;
 
             #ifndef NDEBUG
@@ -223,21 +237,21 @@ int interpret(VM* vm) {
         }
         break;
         case OP_EXITBLOCK: {
-            vm->stack_top = vm->frame_stacks[vm->depth].locals;
+            vm->stack_top = curr_frame.locals;
             vm->depth--;
         }
         break;
         case OP_DEFLOCAL: {
             Value val = pop(vm);
-            vm->frame_stacks[vm->depth].locals[*(vm->ip++)] = val;
+            curr_frame.locals[IP_FETCH_INCR] = val;
         }
         break;
         case OP_GETLOCAL: {
-            push(vm, vm->frame_stacks[vm->depth].locals[*(vm->ip++)]);
+            push(vm, curr_frame.locals[IP_FETCH_INCR]);
         }
         break;
         case OP_SETLOCAL: {
-            vm->frame_stacks[vm->depth].locals[*(vm->ip++)] = pop(vm);
+            curr_frame.locals[IP_FETCH_INCR] = pop(vm);
         }
         break;
         case OP_EXITVM:
