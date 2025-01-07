@@ -1,5 +1,5 @@
-from uza.typer import Typer
-from uza.parser import Parser
+from uzac.typer import Typer
+from uzac.parser import Parser
 
 
 def test_add_int_float():

@@ -3,8 +3,8 @@ from collections import deque
 import string
 from typing import Callable, List, Optional, TypeVar
 
-from uza.interpreter import get_builtin
-from uza.ast import (
+from uzac.interpreter import get_builtin
+from uzac.ast import (
     Application,
     Block,
     ExpressionList,
@@ -23,9 +23,9 @@ from uza.ast import (
     WhileLoop,
 )
 
-from uza.utils import Span, SymbolTable
-from uza.token import *
-from uza import typer
+from uzac.utils import Span, SymbolTable
+from uzac.token import *
+from uzac import typer
 
 
 class Scanner:

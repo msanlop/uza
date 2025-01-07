@@ -2,9 +2,9 @@ from abc import ABC
 from typing import List, Optional
 from dataclasses import dataclass, field
 
-from uza.utils import Span
-from uza.token import *
-from uza.type import *
+from uzac.utils import Span
+from uzac.token import *
+from uzac.type import *
 
 
 class Node(ABC):

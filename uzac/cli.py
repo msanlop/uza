@@ -5,12 +5,12 @@ from sys import stderr, stdin
 import sys  # sys.exit conflict with exit?
 from typing import Sequence
 
-from uza.utils import ANSIColor, in_color
+from uzac.utils import ANSIColor, in_color
 
-from uza.typer import Typer
-from uza.bytecode import ByteCodeProgram, ByteCodeProgramSerializer
-from uza.parser import Parser
-from uza.interpreter import Interpreter
+from uzac.typer import Typer
+from uzac.bytecode import ByteCodeProgram, ByteCodeProgramSerializer
+from uzac.parser import Parser
+from uzac.interpreter import Interpreter
 
 from vm.main import run_vm
 

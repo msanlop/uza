@@ -1,5 +1,5 @@
 import sys
-from uza.cli import main
+from uzac.cli import main
 
 
 sys.exit(main())

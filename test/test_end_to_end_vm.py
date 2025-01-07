@@ -23,15 +23,11 @@ from .helper import (
 def test_end_to_end(description, code, expected_output, capfd):
     bytecode_out = os.path.join(PROJECT_ROOT, "out.uzo")
 
-    ## This would be cleaner but I C buffers stdout until all tests are done
-    ## tried redirecting and all but nothing works except fflush, which we don't want
-    # ret_code = main(argv=("--output", bytecode_out, "-s", code))
-
     try:
         subprocess.run(
             [
                 "python",
-                os.path.join(os.path.dirname(os.path.dirname(__file__)), "main.py"),
+                os.path.join(os.path.dirname(os.path.dirname(__file__)), "uza"),
                 "--output",
                 bytecode_out,
                 "-s",

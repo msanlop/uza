@@ -10,7 +10,7 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(__file__))
 TESTS_FILENAME = "test_sources.txt"
 TESTS_PATH = os.path.join(os.path.dirname(__file__), TESTS_FILENAME)
 
-TEST_UZA_PATH = os.path.join(PROJECT_ROOT, "uza")
+TEST_UZA_PATH = os.path.join(PROJECT_ROOT, "uzac")
 
 MAGENTA = "\033[0;35m"
 RESET = "\033[0m"

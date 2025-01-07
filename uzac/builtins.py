@@ -2,7 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from operator import add, and_, eq, lt, mul, or_, pow, truediv
 from typing import Callable, List, Optional
-from uza.type import (
+from uzac.type import (
     ArrowType,
     type_any,
     type_bool,
@@ -12,7 +12,7 @@ from uza.type import (
     type_bool_logic,
 )
 
-from uza.ast import Identifier, Value
+from uzac.ast import Identifier, Value
 
 _builtins: dict[str, BuiltIn] = {}
 

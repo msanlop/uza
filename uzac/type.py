@@ -2,7 +2,7 @@ from __future__ import annotations
 from dataclasses import field
 from typing import List
 from functools import reduce
-from uza.token import *
+from uzac.token import *
 
 
 @dataclass(frozen=True)
