@@ -2,8 +2,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import List, Optional, TypeVar
 
-from uza.type import ArrowType
-from uza.ast import (
+from uzac.type import ArrowType
+from uzac.ast import (
     Application,
     ExpressionList,
     ForLoop,
@@ -23,8 +23,8 @@ from uza.ast import (
     VarRedef,
     WhileLoop,
 )
-from uza.utils import SymbolTable
-from uza.builtins import *
+from uzac.utils import SymbolTable
+from uzac.builtins import *
 
 
 @dataclass

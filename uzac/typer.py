@@ -4,9 +4,9 @@ import sys
 from typing import Iterator, List
 from itertools import count, permutations
 
-from uza.type import *
-from uza.token import *
-from uza.ast import (
+from uzac.type import *
+from uzac.token import *
+from uzac.ast import (
     Block,
     ExpressionList,
     ForLoop,
@@ -23,8 +23,8 @@ from uza.ast import (
     VarRedef,
     WhileLoop,
 )
-from uza.interpreter import *
-from uza.utils import in_bold, in_color, ANSIColor
+from uzac.interpreter import *
+from uzac.utils import in_bold, in_color, ANSIColor
 
 
 @dataclass

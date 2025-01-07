@@ -8,8 +8,8 @@ from dataclasses import dataclass, field
 from enum import Enum, IntEnum, auto
 from typing import List, Optional, TypeVar
 import struct
-from uza import __version_tuple__
-from uza.ast import (
+from uzac import __version_tuple__
+from uzac.ast import (
     Application,
     Block,
     ExpressionList,
@@ -24,9 +24,9 @@ from uza.ast import (
     VarRedef,
     WhileLoop,
 )
-from uza.token import token_true
-from uza.utils import Span
-from uza.interpreter import (
+from uzac.token import token_true
+from uzac.utils import Span
+from uzac.interpreter import (
     bi_add,
     bi_div,
     bi_mul,

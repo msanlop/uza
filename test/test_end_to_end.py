@@ -1,7 +1,7 @@
 import pytest
 
-from uza.interpreter import Interpreter
-from uza.parser import Parser
+from uzac.interpreter import Interpreter
+from uzac.parser import Parser
 from .helper import parse_test_file, TESTS_PATH, MAGENTA, RESET, remove_new_lines
 import os
 

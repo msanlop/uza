@@ -70,7 +70,7 @@ jobs:
 
       - name: Run pylint
         run: |
-          pylint --fail-under=9 uza vm
+          pylint --fail-under=9 uzac vm
 
       - name: Format python code with ruff
         run: python -m ruff format

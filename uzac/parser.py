@@ -4,8 +4,8 @@ from functools import reduce
 import string
 from typing import Callable, List, Optional, TypeVar
 
-from uza.interpreter import get_builtin
-from uza.ast import (
+from uzac.interpreter import get_builtin
+from uzac.ast import (
     Application,
     Block,
     ExpressionList,
@@ -27,10 +27,10 @@ from uza.ast import (
     WhileLoop,
 )
 
-from uza.type import ArrowType, Type, identifier_to_uza_type
-from uza.utils import Span, SymbolTable
-from uza.token import *
-from uza import typer
+from uzac.type import ArrowType, Type, identifier_to_uza_type
+from uzac.utils import Span, SymbolTable
+from uzac.token import *
+from uzac import typer
 
 
 class Scanner:
