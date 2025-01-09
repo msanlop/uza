@@ -14,7 +14,7 @@ static uint32_t hash_string(const char* key, int length) {
     return hash;
 }
 
-ObjectString* object_string_allocate(Table *strings, char *chars, const int string_length) {
+ObjectString* object_string_allocate(Table *strings, const char *chars, const int string_length) {
     uint32_t hash = hash_string(chars, string_length);
     ObjectString *res = tableFindString(strings, chars, string_length, hash);
     if (res != NULL) {
@@ -65,6 +65,15 @@ ObjectString* object_string_concat(Table *strings, const ObjectString *lhs, cons
         free(buff);
     }
     return new_str;
+}
+
+ObjectFunction *object_function_allocate() {
+    ObjectFunction* function = (ObjectFunction *) calloc(1, sizeof(ObjectFunction));
+    function->obj.type = OBJ_FUNCTION;
+    function->arity = 0;
+    function->name = NULL;
+    // chunk_init(&function->chunk);
+    return function;
 }
 
 void object_string_free(ObjectString* obj_string) {

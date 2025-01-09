@@ -14,11 +14,13 @@ from uzac.ast import (
     Block,
     ExpressionList,
     ForLoop,
+    Function,
     Identifier,
     IfElse,
     InfixApplication,
     Literal,
     Node,
+    Return,
     VarDef,
     Program,
     VarRedef,
@@ -44,9 +46,12 @@ operations = []
 
 class OPCODE(Enum):
     RETURN = 0
+    CALL = auto()
+    CALL_NATIVE = auto()
     JUMP = auto()
     LOOP = auto()
     POP = auto()
+    LFUNC = auto()
     LCONST = auto()
     DCONST = auto()
     STRCONST = auto()
@@ -127,10 +132,12 @@ class Chunk:
     A bytechunk constainst a constant pool, and a list of bytecodes.
     """
 
+    name: str
     code: list[Op]
     constants: list[Const]
 
-    def __init__(self, code: Optional[list[Op]] = None) -> None:
+    def __init__(self, name: str, code: Optional[list[Op]] = None) -> None:
+        self.name = name
         if code:
             self.code = code
         else:
@@ -165,7 +172,7 @@ class Chunk:
         return op.size
 
     def __repr__(self) -> str:
-        return f"Chunk({repr(self.code)})"
+        return f"Chunk({self.name}, {repr(self.code)})"
 
 
 T = TypeVar("T")
@@ -253,19 +260,28 @@ class ByteCodeProgram:
     """
 
     program: Program
-    chunk: Chunk
+    chunks: List[Chunk]
+    _chunk: Chunk
     _local_vars: ByteCodeLocals
     _written: int
 
     def __init__(self, program: Program) -> None:
         self.program = program
         self._written = 0
-        self.chunk = Chunk()
+        self._chunk = Chunk("<main>")
+        self.chunks = list()
+        self.chunks.append(self._chunk)
         self._local_vars = ByteCodeLocals()
         self._build_chunk()
 
+    def _get_chunk_offset(self, name: str) -> Optional[int]:
+        try:
+            list(map(lambda chunk: chunk.name, self.chunks)).index(name)
+        except ValueError:
+            return None
+
     def emit_op(self, op: Op) -> int:
-        self.chunk.add_op(op)
+        self._chunk.add_op(op)
         self._written += op.size
         return self._written
 
@@ -334,6 +350,29 @@ class ByteCodeProgram:
             raise NotImplementedError("variables from outer frames not yet implemented")
         return self.emit_op(Op(OPCODE.GETLOCAL, identifier.span, local_index=idx))
 
+    def visit_function(self, func: Function) -> int:
+        with self._local_vars.new_frame():
+            chunk_save = self._chunk
+            chunk_new = Chunk(func.identifier.name)
+
+            self.chunks.append(chunk_new)
+            self._chunk = chunk_new
+            for idx, param in enumerate(func.param_names):
+                self._local_vars.define(param.name)
+
+            func.body.visit(self)
+
+            self._chunk = chunk_save
+            self.emit_op(
+                Op(
+                    OPCODE.LCONST,
+                    constant=func.identifier.name,
+                    span=func.identifier.span,
+                )
+            )
+            chunk_idx = len(self.chunks) - 1
+            self.emit_op(Op(OPCODE.LFUNC, constant=chunk_idx, span=func.span))
+
     def visit_var_def(self, var_def: VarDef) -> int:
         var_def.value.visit(self)
         name = var_def.identifier
@@ -359,14 +398,27 @@ class ByteCodeProgram:
         return self.emit_op(Op(OPCODE.SETLOCAL, var_redef.span, local_index=idx))
 
     def visit_application(self, application: Application) -> int:
-        func_id = application.func_id
-        # the println function is emitted as RETURN for now
-        application.args[0].visit(self)
-        if func_id.name == "println":
+        for arg in application.args[::-1]:
+            arg.visit(self)
+
+        if get_builtin(application.func_id):
             return self.emit_op(
-                Op(OPCODE.RETURN, application.span),
+                Op(
+                    OPCODE.CALL_NATIVE,
+                    constant=application.func_id.name,
+                    span=application.span,
+                )
             )
-        raise NotImplementedError("only println implemented currently")
+        self.emit_op(
+            Op(OPCODE.LCONST, constant=application.func_id.name, span=application.span)
+        )
+        return self.emit_op(
+            Op(OPCODE.CALL, local_index=len(application.args), span=application.span)
+        )
+
+    def visit_return(self, ret: Return) -> int:
+        ret.value.visit(self)
+        return self.emit_op(Op(OPCODE.RETURN, span=ret.span))
 
     def _and(self, and_app: InfixApplication) -> int:
         and_app.lhs.visit(self)
@@ -531,11 +583,11 @@ class ByteCodeProgramSerializer:
         self.bytes_ += buff
         return wrote
 
-    def _write_constants(self):
+    def _write_constants(self, chunk: Chunk):
         """
         Write the constant pool to self.file.
         """
-        constants = self.program.chunk.constants
+        constants = chunk.constants
         self._write((len(constants)).to_bytes(1, BYTE_ORDER))
         for constant in constants:
             const_type = type(constant)
@@ -566,9 +618,9 @@ class ByteCodeProgramSerializer:
         span_pack = struct.pack("<H", span.start)
         return self._write(span_pack)
 
-    def _write_chunk(self):
-        self._write_constants()
-        code = self.program.chunk.code
+    def _write_chunk(self, chunk: Chunk):
+        self._write_constants(chunk)
+        code = chunk.code
         written = 0
         for opcode in code:
             self._write_span(
@@ -590,7 +642,13 @@ class ByteCodeProgramSerializer:
 
     def _serialize(self):
         self._write_version()
-        self._write_chunk()
+        chunks = self.program.chunks
+        chunk_count = struct.pack("<I", len(chunks))
+        self._write(chunk_count)
+        for chunk in chunks:
+            op_count = struct.pack("<I", len(chunk.code))
+            self._write(op_count)
+            self._write_chunk(chunk)
 
     def get_bytes(self):
         return self.bytes_

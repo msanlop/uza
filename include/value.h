@@ -37,6 +37,8 @@ typedef struct {
 #define AS_INTEGER(value) ((value).as.integer)
 #define AS_DOUBLE(value) ((value).as.fp)
 #define AS_OBJECT(value) ((Obj*) (value).as.object)
+#define AS_STRING(value) ((ObjectString*) AS_OBJECT(value))
+#define AS_FUNCTION(value) ((ObjectFunction*) AS_OBJECT(value))
 
 #define I2D(value) \
   do { \
@@ -63,7 +65,10 @@ typedef struct {
       break; \
     case TYPE_OBJ: \
       if(AS_OBJECT(value)->type == OBJ_STRING) { \
-        fprintf((out), "%s", ((ObjectString*) AS_OBJECT(value))->chars); \
+        fprintf((out), "%s", (AS_STRING((value)))->chars); \
+      } \
+      if(AS_OBJECT(value)->type == OBJ_FUNCTION) { \
+        fprintf((out), "%s", AS_FUNCTION(value)->name->chars); \
       } \
       else { \
       } \
