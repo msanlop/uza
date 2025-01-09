@@ -8,19 +8,21 @@
 #include <stdio.h>
 #include "chunk.h"
 
-#define STACK_MAX (1048576 / sizeof(Value)) // 1MiB
+#define STACK_MAX ((1 << 20) / sizeof(Value)) // 1MiB
 #define FRAMES_MAX (1000)
 
 typedef struct {
+    ObjectFunction *function;
     size_t locals_count;
     Value *locals;
+    uint8_t *ip;
+    bool is_block; // _return_ statements pop block frames
 } Frame;
 
 
 typedef struct {
     // uint8_t version[3];
-    Chunk chunk;
-    uint8_t* ip;
+    Chunk *chunks;
     Value stack[STACK_MAX];
     Value* stack_top;
     uint16_t depth;

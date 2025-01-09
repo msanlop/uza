@@ -184,11 +184,11 @@ void debug_vm_dump(VM* vm) {
     DEBUG_PRINT("\n");
     DEBUG_PRINT(RED "##### DUMP ####\n" RESET);
     DEBUG_PRINT("///  VM   ///\n");
-    DEBUG_PRINT("ip: %p\n", vm->ip);
+    DEBUG_PRINT("ip: %p\n", vm->frame_stacks[vm->depth].ip);
     DEBUG_PRINT("/// stack ///\n");
     DEBUG_PRINT("count: %d\n", (int) (vm->stack_top - vm->stack));
     debug_stack_print(vm, "values:");
-    debug_chunk_print(&vm->chunk);
+    debug_chunk_print(&vm->frame_stacks[vm->depth].function->chunk);
     DEBUG_PRINT(RED "/////////////\n" RESET);
     DEBUG_PRINT("\n");
     DEBUG_PRINT("\n");

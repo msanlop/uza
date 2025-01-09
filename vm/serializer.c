@@ -51,7 +51,9 @@ void read_program(VM *vm, program_bytes_t* program) {
 }
 
 void load_chunk(VM *vm, program_bytes_t* program) {
-    load_constants(&vm->chunk.constants, program, &vm->strings);
+    Chunk *main_chunk = vm->chunks;
+    chunk_init(main_chunk);
+    load_constants(&main_chunk->constants, program, &vm->strings);
     uint16_t line = 0;
     int op_count = 0;
     while (program->count != 0) {
@@ -142,7 +144,7 @@ void load_constants(ValueArray* array, program_bytes_t* program, Table *strings)
 void load_op(VM *vm, uint16_t line, program_bytes_t* program) {
     OpCode opcode = 0;
     PROG_CPY(opcode, program, uint8_t);
-    Chunk *chunk = &vm->chunk;
+    Chunk *chunk = &vm->chunks[0];
     switch (opcode) {
         case OP_DCONST:
         case OP_STRCONST:

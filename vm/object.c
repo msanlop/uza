@@ -67,6 +67,15 @@ ObjectString* object_string_concat(Table *strings, const ObjectString *lhs, cons
     return new_str;
 }
 
+ObjectFunction *object_function_allocate() {
+    ObjectFunction* function = (ObjectFunction *) calloc(1, sizeof(ObjectFunction));
+    function->obj.type = OBJ_FUNCTION;
+    function->arity = 0;
+    function->name = NULL;
+    chunk_init(&function->chunk);
+    return function;
+}
+
 void object_string_free(ObjectString* obj_string) {
     free(obj_string);
 }
