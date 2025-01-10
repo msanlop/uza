@@ -7,7 +7,7 @@
 
 
 void chunk_init(Chunk* chunk) {
-    chunk->capacity = 0;
+    chunk->local_count = 0;
     chunk->count = 0;
     chunk->code = NULL;
     chunk->count = 0;

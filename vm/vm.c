@@ -152,7 +152,7 @@ int interpret(VM* vm) {
         switch (instruction) {
         case OP_RETURN: {
             Value ret_val = pop(vm);
-            vm->stack_top -= GET_FRAME(0)->function->arity;
+            vm->stack_top = GET_FRAME(0)->locals;
             vm->depth--;
 
             frame = GET_FRAME(0);
@@ -160,22 +160,22 @@ int interpret(VM* vm) {
         }
         break;
         case OP_CALL: {
-            uint32_t arg_count = IP_FETCH_INCR;
+            // uint32_t arg_count = IP_FETCH_INCR;
             Value func_name = pop(vm);
             Value func_val = {0};
             tableGet(&vm->globals, AS_STRING(func_name), &func_val);
             ObjectFunction *func = AS_FUNCTION(func_val);
             vm->depth++;
             Frame *curr = GET_FRAME(0);
+            frame = curr;
             curr->function = func;
-            func->arity = arg_count;
-            curr->locals_count = arg_count;
-            curr->locals = vm->stack_top - arg_count;
+            chunk = frame->function->chunk;
+
+            curr->locals_count = func->arity + chunk->local_count;
+            curr->locals = vm->stack_top - func->arity; // args are in the stack
             curr->ip = func->chunk->code;
             curr->is_block = false;
-            vm->stack_top = curr->locals + arg_count;
-            frame = curr;
-            chunk = frame->function->chunk;
+            vm->stack_top = curr->locals + curr->locals_count;
         };
         break;
         case OP_CALL_NATIVE: {
@@ -205,9 +205,13 @@ int interpret(VM* vm) {
             break;
         case OP_LFUNC: {
             Value idx = CONSTANT(IP_FETCH_INCR);
+            Value arity = pop(vm);
+            Value locals_count = pop(vm);
             ObjectFunction *func = object_function_allocate();
             func->chunk = vm->chunks[idx.as.integer];
+            func->chunk->local_count = locals_count.as.integer;
             func->name = AS_STRING(pop(vm));
+            func->arity = arity.as.integer;
             tableSet(&vm->globals, func->name, (Value) {TYPE_OBJ, .as.object= (Obj *) func});
         }
         break;

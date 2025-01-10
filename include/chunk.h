@@ -7,8 +7,8 @@
 #include "stdint.h"
 
 typedef struct {
-    size_t capacity;
     size_t count;
+    size_t local_count;
     ValueArray constants;
     uint16_t* lines;
     uint8_t* code;

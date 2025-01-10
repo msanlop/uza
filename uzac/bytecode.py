@@ -370,6 +370,21 @@ class ByteCodeProgram:
                     span=func.identifier.span,
                 )
             )
+            param_count = len(func.param_names)
+            self.emit_op(
+                Op(
+                    OPCODE.LCONST,
+                    constant=param_count,
+                    span=func.identifier.span,
+                )
+            )
+            self.emit_op(
+                Op(
+                    OPCODE.LCONST,
+                    constant=self._local_vars.get_num_locals() - param_count,
+                    span=func.identifier.span,
+                )
+            )
             chunk_idx = len(self.chunks) - 1
             self.emit_op(Op(OPCODE.LFUNC, constant=chunk_idx, span=func.span))
 

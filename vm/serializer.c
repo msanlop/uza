@@ -69,6 +69,7 @@ void load_chunk(VM *vm, size_t chunk_idx, program_bytes_t* program) {
 
     load_constants(&chunk->constants, program, &vm->strings);
     chunk->code = program->bytes;
+    DEBUG_PRINT("chunk count is %d\n", ops_count);
     chunk->count = ops_count;
     uint8_t * lines_start = (program->bytes + ops_length);
     program->bytes += ops_length;
@@ -163,39 +164,39 @@ void load_constants(ValueArray* array, program_bytes_t* program, Table *strings)
     }
 }
 void load_op(VM *vm, size_t chunk_idx, uint16_t line, program_bytes_t* program) {
-    OpCode opcode = 0;
-    PROG_CPY(opcode, program, uint8_t);
-    Chunk *chunk = vm->chunks[chunk_idx];
-    switch (opcode) {
-        case OP_DCONST:
-        case OP_CALL:
-        case OP_CALL_NATIVE:
-        case OP_STRCONST:
-        case OP_LFUNC:
-        case OP_LCONST:
-        case OP_DEFGLOBAL:
-        case OP_GETGLOBAL:
-        case OP_SETGLOBAL:
-        case OP_BLOCK:
-        case OP_DEFLOCAL:
-        case OP_GETLOCAL:
-        case OP_SETLOCAL:
-            CHUNK_WRITE(uint8_t, opcode, line);
-            uint8_t u8_arg = 0;
-            PROG_CPY(u8_arg, program, uint8_t);
-            CHUNK_WRITE(uint8_t, u8_arg, line);
-            break;
-        case OP_JUMP:
-        case OP_LOOP:
-        case OP_JUMP_IF_FALSE:
-        case OP_JUMP_IF_TRUE:
-            CHUNK_WRITE(uint8_t, opcode, line);
-            uint16_t offset = 0;
-            PROG_CPY(offset, program, uint16_t);
-            CHUNK_WRITE(uint16_t, offset, line);
-            break;
-        default:
-            CHUNK_WRITE(uint8_t, opcode, line);
-            break;
-    }
+    // OpCode opcode = 0;
+    // PROG_CPY(opcode, program, uint8_t);
+    // Chunk *chunk = vm->chunks[chunk_idx];
+    // switch (opcode) {
+    //     case OP_DCONST:
+    //     case OP_CALL:
+    //     case OP_CALL_NATIVE:
+    //     case OP_STRCONST:
+    //     case OP_LFUNC:
+    //     case OP_LCONST:
+    //     case OP_DEFGLOBAL:
+    //     case OP_GETGLOBAL:
+    //     case OP_SETGLOBAL:
+    //     case OP_BLOCK:
+    //     case OP_DEFLOCAL:
+    //     case OP_GETLOCAL:
+    //     case OP_SETLOCAL:
+    //         CHUNK_WRITE(uint8_t, opcode, line);
+    //         uint8_t u8_arg = 0;
+    //         PROG_CPY(u8_arg, program, uint8_t);
+    //         CHUNK_WRITE(uint8_t, u8_arg, line);
+    //         break;
+    //     case OP_JUMP:
+    //     case OP_LOOP:
+    //     case OP_JUMP_IF_FALSE:
+    //     case OP_JUMP_IF_TRUE:
+    //         CHUNK_WRITE(uint8_t, opcode, line);
+    //         uint16_t offset = 0;
+    //         PROG_CPY(offset, program, uint16_t);
+    //         CHUNK_WRITE(uint16_t, offset, line);
+    //         break;
+    //     default:
+    //         CHUNK_WRITE(uint8_t, opcode, line);
+    //         break;
+    // }
 }
