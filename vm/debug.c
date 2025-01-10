@@ -50,14 +50,6 @@ void debug_jump_print(char* code_str, Chunk* chunk, int offset){
 }
 
 int debug_op_print(Chunk* chunk, int offset) {
-    DEBUG_PRINT("%04d  ", offset);
-    uint16_t line = GET_LINE_AT(chunk, offset);
-    if(offset>0 && GET_LINE_AT(chunk, offset-1) == line) {
-        DEBUG_PRINT("    |  ");
-    } else {
-        DEBUG_PRINT("%5d  ", line);
-    }
-
     switch (GET_CODE_AT(chunk, offset))
     {
     case OP_RETURN:
@@ -183,8 +175,19 @@ void debug_chunk_print(Chunk* chunk) {
         PRINT_VALUE(chunk->constants.values[i], stderr);
         DEBUG_PRINT("\n");
     }
-    for (size_t offset = 0; offset < chunk->count;)
+    DEBUG_PRINT("there are %d ops\n", chunk->count);
+    size_t offset = 0;
+    for (size_t i = 0; i < chunk->count; i++)
     {
+        DEBUG_PRINT("%04d  ", i);
+
+        uint16_t line = GET_LINE_AT(chunk, i);
+        if(i>0 && GET_LINE_AT(chunk, i-1) == line) {
+            DEBUG_PRINT("    |  ");
+        } else {
+            DEBUG_PRINT("%5d  ", line);
+        }
+
         int incr = debug_op_print(chunk, offset);
         offset+=incr;
         DEBUG_PRINT("\n");
