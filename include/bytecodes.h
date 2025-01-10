@@ -3,6 +3,7 @@
 
 typedef enum {
     OP_RETURN,
+    OP_CALL,
     OP_JUMP,
     OP_LOOP,
     OP_POP,

@@ -4,9 +4,11 @@
 #include <string.h>
 #include "table.h"
 #include "chunk.h"
+#include "native.h"
 
 typedef enum {
     OBJ_STRING,
+    OBJ_FUNCTION_NATIVE,
     OBJ_FUNCTION,
 } ObjectType;
 
@@ -18,7 +20,11 @@ struct Obj {
 typedef struct {
     struct Obj obj;
     int arity;
-    Chunk chunk;
+    union
+    {
+        Chunk chunk;
+        native_function function;
+    };
     ObjectString *name;
 } ObjectFunction;
 
@@ -33,10 +39,8 @@ struct ObjectString{
 #define OBJ_TYPE(object) (AS_OBJECT((object))->type)
 #define IS_STRING(value) (IS_OBJECT(value) && (OBJ_TYPE(value) == OBJ_STRING))
 
-#define AS_STRING(string_value) (((struct ObjectString* ) AS_OBJECT(string_value)))
 
-
-ObjectString* object_string_allocate(Table *strings, char *chars, const int string_length);
+ObjectString* object_string_allocate(Table *strings, const char *chars, const int string_length);
 void object_string_hash(struct ObjectString *string);
 void object_string_free(struct ObjectString* obj_string);
 struct ObjectString* object_string_concat(Table *strings, const struct ObjectString *lhs, const struct ObjectString *rhs);

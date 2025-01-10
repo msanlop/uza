@@ -14,7 +14,7 @@ static uint32_t hash_string(const char* key, int length) {
     return hash;
 }
 
-ObjectString* object_string_allocate(Table *strings, char *chars, const int string_length) {
+ObjectString* object_string_allocate(Table *strings, const char *chars, const int string_length) {
     uint32_t hash = hash_string(chars, string_length);
     ObjectString *res = tableFindString(strings, chars, string_length, hash);
     if (res != NULL) {

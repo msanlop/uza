@@ -44,6 +44,7 @@ operations = []
 
 class OPCODE(Enum):
     RETURN = 0
+    CALL = auto()
     JUMP = auto()
     LOOP = auto()
     POP = auto()
@@ -359,14 +360,12 @@ class ByteCodeProgram:
         return self.emit_op(Op(OPCODE.SETLOCAL, var_redef.span, local_index=idx))
 
     def visit_application(self, application: Application) -> int:
-        func_id = application.func_id
-        # the println function is emitted as RETURN for now
-        application.args[0].visit(self)
-        if func_id.name == "println":
-            return self.emit_op(
-                Op(OPCODE.RETURN, application.span),
-            )
-        raise NotImplementedError("only println implemented currently")
+        for arg in application.args:
+            arg.visit(self)
+
+        return self.emit_op(
+            Op(OPCODE.CALL, constant=application.func_id.name, span=application.span)
+        )
 
     def _and(self, and_app: InfixApplication) -> int:
         and_app.lhs.visit(self)

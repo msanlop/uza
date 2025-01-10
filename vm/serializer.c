@@ -147,6 +147,7 @@ void load_op(VM *vm, uint16_t line, program_bytes_t* program) {
     Chunk *chunk = &vm->chunks[0];
     switch (opcode) {
         case OP_DCONST:
+        case OP_CALL:
         case OP_STRCONST:
         case OP_LCONST:
         case OP_DEFGLOBAL:

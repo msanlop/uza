@@ -63,6 +63,10 @@ int debug_op_print(Chunk* chunk, int offset) {
         DEBUG_PRINT("OP_RETURN");
         return 1;
         break;
+    case OP_CALL:
+        debug_constant_print("OP_CALL", chunk, offset + 1);
+        return 2;
+        break;
     case OP_JUMP:
         debug_jump_print("OP_JUMP", chunk, offset + 1);
         return 3;

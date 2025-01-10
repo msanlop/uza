@@ -9,6 +9,7 @@
 #include "memory.h"
 #include "value.h"
 #include "chunk.h"
+#include "native.h"
 
 #ifndef NDEBUG
 #include "debug.h"
@@ -22,7 +23,7 @@
 #define DEBUG_SET_STACK_VALUE_TO_BOOL
 #endif
 
-#define FRAME_UP(up_count) (&vm->frame_stacks[vm->depth - up_count])
+#define GET_FRAME(up_count) (&vm->frame_stacks[vm->depth - up_count])
 
 #define IP_FETCH_INCR (*(frame->ip++))
 #define CURR_FRAME ()
@@ -92,6 +93,25 @@ VM* vm_init(program_bytes_t* program) {
     initTable(&vm->globals);
     read_program(vm, program);
 
+    size_t count;
+    const NativeFunction *natives = native_functions_get(&count);
+    for (size_t i = 0; i < count; i++)
+    {
+        const NativeFunction *func = &natives[i];
+        ObjectString *func_name = object_string_allocate(&vm->strings, func->name, func->name_len);
+        ObjectFunction *func_obj = object_function_allocate();
+        func_obj->arity = func->arity;
+        func_obj->function = func->function;
+        func_obj->obj = (Obj) {OBJ_FUNCTION_NATIVE, NULL};
+        func_obj->name = func_name;
+        Value test = {TYPE_OBJ, .as.object= (Obj *) func_name};
+        PRINT_VALUE(test, stderr);
+        Value val = {TYPE_OBJ, .as.object=(Obj *) (func_obj)};
+        Value test1 = {0};
+        tableSet(&vm->globals, func_name, val);
+    }
+
+
     vm->depth = 0;
     Frame *global_frame = &vm->frame_stacks[vm->depth];
     global_frame->function = object_function_allocate();
@@ -134,11 +154,24 @@ int interpret(VM* vm) {
 
         switch (instruction) {
         case OP_RETURN: {
-            // simulate print() to test code, TODO: remove when obsolete
-            Value val = pop(vm);
-            DEBUG_PRINT("STDOUT PRINTLN: ");
-            PRINT_VALUE(val, stdout);
-            printf(NEWLINE);
+        }
+        break;
+        case OP_CALL: {
+            Value func_val = VAL_NIL;
+            Value func_name = CONSTANT(IP_FETCH_INCR);
+            if (!tableGet(&vm->globals, AS_STRING(func_name), &func_val)) {
+                PRINT_ERR("Could not find function :");
+                PRINT_VALUE(func_name, stderr);
+                fprintf(stderr, NEWLINE);
+                exit(1);
+            }
+            ObjectFunction *func = AS_FUNCTION(func_val);
+            if (func->obj.type == OBJ_FUNCTION_NATIVE) {
+                func->function(vm);
+            }
+            else {
+                exit(1);
+            }
         }
         break;
         case OP_JUMP: {
@@ -228,17 +261,17 @@ int interpret(VM* vm) {
         }
         break;
         case OP_SETGLOBAL: {
-            int constant = IP_FETCH_INCR;
-            ObjectString *identifier = AS_STRING(CONSTANT(constant));
-            Value val = pop(vm);
-            tableSet(&vm->globals, identifier, val);
+        int constant = IP_FETCH_INCR;
+        ObjectString *identifier = AS_STRING(CONSTANT(constant));
+        Value val = pop(vm);
+        tableSet(&vm->globals, identifier, val);
         }
         break;
         case OP_BLOCK: {
             vm->depth++;
-            frame = FRAME_UP(0);
-            frame->function = FRAME_UP(1)->function;
-            frame->ip = FRAME_UP(1)->ip;
+            frame = GET_FRAME(0);
+            frame->function = GET_FRAME(1)->function;
+            frame->ip = GET_FRAME(1)->ip;
             frame->locals = vm->stack_top;
             int locals_num = IP_FETCH_INCR;
             frame->locals_count = locals_num;
