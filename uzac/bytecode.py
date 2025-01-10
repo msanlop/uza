@@ -361,6 +361,19 @@ class ByteCodeProgram:
                 self._local_vars.define(param.name)
 
             func.body.visit(self)
+            self.emit_op(
+                Op(
+                    OPCODE.LCONST,
+                    constant="NIL",
+                    span=func.body.span,
+                )
+            )
+            self.emit_op(
+                Op(
+                    OPCODE.RETURN,
+                    span=func.body.span,
+                )
+            )
 
             self._chunk = chunk_save
             self.emit_op(

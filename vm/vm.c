@@ -202,8 +202,8 @@ int interpret(VM* vm) {
             break;
         case OP_LFUNC: {
             Value idx = CONSTANT(IP_FETCH_INCR);
-            Value arity = pop(vm);
             Value locals_count = pop(vm);
+            Value arity = pop(vm);
             ObjectFunction *func = object_function_allocate();
             func->chunk = vm->chunks[idx.as.integer];
             func->chunk->local_count = locals_count.as.integer;
