@@ -87,8 +87,6 @@ VM* vm_init(program_bytes_t* program) {
     VM* vm = calloc(1, sizeof(VM));
     if (vm == NULL) return vm;
 
-    vm->chunks = calloc(1, sizeof(Chunk));
-
     initTable(&vm->strings);
     initTable(&vm->globals);
     read_program(vm, program);
@@ -116,10 +114,10 @@ VM* vm_init(program_bytes_t* program) {
     Frame *global_frame = &vm->frame_stacks[vm->depth];
     global_frame->function = object_function_allocate();
     global_frame->function->chunk = vm->chunks[0];
-    global_frame->ip = global_frame->function->chunk.code;
+    global_frame->ip = global_frame->function->chunk->code;
     global_frame->locals_count = 0;
     global_frame->is_block = false;
-    global_frame->locals = NULL;
+    global_frame->locals = vm->stack;
 
     vm_stack_reset(vm);
     return vm;
@@ -128,7 +126,7 @@ VM* vm_init(program_bytes_t* program) {
 void vm_free(VM* vm){
     freeTable(&vm->strings);
     freeTable(&vm->globals);
-    chunk_free(vm->chunks);
+    // chunk_free(vm->chunks);
     free(vm);
 }
 
@@ -136,7 +134,7 @@ int interpret(VM* vm) {
     while(!stop_interpreting) {
 
         Frame *frame = &vm->frame_stacks[vm->depth];
-        Chunk *chunk = &frame->function->chunk;
+        Chunk *chunk = frame->function->chunk;
 
         #ifdef DEBUG_TRACE_EXECUTION_OP
             DEBUG_PRINT(PURPLE "running op\n  " RESET);
@@ -154,9 +152,34 @@ int interpret(VM* vm) {
 
         switch (instruction) {
         case OP_RETURN: {
+            Value ret_val = pop(vm);
+            vm->stack_top -= GET_FRAME(0)->function->arity;
+            vm->depth--;
+
+            frame = GET_FRAME(0);
+            push(vm, ret_val);
         }
         break;
         case OP_CALL: {
+            uint32_t arg_count = IP_FETCH_INCR;
+            Value func_name = pop(vm);
+            Value func_val = {0};
+            tableGet(&vm->globals, AS_STRING(func_name), &func_val);
+            ObjectFunction *func = AS_FUNCTION(func_val);
+            vm->depth++;
+            Frame *curr = GET_FRAME(0);
+            curr->function = func;
+            func->arity = arg_count;
+            curr->locals_count = arg_count;
+            curr->locals = vm->stack_top - arg_count;
+            curr->ip = func->chunk->code;
+            curr->is_block = false;
+            vm->stack_top = curr->locals + arg_count;
+            frame = curr;
+            chunk = frame->function->chunk;
+        };
+        break;
+        case OP_CALL_NATIVE: {
             Value func_val = VAL_NIL;
             Value func_name = CONSTANT(IP_FETCH_INCR);
             if (!tableGet(&vm->globals, AS_STRING(func_name), &func_val)) {
@@ -166,12 +189,7 @@ int interpret(VM* vm) {
                 exit(1);
             }
             ObjectFunction *func = AS_FUNCTION(func_val);
-            if (func->obj.type == OBJ_FUNCTION_NATIVE) {
-                func->function(vm);
-            }
-            else {
-                exit(1);
-            }
+            func->function(vm);
         }
         break;
         case OP_JUMP: {
@@ -187,6 +205,14 @@ int interpret(VM* vm) {
         case OP_POP:
             pop(vm);
             break;
+        case OP_LFUNC: {
+            Value idx = CONSTANT(IP_FETCH_INCR);
+            ObjectFunction *func = object_function_allocate();
+            func->chunk = vm->chunks[idx.as.integer];
+            func->name = AS_STRING(pop(vm));
+            tableSet(&vm->globals, func->name, (Value) {TYPE_OBJ, .as.object= (Obj *) func});
+        }
+        break;
         case OP_STRCONST:
         case OP_DCONST:
         case OP_LCONST: push(vm, CONSTANT(IP_FETCH_INCR));

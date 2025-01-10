@@ -72,7 +72,7 @@ ObjectFunction *object_function_allocate() {
     function->obj.type = OBJ_FUNCTION;
     function->arity = 0;
     function->name = NULL;
-    chunk_init(&function->chunk);
+    // chunk_init(&function->chunk);
     return function;
 }
 

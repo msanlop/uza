@@ -47,22 +47,30 @@ void read_program(VM *vm, program_bytes_t* program) {
     system_is_little_endian = endian_test == ((char*) &endian_test)[0];
     uint8_t version[3] = {0};
     read_program_version(version, program);
-    load_chunk(vm, program);
+    uint32_t chunk_count = 0;
+    PROG_CPY(chunk_count, program, uint32_t);
+
+    vm->chunks = calloc(chunk_count, sizeof(Chunk *));
+
+    for (size_t i = 0; i < chunk_count; i++) {
+        load_chunk(vm, i, program);
+    }
 }
 
-void load_chunk(VM *vm, program_bytes_t* program) {
-    Chunk *main_chunk = vm->chunks;
-    chunk_init(main_chunk);
-    load_constants(&main_chunk->constants, program, &vm->strings);
+void load_chunk(VM *vm, size_t chunk_idx, program_bytes_t* program) {
+    uint32_t ops_count = 0;
+    PROG_CPY(ops_count, program, uint32_t);
+    vm->chunks[chunk_idx] = calloc(1, sizeof(Chunk) + ops_count);
+    Chunk *chunk = vm->chunks[chunk_idx];
+    chunk_init(chunk);
+    load_constants(&chunk->constants, program, &vm->strings);
     uint16_t line = 0;
-    int op_count = 0;
-    while (program->count != 0) {
+
+    for (size_t i = 0; i < ops_count; i++) {
         PROG_CPY(line, program, uint16_t);
         if(!system_is_little_endian) line = REV_U16(line);
-        load_op(vm, line, program);
-        op_count++;
+        load_op(vm, chunk_idx, line, program);
     }
-    DEBUG_PRINT("opcount: %d\n", op_count);
 }
 
 void load_constants(ValueArray* array, program_bytes_t* program, Table *strings) {
@@ -141,14 +149,16 @@ void load_constants(ValueArray* array, program_bytes_t* program, Table *strings)
         value_array_write(array, constant);
     }
 }
-void load_op(VM *vm, uint16_t line, program_bytes_t* program) {
+void load_op(VM *vm, size_t chunk_idx, uint16_t line, program_bytes_t* program) {
     OpCode opcode = 0;
     PROG_CPY(opcode, program, uint8_t);
-    Chunk *chunk = &vm->chunks[0];
+    Chunk *chunk = vm->chunks[chunk_idx];
     switch (opcode) {
         case OP_DCONST:
         case OP_CALL:
+        case OP_CALL_NATIVE:
         case OP_STRCONST:
+        case OP_LFUNC:
         case OP_LCONST:
         case OP_DEFGLOBAL:
         case OP_GETGLOBAL:

@@ -9,7 +9,8 @@ void debug_stack_print(VM* vm, char* str) {
     }
     else {
         DEBUG_PRINT("%s\n" CYAN , str);
-        for (Value* slot = vm->stack; slot < vm->stack_top; slot++) {
+        Frame *frame = &vm->frame_stacks[vm->depth];
+        for (Value* slot = &frame->locals[frame->locals_count]; slot < vm->stack_top; slot++) {
             PRINT_VALUE((*slot), stderr);
             DEBUG_PRINT("\n")
         }
@@ -67,6 +68,10 @@ int debug_op_print(Chunk* chunk, int offset) {
         debug_constant_print("OP_CALL", chunk, offset + 1);
         return 2;
         break;
+    case OP_CALL_NATIVE:
+        debug_constant_print("OP_CALL_NATIVE", chunk, offset + 1);
+        return 2;
+        break;
     case OP_JUMP:
         debug_jump_print("OP_JUMP", chunk, offset + 1);
         return 3;
@@ -78,6 +83,10 @@ int debug_op_print(Chunk* chunk, int offset) {
     case OP_POP:
         DEBUG_PRINT("OP_POP");
         return 1;
+        break;
+    case OP_LFUNC:
+        DEBUG_PRINT("OP_LFUNC")
+        return 2;
         break;
     case OP_LCONST:
         debug_constant_print("OP_LCONST", chunk, offset + 1);
@@ -192,7 +201,7 @@ void debug_vm_dump(VM* vm) {
     DEBUG_PRINT("/// stack ///\n");
     DEBUG_PRINT("count: %d\n", (int) (vm->stack_top - vm->stack));
     debug_stack_print(vm, "values:");
-    debug_chunk_print(&vm->frame_stacks[vm->depth].function->chunk);
+    debug_chunk_print(vm->frame_stacks[vm->depth].function->chunk);
     DEBUG_PRINT(RED "/////////////\n" RESET);
     DEBUG_PRINT("\n");
     DEBUG_PRINT("\n");

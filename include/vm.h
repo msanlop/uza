@@ -22,7 +22,7 @@ typedef struct {
 
 typedef struct {
     // uint8_t version[3];
-    Chunk *chunks;
+    Chunk **chunks;
     Value stack[STACK_MAX];
     Value* stack_top;
     uint16_t depth;

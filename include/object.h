@@ -22,7 +22,7 @@ typedef struct {
     int arity;
     union
     {
-        Chunk chunk;
+        Chunk *chunk;
         native_function function;
     };
     ObjectString *name;

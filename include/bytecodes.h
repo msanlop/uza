@@ -4,9 +4,11 @@
 typedef enum {
     OP_RETURN,
     OP_CALL,
+    OP_CALL_NATIVE,
     OP_JUMP,
     OP_LOOP,
     OP_POP,
+    OP_LFUNC,
     OP_LCONST,
     OP_DCONST,
     OP_STRCONST,
