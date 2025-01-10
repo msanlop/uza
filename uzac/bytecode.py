@@ -427,9 +427,7 @@ class ByteCodeProgram:
         self.emit_op(
             Op(OPCODE.LCONST, constant=application.func_id.name, span=application.span)
         )
-        return self.emit_op(
-            Op(OPCODE.CALL, local_index=len(application.args), span=application.span)
-        )
+        return self.emit_op(Op(OPCODE.CALL, span=application.span))
 
     def visit_return(self, ret: Return) -> int:
         ret.value.visit(self)

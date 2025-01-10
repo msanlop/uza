@@ -19,7 +19,7 @@ void debug_stack_print(VM* vm, char* str) {
 }
 
 void debug_locals_print(VM* vm, char* str) {
-    DEBUG_PRINT("%s :\n" CYAN , str);
+    DEBUG_PRINT("%s :\n" GREEN , str);
     if (vm->depth > 0) {
         Frame *frame = &vm->frame_stacks[vm->depth];
         for (int i = 0; i < frame->locals_count; i++) {
@@ -32,19 +32,21 @@ void debug_locals_print(VM* vm, char* str) {
 }
 
 void debug_local_print(char* code_str, Chunk* chunk, int offset){
-    DEBUG_PRINT("%s    ", code_str);
+    DEBUG_PRINT_TO("%-20s", code_str);
     int local = GET_CODE_AT(chunk, offset);
-    DEBUG_PRINT("%3d", local);
+    DEBUG_PRINT("#%-5d", local);
 }
 
 void debug_constant_print(char* code_str, Chunk* chunk, int offset){
-    DEBUG_PRINT("%s    ", code_str);
+    DEBUG_PRINT_TO("%-20s", code_str);
     int constant = GET_CODE_AT(chunk, offset);
+    DEBUG_PRINT("#%-5d" GREEN "// ", constant);
     PRINT_VALUE(chunk->constants.values[constant],stderr);
+    DEBUG_PRINT(RESET);
 }
 
 void debug_jump_print(char* code_str, Chunk* chunk, int offset){
-    DEBUG_PRINT("%s    ", code_str);
+    DEBUG_PRINT_TO("%-20s", code_str);
     uint16_t jump = GET_CODE_AT_CAST(uint16_t, chunk, offset) + sizeof(uint16_t);
     DEBUG_PRINT("%u", jump);
 }
@@ -53,12 +55,12 @@ int debug_op_print(Chunk* chunk, int offset) {
     switch (GET_CODE_AT(chunk, offset))
     {
     case OP_RETURN:
-        DEBUG_PRINT("OP_RETURN");
+        DEBUG_PRINT_TO("%-20s", "OP_RETURN");
         return 1;
         break;
     case OP_CALL:
-        debug_constant_print("OP_CALL", chunk, offset + 1);
-        return 2;
+        DEBUG_PRINT_TO("%-20s", "OP_CALL");
+        return 1;
         break;
     case OP_CALL_NATIVE:
         debug_constant_print("OP_CALL_NATIVE", chunk, offset + 1);
@@ -73,11 +75,11 @@ int debug_op_print(Chunk* chunk, int offset) {
         return 3;
         break;
     case OP_POP:
-        DEBUG_PRINT("OP_POP");
+        DEBUG_PRINT_TO("%-20s", "OP_POP");
         return 1;
         break;
     case OP_LFUNC:
-        DEBUG_PRINT("OP_LFUNC")
+        DEBUG_PRINT_TO("%-20s", "OP_LFUNC")
         return 2;
         break;
     case OP_LCONST:
@@ -93,11 +95,11 @@ int debug_op_print(Chunk* chunk, int offset) {
         return 2;
         break;
     case OP_BOOLTRUE:
-        DEBUG_PRINT("OP_BOOLTRUE");
+        DEBUG_PRINT_TO("%-20s", "OP_BOOLTRUE");
         return 1;
         break;
     case OP_BOOLFALSE:
-        DEBUG_PRINT("OP_BOOLFALSE");
+        DEBUG_PRINT_TO("%-20s", "OP_BOOLFALSE");
         return 1;
         break;
     case OP_JUMP_IF_FALSE:
@@ -124,7 +126,7 @@ int debug_op_print(Chunk* chunk, int offset) {
         debug_local_print("OP_BLOCK", chunk, offset + 1);
         return 2;
     case OP_EXITBLOCK:
-        DEBUG_PRINT("OP_EXITBLOCK");
+        DEBUG_PRINT_TO("%-20s", "OP_EXITBLOCK");
         return 1;
     case OP_DEFLOCAL:
         debug_local_print("OP_DEFLOCAL", chunk, offset + 1);
@@ -136,29 +138,29 @@ int debug_op_print(Chunk* chunk, int offset) {
         debug_local_print("OP_GETLOCAL", chunk, offset + 1);
         return 2;
     case OP_ADD:
-        DEBUG_PRINT("OP_ADD");
+        DEBUG_PRINT_TO("%-20s", "OP_ADD");
         return 1;
         break;
     case OP_EQ:
-        DEBUG_PRINT("OP_EQ");
+        DEBUG_PRINT_TO("%-20s", "OP_EQ");
         return 1;
         break;
     case OP_LT:
-        DEBUG_PRINT("OP_LT ( < )");
+        DEBUG_PRINT_TO("%-20s", "OP_LT ( < )");
         return 1;
         break;
     case OP_SUB:
-        DEBUG_PRINT("OP_SUB");
+        DEBUG_PRINT_TO("%-20s", "OP_SUB");
         return 1;
     case OP_MUL:
-        DEBUG_PRINT("OP_MUL");
+        DEBUG_PRINT_TO("%-20s", "OP_MUL");
         return 1;
     case OP_DIV:
-        DEBUG_PRINT("OP_DIV");
+        DEBUG_PRINT_TO("%-20s", "OP_DIV");
         return 1;
         break;
     case OP_EXITVM:
-        DEBUG_PRINT("OP_EXITVM");
+        DEBUG_PRINT_TO("%-20s", "OP_EXITVM");
         return 1;
         break;
     default:

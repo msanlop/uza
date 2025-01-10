@@ -154,13 +154,10 @@ int interpret(VM* vm) {
             Value ret_val = pop(vm);
             vm->stack_top = GET_FRAME(0)->locals;
             vm->depth--;
-
-            frame = GET_FRAME(0);
             push(vm, ret_val);
         }
         break;
         case OP_CALL: {
-            // uint32_t arg_count = IP_FETCH_INCR;
             Value func_name = pop(vm);
             Value func_val = {0};
             tableGet(&vm->globals, AS_STRING(func_name), &func_val);

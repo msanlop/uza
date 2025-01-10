@@ -29,6 +29,8 @@
         fprintf(stderr, PURPLE fmt RESET, ##__VA_ARGS__);
     #define DEBUG_PRINT(fmt, ...) \
         fprintf(stderr, fmt, ##__VA_ARGS__);
+    #define DEBUG_PRINT_TO(fmt, ...) \
+        fprintf(stderr, fmt, ##__VA_ARGS__);
 #else
     #define DEBUG_PRINT(fmt, ...) \
         do{}while(0);
