@@ -619,15 +619,16 @@ class ByteCodeProgramSerializer:
         return self._write(span_pack)
 
     def _write_chunk(self, chunk: Chunk):
-        op_count = struct.pack("<I", len(chunk.code))
-        self._write(op_count)
+        bytecode_count = struct.pack("<I", len(chunk.code))
+        self._write(bytecode_count)
+        bytecode_len = struct.pack("<I", sum(map(lambda op: op.size, chunk.code)))
+        self._write(bytecode_len)
+
         self._write_constants(chunk)
+
         code = chunk.code
         written = 0
         for opcode in code:
-            self._write_span(
-                opcode.span
-            )  # line information is stored in different array from bytecode
             written += self._write(opcode.code.value.to_bytes(1, BYTE_ORDER))
             if opcode.constant_index is not None:
                 written += self._write(opcode.constant_index.to_bytes(1, BYTE_ORDER))
@@ -641,6 +642,9 @@ class ByteCodeProgramSerializer:
                 written == opcode.size
             ), f"For {opcode=}\n exepected it to be {opcode.size} in size but wrote {written} instead"
             written = 0
+
+        for opcode in code:
+            self._write_span(opcode.span)
 
     def _serialize(self):
         self._write_version()

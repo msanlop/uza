@@ -43,6 +43,7 @@ class Scanner:
         self._source = source
         self._source_len = len(source)
         self._start = 0
+        self._line = 0
 
     def _char_at(self, i):
         return self._source[i]
@@ -157,6 +158,8 @@ class Scanner:
     def __next__(self):
         while self._start < self._source_len:
             token = self._next_token()
+            if token.kind == token_new_line:
+                self._line += 1
             if self._discard_style:
                 while token and token.kind in (token_comment, token_space):
                     token = self._next_token()

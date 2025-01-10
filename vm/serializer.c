@@ -50,6 +50,7 @@ void read_program(VM *vm, program_bytes_t* program) {
     uint32_t chunk_count = 0;
     PROG_CPY(chunk_count, program, uint32_t);
 
+    vm->chunk_count = chunk_count;
     vm->chunks = calloc(chunk_count, sizeof(Chunk *));
 
     for (size_t i = 0; i < chunk_count; i++) {
@@ -60,17 +61,29 @@ void read_program(VM *vm, program_bytes_t* program) {
 void load_chunk(VM *vm, size_t chunk_idx, program_bytes_t* program) {
     uint32_t ops_count = 0;
     PROG_CPY(ops_count, program, uint32_t);
-    vm->chunks[chunk_idx] = calloc(1, sizeof(Chunk) + ops_count);
+    uint32_t ops_length = 0;
+    PROG_CPY(ops_length, program, uint32_t);
+    vm->chunks[chunk_idx] = calloc(1, sizeof(Chunk));
     Chunk *chunk = vm->chunks[chunk_idx];
     chunk_init(chunk);
-    load_constants(&chunk->constants, program, &vm->strings);
-    uint16_t line = 0;
 
-    for (size_t i = 0; i < ops_count; i++) {
-        PROG_CPY(line, program, uint16_t);
-        if(!system_is_little_endian) line = REV_U16(line);
-        load_op(vm, chunk_idx, line, program);
-    }
+    load_constants(&chunk->constants, program, &vm->strings);
+    chunk->code = program->bytes;
+    chunk->count = ops_count;
+    uint8_t * lines_start = (program->bytes + ops_length);
+    program->bytes += ops_length;
+    program->count -= ops_length;
+
+
+    chunk->lines = (uint16_t *) program->bytes;
+    program->bytes += ops_count * sizeof(uint16_t);
+    program->count -= ops_count * sizeof(uint16_t);
+
+    // for (size_t i = 0; i < ops_count; i++) {
+    //     PROG_CPY(line, program, uint16_t);
+    //     if(!system_is_little_endian) line = REV_U16(line);
+    //     load_op(vm, chunk_idx, line, program);
+    // }
 }
 
 void load_constants(ValueArray* array, program_bytes_t* program, Table *strings) {

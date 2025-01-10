@@ -103,7 +103,6 @@ VM* vm_init(program_bytes_t* program) {
         func_obj->obj = (Obj) {OBJ_FUNCTION_NATIVE, NULL};
         func_obj->name = func_name;
         Value test = {TYPE_OBJ, .as.object= (Obj *) func_name};
-        PRINT_VALUE(test, stderr);
         Value val = {TYPE_OBJ, .as.object=(Obj *) (func_obj)};
         Value test1 = {0};
         tableSet(&vm->globals, func_name, val);
@@ -184,7 +183,6 @@ int interpret(VM* vm) {
             Value func_name = CONSTANT(IP_FETCH_INCR);
             if (!tableGet(&vm->globals, AS_STRING(func_name), &func_val)) {
                 PRINT_ERR("Could not find function :");
-                PRINT_VALUE(func_name, stderr);
                 fprintf(stderr, NEWLINE);
                 exit(1);
             }

@@ -178,7 +178,6 @@ int debug_op_print(Chunk* chunk, int offset) {
 }
 
 void debug_chunk_print(Chunk* chunk) {
-    DEBUG_PRINT("/// Chunk ///\n");
     DEBUG_PRINT("/// constants ///\n");
     for (size_t i=0; i < chunk->constants.count; i++) {
         PRINT_VALUE(chunk->constants.values[i], stderr);
@@ -201,7 +200,12 @@ void debug_vm_dump(VM* vm) {
     DEBUG_PRINT("/// stack ///\n");
     DEBUG_PRINT("count: %d\n", (int) (vm->stack_top - vm->stack));
     debug_stack_print(vm, "values:");
-    debug_chunk_print(vm->frame_stacks[vm->depth].function->chunk);
+    for (size_t i = 0; i < vm->chunk_count; i++)
+    {
+        DEBUG_PRINT("/// Chunk %d ///\n", i);
+        debug_chunk_print(vm->chunks[i]);
+        DEBUG_PRINT(NEWLINE);
+    }
     DEBUG_PRINT(RED "/////////////\n" RESET);
     DEBUG_PRINT("\n");
     DEBUG_PRINT("\n");
