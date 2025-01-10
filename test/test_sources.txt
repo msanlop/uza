@@ -251,3 +251,56 @@ end
 //println(min(a, b) * max(b, c))
 //#expected
 //-50
+
+#test simple function
+func test() => void {
+    println("foobar")
+}
+test()
+println("end")
+#expected
+foobar
+end
+
+#test simple function return
+func test() => int {
+    return 42
+}
+println(test())
+#expected
+42
+
+#test function return
+func test(foo: int) => int {
+    return foo
+}
+println(test(42))
+#expected
+42
+
+#test function locals
+func test(foo: int) => int {
+    const temp = 2
+    return 2 + foo
+}
+println(test(42))
+#expected
+44
+
+#test function stuffs
+var i = 0
+var res = 0
+func test(foo: int) => int {
+    while i < foo {
+        println(i)
+        res += i
+        i+= 1
+    }
+    return res
+}
+println(test(3))
+#expected
+0
+1
+2
+3
