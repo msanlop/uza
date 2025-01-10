@@ -619,6 +619,8 @@ class ByteCodeProgramSerializer:
         return self._write(span_pack)
 
     def _write_chunk(self, chunk: Chunk):
+        op_count = struct.pack("<I", len(chunk.code))
+        self._write(op_count)
         self._write_constants(chunk)
         code = chunk.code
         written = 0
@@ -634,10 +636,10 @@ class ByteCodeProgramSerializer:
             elif opcode.jump_offset is not None:
                 offset_bytes = struct.pack("<H", opcode.jump_offset)
                 written += self._write(offset_bytes)
-            if written != opcode.size:
-                raise AssertionError(
-                    f"AssertionError for {opcode=}\n exepected it to be {opcode.size} in size but wrote {written} instead"
-                )
+
+            assert (
+                written == opcode.size
+            ), f"For {opcode=}\n exepected it to be {opcode.size} in size but wrote {written} instead"
             written = 0
 
     def _serialize(self):
@@ -646,8 +648,6 @@ class ByteCodeProgramSerializer:
         chunk_count = struct.pack("<I", len(chunks))
         self._write(chunk_count)
         for chunk in chunks:
-            op_count = struct.pack("<I", len(chunk.code))
-            self._write(op_count)
             self._write_chunk(chunk)
 
     def get_bytes(self):
