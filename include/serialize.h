@@ -1,5 +1,5 @@
-#ifndef uza_serializer_h
-#define uza_serializer_h
+#ifndef uza_serialize_h
+#define uza_serialize_h
 
 #include "common.h"
 #include "chunk.h"
@@ -31,11 +31,16 @@ for each CHUNK
         case DOUBLE : 8B
 
     ### OPCODES ###
+    2B : bytecode count (number of ops)
+    2B : bytecode length (number of bytes for the code)
+
     for each opcode
-        2B   : line number
         1B   : OpCode
         (1B) : constant if needed
         (1B) : local variable index
+
+    for i in range( _bytecode count_ ):
+        2B   : line number
 
 */
 
@@ -47,4 +52,4 @@ void load_op(VM *vm, size_t chunk_idx, uint16_t line, program_bytes_t* program);
 void read_program_version(uint8_t* buff, program_bytes_t* program);
 void read_program(VM *vm, program_bytes_t* program);
 
-#endif // uza_serializer_h
+#endif // uza_serialize_h

@@ -3,7 +3,7 @@ set(SOURCES
     chunk.c
     vm.c
     debug.c
-    serializer.c
+    serialize.c
     object.c
     value.c
     memory.c
