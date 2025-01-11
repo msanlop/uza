@@ -1,4 +1,4 @@
-#include "serializer.h"
+#include "serialize.h"
 #include "value.h"
 #include "debug.h"
 #include "string.h"
@@ -59,15 +59,16 @@ void read_program(VM *vm, program_bytes_t* program) {
 }
 
 void load_chunk(VM *vm, size_t chunk_idx, program_bytes_t* program) {
-    uint32_t ops_count = 0;
-    PROG_CPY(ops_count, program, uint32_t);
-    uint32_t ops_length = 0;
-    PROG_CPY(ops_length, program, uint32_t);
     vm->chunks[chunk_idx] = calloc(1, sizeof(Chunk));
     Chunk *chunk = vm->chunks[chunk_idx];
     chunk_init(chunk);
 
     load_constants(&chunk->constants, program, &vm->strings);
+
+    uint32_t ops_count = 0;
+    PROG_CPY(ops_count, program, uint32_t);
+    uint32_t ops_length = 0;
+    PROG_CPY(ops_length, program, uint32_t);
     chunk->code = program->bytes;
     DEBUG_PRINT("chunk count is %d\n", ops_count);
     chunk->count = ops_count;

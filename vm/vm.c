@@ -4,7 +4,7 @@
 #include <string.h>
 
 #include "common.h"
-#include "serializer.h"
+#include "serialize.h"
 #include "vm.h"
 #include "memory.h"
 #include "value.h"

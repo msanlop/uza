@@ -108,7 +108,7 @@ class Op:
         Returns the size of the opcode in bytes when turned into binary. It
         does not count the bytes writen for the lines (as these stores aside
         from the bytecode array).
-        !MODIFY serializer.h too when this is changed.
+        !MODIFY serialize.h too when this is changed.
         """
         size = 1  # code
         if self.constant is not None:
@@ -645,12 +645,12 @@ class ByteCodeProgramSerializer:
         return self._write(span_pack)
 
     def _write_chunk(self, chunk: Chunk):
+        self._write_constants(chunk)
+
         bytecode_count = struct.pack("<I", len(chunk.code))
         self._write(bytecode_count)
         bytecode_len = struct.pack("<I", sum(map(lambda op: op.size, chunk.code)))
         self._write(bytecode_len)
-
-        self._write_constants(chunk)
 
         code = chunk.code
         written = 0
