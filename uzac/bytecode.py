@@ -569,9 +569,9 @@ class ByteCodeProgram:
             jump_offset=self._written - cond_point,
         )
         self.emit_op(loop)
-        self.emit_op(pop)
-
         end_loop.jump_offset = self._written - end_loop_point
+
+        self.emit_op(pop)
         return self._written
 
     def _build_chunk(self):
