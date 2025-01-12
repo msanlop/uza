@@ -89,8 +89,8 @@ jobs:
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git add src test
-          git commit -m "apply automated code formating"
+          git add uzac test vm
+          git commit -m "formatting: automated code formating"
           git push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
