@@ -71,7 +71,7 @@ class Scanner:
             # TODO: multiline strings
             if self._char_at(end) == "\n":
                 raise SyntaxError(
-                    rf"found \n in string literal at {self._source[self._start: end]}"
+                    rf"found \n in string literal at {self._source[self._start : end]}"
                 )
             end += 1
         return end
