@@ -30,6 +30,8 @@ for each CHUNK
         case INT    : 8B
         case DOUBLE : 8B
 
+    1B  : number_of_locals
+
     ### OPCODES ###
     2B : bytecode count (number of ops)
     2B : bytecode length (number of bytes for the code)

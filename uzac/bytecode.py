@@ -69,8 +69,6 @@ class OPCODE(Enum):
     DEFGLOBAL = auto()
     GETGLOBAL = auto()
     SETGLOBAL = auto()
-    BLOCK = auto()
-    EXITBLOCK = auto()
     DEFLOCAL = auto()
     GETLOCAL = auto()
     SETLOCAL = auto()
@@ -135,6 +133,7 @@ class Chunk:
     name: str
     code: list[Op]
     constants: list[Const]
+    locals_count: Optional[int]
 
     def __init__(self, name: str, code: Optional[list[Op]] = None) -> None:
         self.name = name
@@ -178,77 +177,128 @@ class Chunk:
 T = TypeVar("T")
 
 
+@dataclass
+class Frame:
+    name: str
+    locals: List[str]
+    block_depth: int = field(default=0)
+
+
 class ByteCodeLocals:
     """
     This class keeps track of local variables and allow the emiter to generate
-    indexes when accesing variables on the stack. The top level frame is always
-    empty as globals operations use a hash table and chunk constants.
+    indexes when accesing variables on the stack.
 
-    TODO: exntend SymbolTable, make it generic?
+    Block varialbes are wrangled to allow shadowing. Variables inside blocks/loops
+    in the global scope are considered locals.
     """
 
-    frames: List[List[str]]
+    frames: List[Frame]
     depth: int  # global scope is depth 0
+    _block_name_count: iter[int]
 
-    def __init__(self, frames: List[List[str]] | None = None) -> None:
+    def __init__(self, frames: List[Frame] | None = None) -> None:
         if frames is None:
-            self.frames = []
+            self.frames = [Frame("<global>", [])]
+            self.depth = 0
         else:
             self.frames = frames
-        self.depth = len(self.frames)
+            assert len(frames) >= 1
+            self.depth = len(frames) - 1
 
-    def _get_current_frame(self) -> List[str]:
-        if self.depth == 0:
-            return None
-        return self.frames[0]
+    def _get_current_frame(self) -> Frame:
+        return self.frames[self.depth]
 
     def get_num_locals(self) -> int:
-        return len(self._get_current_frame())
+        return len(self._get_current_frame().locals)
 
-    def define(self, variable_name: str) -> int:
+    def define(self, variable_name: str) -> Optional[int]:
         """
-        Returns the index in the current stack frame.
+        Declare a variable in the current scope and return its index in the
+        current frame. If the current frame is global and not in a block scope
+        return None, variable must be declared with DEF_GLOBAL.
         """
-        frame_locals = self._get_current_frame()
-        already_defined_in_scope = variable_name in frame_locals
-        if already_defined_in_scope:
-            return frame_locals.index(variable_name)
+        frame = self._get_current_frame()
+        if frame.block_depth > 0:
+            # TODO: closures will break if block reuse locals, i.e. share same index
+            variable_name = f"_blk{frame.block_depth}__{variable_name}"
+        frame_locals = frame.locals
+        if variable_name in frame_locals:
+            raise ValueError(f"{variable_name} already defined in scope")
+
+        if self.depth == 0 and frame.block_depth == 0:
+            return None
 
         idx = len(frame_locals)
         frame_locals.append(variable_name)
         return idx
 
-    def new_frame(self) -> ByteCodeLocals:
-        self.frames.insert(0, [])
+    def new_frame(self, frame: Frame) -> ByteCodeLocals:
+        """
+        Create a new call frame and return self.
+
+        Returns:
+            ByteCodeLocals: self
+        """
+        self.frames.append(frame)
         self.depth += 1
         return self
 
-    def pop_frame(self) -> None:
-        self.frames = self.frames[1:]
-        self.depth -= 1
-
-    def get(self, identifier: str) -> Optional[tuple[int, int]]:
+    def new_block(self) -> ByteCodeLocals:
         """
-        Returns a tuple with the stack frame depth and local variale index.
+        Create a new block scope and return self.
+
+        Returns:
+            ByteCodeLocals: self
+        """
+        self._get_current_frame().block_depth += 1
+        return self
+
+    def pop_scope(self) -> None:
+        """
+        Pops the current scope. This could either be a simple block scope or
+        the current call frame.
+        """
+        if self._get_current_frame().block_depth > 0:
+            self._get_current_frame().block_depth -= 1
+        else:
+            self.depth -= 1
+
+    def get(self, variable_name: str) -> Optional[tuple[int, int]]:
+        """
         Returns None if the variable is in global (top-level frame -> use GLOBAL).
+        Otherwise returns a tuple with the stack frame depth (the number of frames up)
+        and the local variale index.
         """
-        for idx, frame in enumerate(self.frames):
-            try:
-                res = frame.index(identifier)
-                return idx, res
-            except ValueError:
-                pass
+        for up_count, frame in enumerate(reversed(self.frames)):
+            frame_idx = self.depth - up_count
 
-        return None, None
+            # from from block_depth to 0 included
+            for block_depth in range(frame.block_depth, -1, -1):
+                name = variable_name
+                if frame_idx == 0 and block_depth == 0:  # global scope
+                    return None
+
+                if block_depth > 0:
+                    name = f"_blk{block_depth}__{variable_name}"
+
+                try:
+                    local_idx = frame.locals.index(name)
+                    return up_count, local_idx
+                except ValueError:
+                    pass
+
+        return None
 
     def __enter__(self):
         """
-        self.new_frame MUST be called from outside
+        self.new_frame/self.new_block MUST be called from outside. Will pop
+        current scope on context exit.
         """
         pass
 
     def __exit__(self, type, value, traceback):
-        self.pop_frame()
+        self.pop_scope()
 
 
 class ByteCodeProgram:
@@ -284,9 +334,6 @@ class ByteCodeProgram:
         self._chunk.add_op(op)
         self._written += op.size
         return self._written
-
-    def depth(self) -> int:
-        return self._local_vars.depth
 
     def visit_no_op(self, _):
         pass
@@ -340,18 +387,17 @@ class ByteCodeProgram:
 
     def visit_identifier(self, identifier: Identifier) -> int:
         name = identifier.name
-        if self.depth() == 0:
-            return self.emit_op(Op(OPCODE.GETGLOBAL, identifier.span, constant=name))
-        frame_idx, idx = self._local_vars.get(name)
-        if frame_idx is None:
+        local_maybe = self._local_vars.get(name)
+        if local_maybe is None:
             return self.emit_op(Op(OPCODE.GETGLOBAL, identifier.span, constant=name))
 
+        frame_idx, idx = local_maybe
         if frame_idx != 0:
             raise NotImplementedError("variables from outer frames not yet implemented")
         return self.emit_op(Op(OPCODE.GETLOCAL, identifier.span, local_index=idx))
 
     def visit_function(self, func: Function) -> int:
-        with self._local_vars.new_frame():
+        with self._local_vars.new_frame(Frame(func.identifier.name, [])):
             chunk_save = self._chunk
             chunk_new = Chunk(func.identifier.name)
 
@@ -374,7 +420,6 @@ class ByteCodeProgram:
                     span=func.body.span,
                 )
             )
-
             self._chunk = chunk_save
             self.emit_op(
                 Op(
@@ -400,27 +445,30 @@ class ByteCodeProgram:
             )
             chunk_idx = len(self.chunks) - 1
             self.emit_op(Op(OPCODE.LFUNC, constant=chunk_idx, span=func.span))
+            chunk_new.locals_count = self._local_vars.get_num_locals()
 
     def visit_var_def(self, var_def: VarDef) -> int:
         var_def.value.visit(self)
         name = var_def.identifier
-        if self.depth() == 0:
+        idx = self._local_vars.define(name)
+        if idx is None:
             return self.emit_op(
                 Op(OPCODE.DEFGLOBAL, var_def.span, constant=var_def.identifier)
             )
 
-        idx = self._local_vars.define(name)
         return self.emit_op(Op(OPCODE.DEFLOCAL, var_def.span, local_index=idx))
 
     def visit_var_redef(self, var_redef: VarRedef) -> int:
         var_redef.value.visit(self)
         name = var_redef.identifier
-        frame_idx, idx = self._local_vars.get(name)
 
-        if self.depth() == 0 or frame_idx is None:
+        local_maybe = self._local_vars.get(name)
+        if local_maybe is None:
             return self.emit_op(
                 Op(OPCODE.SETGLOBAL, var_redef.span, constant=var_redef.identifier),
             )
+
+        frame_idx, idx = local_maybe
         if frame_idx != 0:
             raise NotImplementedError("only current frame locals are implemented")
         return self.emit_op(Op(OPCODE.SETLOCAL, var_redef.span, local_index=idx))
@@ -504,26 +552,12 @@ class ByteCodeProgram:
         return self._build_lines(expr_list.lines)
 
     def visit_block(self, block: Block) -> int:
-        with self._local_vars.new_frame():
-            block_op = Op(
-                OPCODE.BLOCK,
-                block.span,
-                local_index=-1,
-            )
-            self.emit_op(block_op)
+        with self._local_vars.new_block():
             self._build_lines(block.lines)
-            block_op.local_index = self._local_vars.get_num_locals()
-        return self.emit_op(Op(OPCODE.EXITBLOCK, block.span))
+        return self._written
 
     def visit_for_loop(self, fl: ForLoop) -> int:
-        with self._local_vars.new_frame():
-            block_op = Op(
-                OPCODE.BLOCK,
-                fl.span,
-                local_index=-1,
-            )
-            self.emit_op(block_op)
-
+        with self._local_vars.new_block():
             fl.init.visit(self)
             jump_first_increment = Op(OPCODE.JUMP, fl.span, jump_offset=0)
             self.emit_op(jump_first_increment)
@@ -549,9 +583,7 @@ class ByteCodeProgram:
             end_loop.jump_offset = self._written - end_loop_point
             self.emit_op(pop)
 
-            block_op.local_index = self._local_vars.get_num_locals()
-
-        return self.emit_op(Op(OPCODE.EXITBLOCK, fl.span))
+        return self._written
 
     def visit_while_loop(self, wl: WhileLoop) -> int:
         cond_point = self._written
@@ -576,6 +608,7 @@ class ByteCodeProgram:
 
     def _build_chunk(self):
         self._build_lines(self.program.syntax_tree.lines)
+        self._chunk.locals_count = self._local_vars.get_num_locals()
         return self.emit_op(Op(OPCODE.EXITVM, Span(0, 0, "META")))
 
 
@@ -646,6 +679,8 @@ class ByteCodeProgramSerializer:
 
     def _write_chunk(self, chunk: Chunk):
         self._write_constants(chunk)
+
+        self._write(chunk.locals_count.to_bytes(1, BYTE_ORDER))
 
         bytecode_count = struct.pack("<I", len(chunk.code))
         self._write(bytecode_count)

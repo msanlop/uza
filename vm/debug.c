@@ -122,12 +122,6 @@ int debug_op_print(Chunk* chunk, int offset) {
         debug_constant_print("OP_GETGLOBAL", chunk, offset + 1);
         return 2;
         break;
-    case OP_BLOCK:
-        debug_local_print("OP_BLOCK", chunk, offset + 1);
-        return 2;
-    case OP_EXITBLOCK:
-        DEBUG_PRINT_TO("%-20s", "OP_EXITBLOCK");
-        return 1;
     case OP_DEFLOCAL:
         debug_local_print("OP_DEFLOCAL", chunk, offset + 1);
         return 2;
@@ -199,7 +193,7 @@ void debug_chunk_print(Chunk* chunk) {
 void debug_vm_dump(VM* vm) {
     DEBUG_PRINT("\n");
     DEBUG_PRINT("\n");
-    DEBUG_PRINT(RED "##### DUMP ####\n" RESET);
+    DEBUG_PRINT(BLUE "##### DUMP ####\n" RESET);
     DEBUG_PRINT("///  VM   ///\n");
     DEBUG_PRINT("ip: %p\n", vm->frame_stacks[vm->depth].ip);
     DEBUG_PRINT("/// stack ///\n");
@@ -211,7 +205,7 @@ void debug_vm_dump(VM* vm) {
         debug_chunk_print(vm->chunks[i]);
         DEBUG_PRINT(NEWLINE);
     }
-    DEBUG_PRINT(RED "/////////////\n" RESET);
+    DEBUG_PRINT(BLUE "/////////////\n" RESET);
     DEBUG_PRINT("\n");
     DEBUG_PRINT("\n");
 }

@@ -114,11 +114,12 @@ VM* vm_init(program_bytes_t* program) {
     global_frame->function = object_function_allocate();
     global_frame->function->chunk = vm->chunks[0];
     global_frame->ip = global_frame->function->chunk->code;
-    global_frame->locals_count = 0;
+    global_frame->locals_count = global_frame->function->chunk->local_count;
     global_frame->is_block = false;
     global_frame->locals = vm->stack;
 
     vm_stack_reset(vm);
+    vm->stack_top += global_frame->locals_count;
     return vm;
 }
 
@@ -167,12 +168,18 @@ int interpret(VM* vm) {
             frame = curr;
             curr->function = func;
             chunk = frame->function->chunk;
-
-            curr->locals_count = func->arity + chunk->local_count;
+            curr->locals_count = func->chunk->local_count;
             curr->locals = vm->stack_top - func->arity; // args are in the stack
             curr->ip = func->chunk->code;
             curr->is_block = false;
             vm->stack_top = curr->locals + curr->locals_count;
+
+#ifndef NDEBUG
+            // set non initialized local to NIL
+            for(Value *local = curr->locals + func->arity; local != vm->stack_top; local += 1) {
+                *local = VAL_NIL;
+            }
+#endif
         };
         break;
         case OP_CALL_NATIVE: {
@@ -202,11 +209,11 @@ int interpret(VM* vm) {
             break;
         case OP_LFUNC: {
             Value idx = CONSTANT(IP_FETCH_INCR);
-            Value locals_count = pop(vm);
+            pop(vm); // unused local_count, update lfunc call
             Value arity = pop(vm);
             ObjectFunction *func = object_function_allocate();
             func->chunk = vm->chunks[idx.as.integer];
-            func->chunk->local_count = locals_count.as.integer;
+            func->chunk->local_count = func->chunk->local_count;
             func->name = AS_STRING(pop(vm));
             func->arity = arity.as.integer;
             tableSet(&vm->globals, func->name, (Value) {TYPE_OBJ, .as.object= (Obj *) func});
@@ -290,33 +297,6 @@ int interpret(VM* vm) {
         ObjectString *identifier = AS_STRING(CONSTANT(constant));
         Value val = pop(vm);
         tableSet(&vm->globals, identifier, val);
-        }
-        break;
-        case OP_BLOCK: {
-            vm->depth++;
-            frame = GET_FRAME(0);
-            frame->function = GET_FRAME(1)->function;
-            frame->ip = GET_FRAME(1)->ip;
-            frame->locals = vm->stack_top;
-            int locals_num = IP_FETCH_INCR;
-            frame->locals_count = locals_num;
-
-            #ifndef NDEBUG
-            for (size_t i = 0; i < locals_num; i++) {
-                push(vm, VAL_NIL);
-                frame->locals[i] = VAL_NIL;
-            }
-            #endif
-
-            vm->stack_top = frame->locals + locals_num;
-        }
-        break;
-        case OP_EXITBLOCK: {
-            uint8_t *curr_ip = frame->ip;
-            vm->stack_top = frame->locals;
-            vm->depth--;
-            frame = &vm->frame_stacks[vm->depth];
-            frame->ip = curr_ip;
         }
         break;
         case OP_DEFLOCAL: {

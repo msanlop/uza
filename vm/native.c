@@ -7,9 +7,18 @@
 void native_println(void * vm_ptr) {
     VM * vm = (VM *) vm_ptr;
     Value val = pop((VM *) vm);
-    DEBUG_PRINT("STDOUT PRINTLN: ");
+#ifndef NDEBUG
+    fflush(stdout);
+    DEBUG_PRINT(BRIGHT_RED "STDOUT PRINTLN: `" RESET);
+    fflush(stderr);
+#endif
+
     PRINT_VALUE(val, stdout);
-    printf(NEWLINE);
+
+#ifndef NDEBUG
+    fflush(stdout);
+    DEBUG_PRINT("`" NEWLINE);
+#endif
 }
 
 const NativeFunction native_builtins[] = {
