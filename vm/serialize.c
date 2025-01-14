@@ -64,6 +64,9 @@ void load_chunk(VM *vm, size_t chunk_idx, program_bytes_t* program) {
     chunk_init(chunk);
 
     load_constants(&chunk->constants, program, &vm->strings);
+    uint8_t locals_count = 0;
+    PROG_CPY(locals_count, program, uint8_t);
+    chunk->local_count = locals_count;
 
     uint32_t ops_count = 0;
     PROG_CPY(ops_count, program, uint32_t);

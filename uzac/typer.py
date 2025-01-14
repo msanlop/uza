@@ -333,7 +333,7 @@ class Typer:
         self._symbol_table = SymbolTable()
         self._functions = SymbolTable()
 
-        self.symbol_gen = count()
+        self._symbol_gen = count()
         self.substitution = Substitution({})
         self._error_strings: list[str] = []
         self._warnings: list[str] = []
@@ -342,7 +342,7 @@ class Typer:
         """
         Return a new unique SymbolicType.
         """
-        return SymbolicType("symbolic_" + str(next(self.symbol_gen)), node.span)
+        return SymbolicType("symbolic_" + str(next(self._symbol_gen)), node.span)
 
     def _get_type_of_identifier(self, identifier: str) -> Type:
         return self._symbol_table.get(identifier)[0]

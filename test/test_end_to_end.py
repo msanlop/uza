@@ -32,6 +32,7 @@ def test_end_to_end(description, code, expected_output, capsys):
 
     assert actual_output == expected_output, (
         f"\nTest: {description}\n"
+        f"With code:\n----------------------------\n{code}\n----------------------------\n"
         f"Expected Output: {expected_output}\n"
         f"Actual Output: {actual_output}\n"
     )
