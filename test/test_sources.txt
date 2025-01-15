@@ -304,3 +304,23 @@ println(test(3))
 1
 2
 3
+
+#test function scopes
+var i = 0
+var res = 0
+func test(foo: string) => void {
+    {
+        const foo = 42
+        {
+            const foo = "inner"
+            println(foo)
+        }
+        println(foo)
+    }
+    println(foo)
+}
+test("arg")
+#expected
+inner
+42
+arg

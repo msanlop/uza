@@ -272,17 +272,18 @@ class ByteCodeLocals:
         """
         for up_count, frame in enumerate(reversed(self.frames)):
             frame_idx = self.depth - up_count
-            for block_depth in range(
-                frame.block_depth, -1, -1
-            ):  # from from block_depth to 0 included
+
+            # from from block_depth to 0 included
+            for block_depth in range(frame.block_depth, -1, -1):
+                name = variable_name
                 if frame_idx == 0 and block_depth == 0:  # global scope
                     return None
 
-                if frame.block_depth > 0:
-                    variable_name = f"_blk{block_depth}__{variable_name}"
+                if block_depth > 0:
+                    name = f"_blk{block_depth}__{variable_name}"
 
                 try:
-                    local_idx = frame.locals.index(variable_name)
+                    local_idx = frame.locals.index(name)
                     return up_count, local_idx
                 except ValueError:
                     pass
