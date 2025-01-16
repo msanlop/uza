@@ -19,6 +19,7 @@ void native_println(void * vm_ptr) {
     fflush(stdout);
     DEBUG_PRINT("`" NEWLINE);
 #endif
+    printf(NEWLINE);
 }
 
 const NativeFunction native_builtins[] = {
