@@ -16,7 +16,6 @@ typedef struct {
     size_t locals_count;
     Value *locals;
     uint8_t *ip;
-    bool is_block; // _return_ statements pop block frames
 } Frame;
 
 

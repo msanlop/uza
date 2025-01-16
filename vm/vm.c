@@ -100,7 +100,7 @@ VM* vm_init(program_bytes_t* program) {
         ObjectFunction *func_obj = object_function_allocate();
         func_obj->arity = func->arity;
         func_obj->function = func->function;
-        func_obj->obj = (Obj) {OBJ_FUNCTION_NATIVE, NULL};
+        func_obj->obj = (Obj) {OBJ_FUNCTION_NATIVE, 1};
         func_obj->name = func_name;
         Value test = {TYPE_OBJ, .as.object= (Obj *) func_name};
         Value val = {TYPE_OBJ, .as.object=(Obj *) (func_obj)};
@@ -115,7 +115,6 @@ VM* vm_init(program_bytes_t* program) {
     global_frame->function->chunk = vm->chunks[0];
     global_frame->ip = global_frame->function->chunk->code;
     global_frame->locals_count = global_frame->function->chunk->local_count;
-    global_frame->is_block = false;
     global_frame->locals = vm->stack;
 
     vm_stack_reset(vm);
@@ -153,6 +152,11 @@ int interpret(VM* vm) {
         switch (instruction) {
         case OP_RETURN: {
             Value ret_val = pop(vm);
+            for (Value *val = vm->stack_top - 1; val >= frame->locals; val--) {
+                if (val != NULL) {
+                    ARC_DECREMENT(*val);
+                }
+            }
             vm->stack_top = GET_FRAME(0)->locals;
             vm->depth--;
             push(vm, ret_val);
@@ -171,7 +175,6 @@ int interpret(VM* vm) {
             curr->locals_count = func->chunk->local_count;
             curr->locals = vm->stack_top - func->arity; // args are in the stack
             curr->ip = func->chunk->code;
-            curr->is_block = false;
             vm->stack_top = curr->locals + curr->locals_count;
 
 #ifndef NDEBUG
@@ -205,7 +208,8 @@ int interpret(VM* vm) {
         }
         break;
         case OP_POP:
-            pop(vm);
+            Value unused = pop(vm);
+            ARC_DECREMENT(unused);
             break;
         case OP_LFUNC: {
             Value idx = CONSTANT(IP_FETCH_INCR);
