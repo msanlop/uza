@@ -41,14 +41,29 @@ struct ObjectString{
         AS_OBJECT(object_value)->ref_count++;                                        \
     } while (0);                                                               \
 
+#ifndef NDEBUG
+#define ARC_DECREMENT(value) \
+    printf("ARC decr @:" " %s:%d" "\n", __FILE__, __LINE__);                   \
+    do {                                                                       \
+        if (IS_OBJECT(value)) {                                        \
+            (AS_OBJECT((value))->ref_count) -= 1;                              \
+            uint32_t refs = (AS_OBJECT((value))->ref_count);                   \
+            if (refs == 0) {                                                   \
+                object_free(&(value));                                         \
+                printf("\tARC free:" " %s:%d" "\n", __FILE__, __LINE__);       \
+            }                                                                  \
+        }                                                                      \
+    } while (0);    
+#else
 #define ARC_DECREMENT(value) \
     do {                                                                       \
-        if ((value).type == TYPE_OBJ) {                                       \
+        if ((value).type == TYPE_OBJ) {                                        \
             (AS_OBJECT((value))->ref_count) -= 1;                              \
             uint32_t refs = (AS_OBJECT((value))->ref_count);                   \
             if (refs == 0) object_free(&(value));                              \
         }                                                                      \
-    } while (0);                                                               \
+    } while (0);    
+#endif
 
 #define OBJ_TYPE(object) (AS_OBJECT((object))->type)
 #define IS_STRING(value) (IS_OBJECT(value) && (OBJ_TYPE(value) == OBJ_STRING))

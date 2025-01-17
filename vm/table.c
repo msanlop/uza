@@ -151,6 +151,9 @@ bool tableSet(Table* table, ObjectString* key, Value value) {
   if (isNewKey && IS_NIL(entry->value)) table->count++;
 //< set-increment-count
   entry->key = key;
+  if (!isNewKey) {
+    ARC_DECREMENT(entry->value);
+  }
   entry->value = value;
   return isNewKey;
 }

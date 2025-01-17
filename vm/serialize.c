@@ -59,9 +59,8 @@ void read_program(VM *vm, program_bytes_t* program) {
 }
 
 void load_chunk(VM *vm, size_t chunk_idx, program_bytes_t* program) {
-    vm->chunks[chunk_idx] = calloc(1, sizeof(Chunk));
+    vm->chunks[chunk_idx] = chunk_init();
     Chunk *chunk = vm->chunks[chunk_idx];
-    chunk_init(chunk);
 
     load_constants(&chunk->constants, program, &vm->strings);
     uint8_t locals_count = 0;
@@ -158,6 +157,7 @@ void load_constants(ValueArray* array, program_bytes_t* program, Table *strings)
                     PRINT_ERR_ARGS("unrecognized object type : %d", obj_type);
                     exit(1);
                 }
+                constant.as.object->ref_count = 1;
                 break;
             }
             default:

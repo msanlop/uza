@@ -98,7 +98,9 @@ VM* vm_init(program_bytes_t* program) {
     {
         const NativeFunction *func = &natives[i];
         ObjectString *func_name = object_string_allocate(&vm->strings, func->name, func->name_len);
+        func_name->obj.ref_count += 1;
         ObjectFunction *func_obj = object_function_allocate();
+        func_obj->obj.ref_count += 1;
         func_obj->arity = func->arity;
         func_obj->function = func->function;
         func_obj->obj = (Obj) {OBJ_FUNCTION_NATIVE, 1};
@@ -113,6 +115,7 @@ VM* vm_init(program_bytes_t* program) {
     vm->depth = 0;
     Frame *global_frame = &vm->frame_stacks[vm->depth];
     global_frame->function = object_function_allocate();
+    global_frame->function->obj.ref_count += 1;
     global_frame->function->chunk = vm->chunks[0];
     global_frame->ip = global_frame->function->chunk->code;
     global_frame->locals_count = global_frame->function->chunk->local_count;
@@ -124,17 +127,18 @@ VM* vm_init(program_bytes_t* program) {
 }
 
 void vm_free_globals(VM* vm) {
+    if (vm->globals.entries == NULL) return;
+
     for(size_t i = 0; i < vm->globals.capacity; i++) {
         Entry *entry = &vm->globals.entries[i];
+        if (entry == NULL) continue;
+        PRINT_VALUE(entry->value, stderr);
         ARC_DECREMENT(entry->value);
         if (entry->key != NULL) object_string_free(entry->key);
     }
 }
 
 void vm_free(VM* vm){
-    vm_free_globals(vm);
-    freeTable(&vm->strings);
-    freeTable(&vm->globals);
     assert(vm->depth == 0);
     for(Value *val = vm->frame_stacks[0].locals; val >= vm->stack_top; val--) {
         if (val != NULL) {
@@ -146,10 +150,12 @@ void vm_free(VM* vm){
     for(size_t i = 0; i < vm->chunk_count; i++) {
         Chunk *chunk = vm->chunks[i];
         chunk_free(chunk);
-        free(chunk);
     }
 
     free(vm->chunks);
+    freeTable(&vm->strings);
+    vm_free_globals(vm);
+    freeTable(&vm->globals);
     // chunk_free(vm->chunks);
     free(vm);
 }
@@ -251,8 +257,12 @@ int interpret(VM* vm) {
         break;
         case OP_STRCONST:
         case OP_DCONST:
-        case OP_LCONST: push(vm, CONSTANT(IP_FETCH_INCR));
+        case OP_LCONST: {
+            Value val = CONSTANT(IP_FETCH_INCR);
+            push(vm, val);
+            if (IS_OBJECT(val)) ARC_INCREMENT(val);
             break;
+        }
         case OP_BOOLTRUE:
             push(vm, VAL_BOOL(true));
             break;
@@ -279,6 +289,9 @@ int interpret(VM* vm) {
                     .type=TYPE_OBJ,
                     .as.object=(Obj*) new_object_string
                 };
+                ARC_INCREMENT(new_object_value);
+                ARC_DECREMENT(rhs);
+                ARC_DECREMENT(lhs);
                 push(vm, new_object_value);
             }
             else {
@@ -318,6 +331,9 @@ int interpret(VM* vm) {
             int constant = IP_FETCH_INCR;
             ObjectString *identifier = AS_STRING(CONSTANT(constant));
             Value val = {0};
+            if (IS_OBJECT(val)) {
+                ARC_DECREMENT(val);
+            } 
             tableGet(&vm->globals, identifier, &val);
             push(vm, val);
         }
@@ -331,6 +347,7 @@ int interpret(VM* vm) {
         break;
         case OP_DEFLOCAL: {
             Value val = pop(vm);
+            ARC_INCREMENT(val);
             frame->locals[IP_FETCH_INCR] = val;
         }
         break;

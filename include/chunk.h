@@ -34,7 +34,7 @@ typedef struct {
     chunk->count += sizeof(type); \
 }
 
-void chunk_init(Chunk* chunk);
+Chunk* chunk_init();
 void chunk_free(Chunk* chunk);
 int  chunk_const_add(Chunk* chunk, Value constant);
 
