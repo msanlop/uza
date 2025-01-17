@@ -88,15 +88,17 @@ ObjectFunction *object_function_free(ObjectFunction *func) {
 
 
 void object_free(Value *val) {
-    switch (val->type)
+    switch ((AS_OBJECT(*val))->type)
     {
     case OBJ_STRING:
         object_string_free(AS_STRING(*val));
         break;
     case OBJ_FUNCTION:
+    case OBJ_FUNCTION_NATIVE:
         object_function_free(AS_FUNCTION(*val));
         break;
     default:
         break;
     }
+    val->type = TYPE_NIL;
 }

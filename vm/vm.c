@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 #include "common.h"
 #include "serialize.h"
@@ -122,9 +123,33 @@ VM* vm_init(program_bytes_t* program) {
     return vm;
 }
 
+void vm_free_globals(VM* vm) {
+    for(size_t i = 0; i < vm->globals.capacity; i++) {
+        Entry *entry = &vm->globals.entries[i];
+        ARC_DECREMENT(entry->value);
+        if (entry->key != NULL) object_string_free(entry->key);
+    }
+}
+
 void vm_free(VM* vm){
+    vm_free_globals(vm);
     freeTable(&vm->strings);
     freeTable(&vm->globals);
+    assert(vm->depth == 0);
+    for(Value *val = vm->frame_stacks[0].locals; val >= vm->stack_top; val--) {
+        if (val != NULL) {
+            ARC_DECREMENT(*val);
+        }
+    }
+
+    object_function_free(vm->frame_stacks[vm->depth].function);
+    for(size_t i = 0; i < vm->chunk_count; i++) {
+        Chunk *chunk = vm->chunks[i];
+        chunk_free(chunk);
+        free(chunk);
+    }
+
+    free(vm->chunks);
     // chunk_free(vm->chunks);
     free(vm);
 }
@@ -207,10 +232,11 @@ int interpret(VM* vm) {
             frame->ip -= offset;
         }
         break;
-        case OP_POP:
+        case OP_POP: {
             Value unused = pop(vm);
             ARC_DECREMENT(unused);
             break;
+        }
         case OP_LFUNC: {
             Value idx = CONSTANT(IP_FETCH_INCR);
             pop(vm); // unused local_count, update lfunc call

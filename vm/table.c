@@ -150,7 +150,6 @@ bool tableSet(Table* table, ObjectString* key, Value value) {
 //> set-increment-count
   if (isNewKey && IS_NIL(entry->value)) table->count++;
 //< set-increment-count
-
   entry->key = key;
   entry->value = value;
   return isNewKey;
