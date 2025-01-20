@@ -61,7 +61,6 @@ ObjectString* object_string_concat(Table *strings, const ObjectString *lhs, cons
     uint32_t hash = hash_string(buff, new_len);
 
     ObjectString *new_str = object_string_allocate(strings, buff, new_len);
-    new_str->obj.ref_count = 1;
     if (new_len > STRING_STACK_BUFF_LEN) {
         free(buff);
     }
@@ -74,7 +73,6 @@ void object_string_free(ObjectString* obj_string) {
 
 ObjectFunction *object_function_allocate() {
     ObjectFunction* function = (ObjectFunction *) calloc(1, sizeof(ObjectFunction));
-    function->obj.ref_count = 1;
     function->obj.type = OBJ_FUNCTION;
     function->arity = 0;
     function->name = NULL;
@@ -83,6 +81,10 @@ ObjectFunction *object_function_allocate() {
 }
 
 ObjectFunction *object_function_free(ObjectFunction *func) {
+    if(func->name != NULL) {
+        Value val = {.type=TYPE_OBJ, .as.object=func->name};
+        ARC_DECREMENT_VALUE(val);
+    }
     free(func);
 }
 

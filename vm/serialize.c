@@ -72,7 +72,7 @@ void load_chunk(VM *vm, size_t chunk_idx, program_bytes_t* program) {
     uint32_t ops_length = 0;
     PROG_CPY(ops_length, program, uint32_t);
     chunk->code = program->bytes;
-    DEBUG_PRINT("chunk count is %d\n", ops_count);
+    DEBUG_PRINT("chunk has %d ops\n", ops_count);
     chunk->count = ops_count;
     uint8_t * lines_start = (program->bytes + ops_length);
     program->bytes += ops_length;
@@ -147,6 +147,7 @@ void load_constants(ValueArray* array, program_bytes_t* program, Table *strings)
 
                     prog_read_bytes(string, program, sizeof(char), string_length);
                     ObjectString* const_pool_string = object_string_allocate(strings, string, string_length);
+                    ARC_INCREMENT_OBJECT(const_pool_string);
                     constant.type = TYPE_OBJ;
                     constant.as.object = (Obj*) const_pool_string;
                     if (string_length > STRING_STACK_BUFF_LEN) {
@@ -157,7 +158,6 @@ void load_constants(ValueArray* array, program_bytes_t* program, Table *strings)
                     PRINT_ERR_ARGS("unrecognized object type : %d", obj_type);
                     exit(1);
                 }
-                constant.as.object->ref_count = 1;
                 break;
             }
             default:

@@ -20,13 +20,11 @@ void debug_stack_print(VM* vm, char* str) {
 
 void debug_locals_print(VM* vm, char* str) {
     DEBUG_PRINT("%s :\n" GREEN , str);
-    if (vm->depth > 0) {
-        Frame *frame = &vm->frame_stacks[vm->depth];
-        for (int i = 0; i < frame->locals_count; i++) {
-            DEBUG_PRINT("local #%d: ", i);
-            PRINT_VALUE((frame->locals[i]), stderr);
-            DEBUG_PRINT("\n")
-        }
+    Frame *frame = &vm->frame_stacks[vm->depth];
+    for (int i = 0; i < frame->locals_count; i++) {
+        DEBUG_PRINT("local #%d: ", i);
+        PRINT_VALUE((frame->locals[i]), stderr);
+        DEBUG_PRINT("\n")
     }
     DEBUG_PRINT(RESET "----------\n");
 }

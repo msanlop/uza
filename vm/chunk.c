@@ -21,9 +21,9 @@ Chunk* chunk_init() {
 void chunk_free(Chunk* chunk) {
     // FREE_ARRAY(uint8_t, chunk->code, chunk->count);
     if (chunk->constants.values != NULL) {
-        for(size_t i = 0; i < chunk->constants.capacity; i++) {
+        for(size_t i = 0; i < chunk->constants.count; i++) {
             Value *val = &chunk->constants.values[i];
-            ARC_DECREMENT(*val);
+            ARC_DECREMENT_VALUE(*val);
         }
     }
     value_array_free(&chunk->constants);

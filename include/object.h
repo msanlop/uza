@@ -38,32 +38,40 @@ struct ObjectString{
 
 #define ARC_INCREMENT(object_value) \
     do {                                                                       \
-        AS_OBJECT(object_value)->ref_count++;                                        \
+        DEBUG_PRINT("ARC incr @: %s:%d\n", __FILE__, __LINE__);                   \
+        if(IS_OBJECT((object_value))) AS_OBJECT(object_value)->ref_count++;                                        \
     } while (0);                                                               \
 
-#ifndef NDEBUG
-#define ARC_DECREMENT(value) \
-    printf("ARC decr @:" " %s:%d" "\n", __FILE__, __LINE__);                   \
+#define ARC_DECREMENT_VALUE(value) \
+    DEBUG_PRINT("ARC decr @: %s:%d\n", __FILE__, __LINE__);                   \
     do {                                                                       \
         if (IS_OBJECT(value)) {                                        \
+            DEBUG_PRINT("\tref count: %u\n", (value).as.object->ref_count);         \
             (AS_OBJECT((value))->ref_count) -= 1;                              \
             uint32_t refs = (AS_OBJECT((value))->ref_count);                   \
             if (refs == 0) {                                                   \
+                DEBUG_PRINT("\tARC free: %s:%d\n", __FILE__, __LINE__);       \
                 object_free(&(value));                                         \
-                printf("\tARC free:" " %s:%d" "\n", __FILE__, __LINE__);       \
             }                                                                  \
         }                                                                      \
-    } while (0);    
-#else
-#define ARC_DECREMENT(value) \
+    } while (0);
+
+#define ARC_INCREMENT_OBJECT(object_value) \
     do {                                                                       \
-        if ((value).type == TYPE_OBJ) {                                        \
-            (AS_OBJECT((value))->ref_count) -= 1;                              \
-            uint32_t refs = (AS_OBJECT((value))->ref_count);                   \
-            if (refs == 0) object_free(&(value));                              \
-        }                                                                      \
-    } while (0);    
-#endif
+        DEBUG_PRINT("ARC incr @: %s:%d\n", __FILE__, __LINE__);                   \
+        (object_value)->obj.ref_count++;                                        \
+    } while (0);
+
+#define ARC_DECREMENT_OBJECT(object) \
+    DEBUG_PRINT("ARC decr @: %s:%d\n", __FILE__, __LINE__);                   \
+    do {                                                                       \
+            ((object)->ref_count) -= 1;                              \
+            uint32_t refs = (object)->ref_count;                   \
+            if (refs == 0) {                                                   \
+                object_free(&(object));                                         \
+                DEBUG_PRINT("\tARC free: %s:%d\n", __FILE__, __LINE__);       \
+            }                                                                  \
+    } while (0);
 
 #define OBJ_TYPE(object) (AS_OBJECT((object))->type)
 #define IS_STRING(value) (IS_OBJECT(value) && (OBJ_TYPE(value) == OBJ_STRING))

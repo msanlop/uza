@@ -324,3 +324,16 @@ test("arg")
 inner
 42
 arg
+
+#test for memory leaks TODO: valgrind with pytest?
+const a = "a"
+const b = "b"
+var c = a
+for var i = 0; i < 20; i+=1 {
+    const temp = a + b
+    c += temp
+}
+c += b
+println(c)
+#expected
+aababababababababababababababababababababb

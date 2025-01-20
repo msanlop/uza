@@ -98,31 +98,31 @@ VM* vm_init(program_bytes_t* program) {
     {
         const NativeFunction *func = &natives[i];
         ObjectString *func_name = object_string_allocate(&vm->strings, func->name, func->name_len);
-        func_name->obj.ref_count += 1;
+        ARC_INCREMENT_OBJECT(func_name);
         ObjectFunction *func_obj = object_function_allocate();
-        func_obj->obj.ref_count += 1;
+        ARC_INCREMENT_OBJECT(func_obj);
         func_obj->arity = func->arity;
         func_obj->function = func->function;
         func_obj->obj = (Obj) {OBJ_FUNCTION_NATIVE, 1};
         func_obj->name = func_name;
-        Value test = {TYPE_OBJ, .as.object= (Obj *) func_name};
         Value val = {TYPE_OBJ, .as.object=(Obj *) (func_obj)};
-        Value test1 = {0};
         tableSet(&vm->globals, func_name, val);
+        ARC_INCREMENT_OBJECT(func_name);
     }
 
 
     vm->depth = 0;
-    Frame *global_frame = &vm->frame_stacks[vm->depth];
+    Frame *global_frame = &vm->frame_stacks[0];
     global_frame->function = object_function_allocate();
+    ARC_INCREMENT_OBJECT(global_frame->function);
     global_frame->function->obj.ref_count += 1;
     global_frame->function->chunk = vm->chunks[0];
     global_frame->ip = global_frame->function->chunk->code;
     global_frame->locals_count = global_frame->function->chunk->local_count;
     global_frame->locals = vm->stack;
 
-    vm_stack_reset(vm);
-    vm->stack_top += global_frame->locals_count;
+    vm->stack_top =global_frame->locals + global_frame->locals_count;
+    DEBUG_PRINT("LOCALS COUNT: %d\n", global_frame->locals_count);
     return vm;
 }
 
@@ -132,17 +132,34 @@ void vm_free_globals(VM* vm) {
     for(size_t i = 0; i < vm->globals.capacity; i++) {
         Entry *entry = &vm->globals.entries[i];
         if (entry == NULL) continue;
-        PRINT_VALUE(entry->value, stderr);
-        ARC_DECREMENT(entry->value);
-        if (entry->key != NULL) object_string_free(entry->key);
+
+        if(IS_OBJECT(entry->value)) {
+            DEBUG_PRINT("decrementing object with refcount=%u: ", entry->value.as.object->ref_count);
+#ifndef NDEBUG
+            PRINT_VALUE(entry->value, stderr);
+#endif
+            DEBUG_PRINT(NEWLINE);
+            // object_free(&entry->value);
+            ARC_DECREMENT_VALUE(entry->value);
+        }
+        if (entry->key != NULL) {
+            Value val = (Value) {.type=TYPE_OBJ, .as.object=entry->key};
+            DEBUG_PRINT("decrementing key with refcount=%u: ", entry->key->obj.ref_count);
+#ifndef NDEBUG
+            PRINT_VALUE(val, stderr);
+#endif
+            DEBUG_PRINT(NEWLINE);
+            ARC_DECREMENT_VALUE(val);
+        }
     }
 }
 
 void vm_free(VM* vm){
+    DEBUG_PRINT(BLUE "##### FREE MEMORY ####\n" RESET);
     assert(vm->depth == 0);
     for(Value *val = vm->frame_stacks[0].locals; val >= vm->stack_top; val--) {
         if (val != NULL) {
-            ARC_DECREMENT(*val);
+            ARC_DECREMENT_VALUE(*val);
         }
     }
 
@@ -181,11 +198,18 @@ int interpret(VM* vm) {
         OpCode instruction = IP_FETCH_INCR;
 
         switch (instruction) {
+        case OP_EXITVM:
+            for (Value *val = vm->stack_top - 1; val >= vm->stack; val--) {
+                if (val != NULL) {
+                    ARC_DECREMENT_VALUE(*val);
+                }
+            }
+            return 0;
         case OP_RETURN: {
             Value ret_val = pop(vm);
             for (Value *val = vm->stack_top - 1; val >= frame->locals; val--) {
                 if (val != NULL) {
-                    ARC_DECREMENT(*val);
+                    ARC_DECREMENT_VALUE(*val);
                 }
             }
             vm->stack_top = GET_FRAME(0)->locals;
@@ -240,7 +264,7 @@ int interpret(VM* vm) {
         break;
         case OP_POP: {
             Value unused = pop(vm);
-            ARC_DECREMENT(unused);
+            ARC_DECREMENT_VALUE(unused);
             break;
         }
         case OP_LFUNC: {
@@ -289,10 +313,10 @@ int interpret(VM* vm) {
                     .type=TYPE_OBJ,
                     .as.object=(Obj*) new_object_string
                 };
-                ARC_INCREMENT(new_object_value);
-                ARC_DECREMENT(rhs);
-                ARC_DECREMENT(lhs);
+                ARC_DECREMENT_VALUE(rhs);
+                ARC_DECREMENT_VALUE(lhs);
                 push(vm, new_object_value);
+                ARC_INCREMENT(new_object_value);
             }
             else {
                 BINARY_OP(vm, +);
@@ -324,43 +348,49 @@ int interpret(VM* vm) {
         case OP_DEFGLOBAL: {
             int constant = IP_FETCH_INCR;
             ObjectString *identifier = AS_STRING(CONSTANT(constant));
-            tableSet(&vm->globals, identifier, pop(vm));
+            Value val = pop(vm);
+            tableSet(&vm->globals, identifier, val);
+            ARC_INCREMENT_OBJECT(identifier);
+            ARC_INCREMENT(val);
         }
         break;
         case OP_GETGLOBAL: {
             int constant = IP_FETCH_INCR;
             ObjectString *identifier = AS_STRING(CONSTANT(constant));
             Value val = {0};
-            if (IS_OBJECT(val)) {
-                ARC_DECREMENT(val);
-            } 
             tableGet(&vm->globals, identifier, &val);
             push(vm, val);
+            ARC_INCREMENT(val);
         }
         break;
         case OP_SETGLOBAL: {
-        int constant = IP_FETCH_INCR;
-        ObjectString *identifier = AS_STRING(CONSTANT(constant));
-        Value val = pop(vm);
-        tableSet(&vm->globals, identifier, val);
+            int constant = IP_FETCH_INCR;
+            ObjectString *identifier = AS_STRING(CONSTANT(constant));
+            Value val = pop(vm);
+            tableSet(&vm->globals, identifier, val);
         }
         break;
         case OP_DEFLOCAL: {
             Value val = pop(vm);
-            ARC_INCREMENT(val);
             frame->locals[IP_FETCH_INCR] = val;
         }
         break;
         case OP_GETLOCAL: {
-            push(vm, frame->locals[IP_FETCH_INCR]);
+            Value val = frame->locals[IP_FETCH_INCR];
+            ARC_INCREMENT(val);
+            push(vm, val);
         }
         break;
         case OP_SETLOCAL: {
-            frame->locals[IP_FETCH_INCR] = pop(vm);
+            Value *old = &frame->locals[IP_FETCH_INCR];
+            ValueType oldType = old->type;
+            ARC_DECREMENT_VALUE(*old);
+            Value new_val = pop(vm);
+            *old = new_val;
+            old->type = oldType;
+            ARC_INCREMENT(new_val);
         }
         break;
-        case OP_EXITVM:
-            return 0;
         default: {
             PRINT_ERR_ARGS("at %s:%d unknown instruction : %d\n\n",
                 __FILE__, __LINE__, instruction);

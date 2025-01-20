@@ -21,6 +21,7 @@
 //> Hash Tables table-c
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 #include "memory.h"
 #include "object.h"
@@ -148,11 +149,14 @@ bool tableSet(Table* table, ObjectString* key, Value value) {
   if (isNewKey) table->count++;
 */
 //> set-increment-count
-  if (isNewKey && IS_NIL(entry->value)) table->count++;
+  if (isNewKey && IS_NIL(entry->value)){
+    table->count++;
+    ARC_INCREMENT_OBJECT(key);
+  }
 //< set-increment-count
   entry->key = key;
-  if (!isNewKey) {
-    ARC_DECREMENT(entry->value);
+  if (!isNewKey && entry->value.as.object != value.as.object) {
+    ARC_DECREMENT_VALUE(entry->value);
   }
   entry->value = value;
   return isNewKey;
