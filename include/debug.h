@@ -8,9 +8,9 @@
 int  debug_op_print(Chunk* chunk, int offset);
 void debug_constant_print(char* code_str, Chunk* chunk, int offset);
 void debug_chunk_print(Chunk* chunk);
-void debug_vm_dump(VM* vm);
-void debug_stack_print(VM* vm, char* str);
-void debug_locals_print(VM* vm, char* str);
+void debug_vm_dump();
+void debug_stack_print(char* str);
+void debug_locals_print(char* str);
 void debug_value_array_print(ValueArray* array);
 
 

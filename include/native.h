@@ -6,7 +6,7 @@
 
 #define TABLE_ENTRY(key_string, native_function)
 
-typedef void (*native_function) (void *);
+typedef void (*native_function) (void);
 
 typedef struct {
     const char *const name;

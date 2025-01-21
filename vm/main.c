@@ -38,12 +38,7 @@ int run_vm(int byte_count, char* code) {
     signal(SIGINT, sigint_handler);
 #endif
 
-    VM* vm = vm_init(&program);
-    if (vm == NULL) {
-        fprintf(stderr, "VM is null");
-        vm_free(vm);
-        return 1;
-    }
+    vm_init(&program);
 
 #ifdef DEBUG_DUMP_VM
     debug_vm_dump(vm);

@@ -55,7 +55,7 @@ typedef struct {
     case TYPE_NIL: \
       fprintf((out), "(nil)"); break; \
     case TYPE_LONG: \
-      fprintf((out), "%lld", (value).as.integer); break; \
+      fprintf((out), "%ld", (value).as.integer); break; \
     case TYPE_DOUBLE: \
       fprintf((out), "%.3lf", (value).as.fp); break; \
     case TYPE_BOOL: { \

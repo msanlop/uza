@@ -3,25 +3,20 @@
 
 #ifndef NDEBUG
 
-void debug_stack_print(VM* vm, char* str) {
-    if(STACK_IS_EMPTY(vm)) {
-        DEBUG_PRINT("%s stack is EMPTY\n", str);
-    }
-    else {
-        DEBUG_PRINT("%s\n" CYAN , str);
-        Frame *frame = &vm->frame_stacks[vm->depth];
-        for (Value* slot = &frame->locals[frame->locals_count]; slot < vm->stack_top; slot++) {
-            PRINT_VALUE((*slot), stderr);
-            DEBUG_PRINT("\n")
-        }
+void debug_stack_print(char* str) {
+    DEBUG_PRINT("%s\n" CYAN , str);
+    Frame *frame = &vm.frame_stacks[vm.depth];
+    for (Value* slot = &frame->locals[frame->locals_count]; slot < vm.stack_top; slot++) {
+        PRINT_VALUE((*slot), stderr);
+        DEBUG_PRINT("\n")
     }
     DEBUG_PRINT(RESET "----------\n");
 }
 
-void debug_locals_print(VM* vm, char* str) {
+void debug_locals_print(char* str) {
     DEBUG_PRINT("%s :\n" GREEN , str);
-    if (vm->depth > 0) {
-        Frame *frame = &vm->frame_stacks[vm->depth];
+    if (vm.depth > 0) {
+        Frame *frame = &vm.frame_stacks[vm.depth];
         for (int i = 0; i < frame->locals_count; i++) {
             DEBUG_PRINT("local #%d: ", i);
             PRINT_VALUE((frame->locals[i]), stderr);
@@ -171,11 +166,11 @@ void debug_chunk_print(Chunk* chunk) {
         PRINT_VALUE(chunk->constants.values[i], stderr);
         DEBUG_PRINT("\n");
     }
-    DEBUG_PRINT("there are %d ops\n", chunk->count);
+    DEBUG_PRINT("there are %ld ops\n", chunk->count);
     size_t offset = 0;
     for (size_t i = 0; i < chunk->count; i++)
     {
-        DEBUG_PRINT("%04d  ", i);
+        DEBUG_PRINT("%04ld  ", i);
 
         uint16_t line = GET_LINE_AT(chunk, i);
         if(i>0 && GET_LINE_AT(chunk, i-1) == line) {
@@ -190,19 +185,19 @@ void debug_chunk_print(Chunk* chunk) {
     }
  }
 
-void debug_vm_dump(VM* vm) {
+void debug_vm_dump() {
     DEBUG_PRINT("\n");
     DEBUG_PRINT("\n");
     DEBUG_PRINT(BLUE "##### DUMP ####\n" RESET);
     DEBUG_PRINT("///  VM   ///\n");
-    DEBUG_PRINT("ip: %p\n", vm->frame_stacks[vm->depth].ip);
+    DEBUG_PRINT("ip: %p\n", vm.frame_stacks[vm.depth].ip);
     DEBUG_PRINT("/// stack ///\n");
-    DEBUG_PRINT("count: %d\n", (int) (vm->stack_top - vm->stack));
-    debug_stack_print(vm, "values:");
-    for (size_t i = 0; i < vm->chunk_count; i++)
+    DEBUG_PRINT("count: %d\n", (int) (vm.stack_top - vm.stack));
+    debug_stack_print("values:");
+    for (size_t i = 0; i < vm.chunk_count; i++)
     {
-        DEBUG_PRINT("/// Chunk %d ///\n", i);
-        debug_chunk_print(vm->chunks[i]);
+        DEBUG_PRINT("/// Chunk %ld ///\n", i);
+        debug_chunk_print(vm.chunks[i]);
         DEBUG_PRINT(NEWLINE);
     }
     DEBUG_PRINT(BLUE "/////////////\n" RESET);

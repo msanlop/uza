@@ -42,7 +42,7 @@ void read_program_version(uint8_t* buff, program_bytes_t* program) {
     prog_read_bytes(buff, program, sizeof(uint8_t), 3);
 }
 
-void read_program(VM *vm, program_bytes_t* program) {
+void read_program(program_bytes_t* program) {
     int endian_test = 1;
     system_is_little_endian = endian_test == ((char*) &endian_test)[0];
     uint8_t version[3] = {0};
@@ -50,20 +50,20 @@ void read_program(VM *vm, program_bytes_t* program) {
     uint32_t chunk_count = 0;
     PROG_CPY(chunk_count, program, uint32_t);
 
-    vm->chunk_count = chunk_count;
-    vm->chunks = calloc(chunk_count, sizeof(Chunk *));
+    vm.chunk_count = chunk_count;
+    vm.chunks = calloc(chunk_count, sizeof(Chunk *));
 
     for (size_t i = 0; i < chunk_count; i++) {
-        load_chunk(vm, i, program);
+        load_chunk(i, program);
     }
 }
 
-void load_chunk(VM *vm, size_t chunk_idx, program_bytes_t* program) {
-    vm->chunks[chunk_idx] = calloc(1, sizeof(Chunk));
-    Chunk *chunk = vm->chunks[chunk_idx];
+void load_chunk(size_t chunk_idx, program_bytes_t* program) {
+    vm.chunks[chunk_idx] = calloc(1, sizeof(Chunk));
+    Chunk *chunk = vm.chunks[chunk_idx];
     chunk_init(chunk);
 
-    load_constants(&chunk->constants, program, &vm->strings);
+    load_constants(&chunk->constants, program, &vm.strings);
     uint8_t locals_count = 0;
     PROG_CPY(locals_count, program, uint8_t);
     chunk->local_count = locals_count;
@@ -167,10 +167,10 @@ void load_constants(ValueArray* array, program_bytes_t* program, Table *strings)
         value_array_write(array, constant);
     }
 }
-void load_op(VM *vm, size_t chunk_idx, uint16_t line, program_bytes_t* program) {
+void load_op(size_t chunk_idx, uint16_t line, program_bytes_t* program) {
     // OpCode opcode = 0;
     // PROG_CPY(opcode, program, uint8_t);
-    // Chunk *chunk = vm->chunks[chunk_idx];
+    // Chunk *chunk = vm.chunks[chunk_idx];
     // switch (opcode) {
     //     case OP_DCONST:
     //     case OP_CALL:

@@ -33,17 +33,17 @@ typedef struct {
     Table globals;
 } VM;
 
-#define STACK_IS_EMPTY(vm) (vm->stack_top == vm->stack)
 
+extern VM vm;
 
-void  push(VM* vm, Value value);
-Value peek(VM* vm);
-Value pop(VM* vm);
+void  push(Value value);
+Value peek();
+Value pop();
 
-VM*  vm_init(program_bytes_t* program);
-void vm_stack_reset(VM* vm);
-void vm_free(VM* vm);
+void vm_init(program_bytes_t* program);
+void vm_stack_reset();
+void vm_free();
 
-int interpret(VM* vm);
+int interpret();
 
 #endif // uza_vm_h

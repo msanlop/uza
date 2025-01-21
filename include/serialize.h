@@ -47,11 +47,11 @@ for each CHUNK
 */
 
 // void load_program(FILE* file, VM *vm);
-void load_chunk(VM *vm, size_t chunk_idx, program_bytes_t* program);
+void load_chunk(size_t chunk_idx, program_bytes_t* program);
 void load_constants(ValueArray *array, program_bytes_t* program, Table *strings);
-void load_op(VM *vm, size_t chunk_idx, uint16_t line, program_bytes_t* program);
+void load_op(size_t chunk_idx, uint16_t line, program_bytes_t* program);
 
 void read_program_version(uint8_t* buff, program_bytes_t* program);
-void read_program(VM *vm, program_bytes_t* program);
+void read_program(program_bytes_t* program);
 
 #endif // uza_serialize_h
