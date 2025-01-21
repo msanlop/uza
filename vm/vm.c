@@ -59,6 +59,7 @@
 
 extern bool stop_interpreting;
 VM vm = {0};
+bool enable_garbage_collection = false;
 
 inline void push(Value value) {
     *vm.stack_top++ = value;
@@ -85,6 +86,8 @@ inline void vm_stack_reset() {
 }
 
 void vm_init(program_bytes_t* program) {
+    vm = (VM) {0};
+    enable_garbage_collection = false;
 
     initTable(&vm.strings);
     initTable(&vm.globals);
@@ -101,10 +104,7 @@ void vm_init(program_bytes_t* program) {
         func_obj->function = func->function;
         func_obj->obj = (Obj) {OBJ_FUNCTION_NATIVE, NULL};
         func_obj->name = func_name;
-        Value test = {TYPE_OBJ, .as.object= (Obj *) func_name};
-        Value val = {TYPE_OBJ, .as.object=(Obj *) (func_obj)};
-        Value test1 = {0};
-        tableSet(&vm.globals, func_name, val);
+        tableSet(&vm.globals, func_name, VAL_OBJ(func_obj));
     }
 
 
@@ -112,6 +112,7 @@ void vm_init(program_bytes_t* program) {
     Frame *global_frame = &vm.frame_stacks[vm.depth];
     global_frame->function = object_function_allocate();
     global_frame->function->chunk = vm.chunks[0];
+    global_frame->function->name = object_string_allocate(&vm.strings, "__global__", sizeof("__global__"));
     global_frame->ip = global_frame->function->chunk->code;
     global_frame->locals_count = global_frame->function->chunk->local_count;
     global_frame->is_block = false;
@@ -125,9 +126,11 @@ void vm_free(){
     freeTable(&vm.strings);
     freeTable(&vm.globals);
     // chunk_free(vm.chunks);
+    if (vm.gray_stack) free(vm.gray_stack);
 }
 
 int interpret() {
+    enable_garbage_collection = true;
     while(!stop_interpreting) {
 
         Frame *frame = &vm.frame_stacks[vm.depth];
@@ -183,7 +186,8 @@ int interpret() {
             Value func_val = VAL_NIL;
             Value func_name = CONSTANT(IP_FETCH_INCR);
             if (!tableGet(&vm.globals, AS_STRING(func_name), &func_val)) {
-                PRINT_ERR("Could not find function :");
+                PRINT_ERR("Could not find function: ");
+                PRINT_VALUE(func_name, stderr);
                 fprintf(stderr, NEWLINE);
                 exit(1);
             }

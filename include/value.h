@@ -27,6 +27,7 @@ typedef struct {
 
 #define VAL_NIL ((Value){TYPE_NIL, {.integer = 0}})
 #define VAL_BOOL(val) ((Value) {TYPE_BOOL, .as.boolean=val})
+#define VAL_OBJ(obj) ((Value) {TYPE_OBJ, .as.object=(Obj *) obj})
 
 #define IS_INTEGER(value) ((value).type == TYPE_LONG)
 #define IS_DOUBLE(value) ((value).type == TYPE_DOUBLE)
@@ -67,11 +68,17 @@ typedef struct {
       if(AS_OBJECT(value)->type == OBJ_STRING) { \
         fprintf((out), "%s", (AS_STRING((value)))->chars); \
       } \
-      if(AS_OBJECT(value)->type == OBJ_FUNCTION) { \
-        fprintf((out), "%s", AS_FUNCTION(value)->name->chars); \
+      else if(AS_OBJECT(value)->type == OBJ_FUNCTION) { \
+        fprintf((out), "func[%s]", AS_FUNCTION(value)->name->chars); \
+      } \
+      else if(AS_OBJECT(value)->type == OBJ_FUNCTION_NATIVE) { \
+        fprintf((out), "func[%s]", AS_FUNCTION(value)->name->chars); \
       } \
       else { \
+        fprintf(stderr, "Could not print object of type %d\n", (AS_OBJECT(value)->type)); \
+        exit(1); \
       } \
+      break; \
     default: break; \
     } \
   } while (false); \

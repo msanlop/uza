@@ -212,3 +212,23 @@ ObjectString* tableFindString(Table* table, const char* chars,
   }
 }
 //< table-find-string
+//< table-find-string
+//> Garbage Collection table-remove-white
+void tableRemoveWhite(Table* table) {
+  for (int i = 0; i < table->capacity; i++) {
+    Entry* entry = &table->entries[i];
+    if (entry->key != NULL && !entry->key->obj.is_marked) {
+      tableDelete(table, entry->key);
+    }
+  }
+}
+//< Garbage Collection table-remove-white
+//> Garbage Collection mark-table
+void markTable(Table* table) {
+  for (int i = 0; i < table->capacity; i++) {
+    Entry* entry = &table->entries[i];
+    markObject((Obj*)entry->key);
+    markValue(entry->value);
+  }
+}
+//< Garbage Collection mark-table

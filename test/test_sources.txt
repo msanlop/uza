@@ -324,3 +324,16 @@ test("arg")
 inner
 42
 arg
+
+#test memory leaks (use valgrind)
+const a = "a"
+const b = "b"
+var c = "c"
+for var i = 0; i < 15; i += 1 {
+    const temp = a + b
+    c += temp
+}
+c += "d"
+println(c)
+#expected
+cabababababababababababababababd

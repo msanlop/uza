@@ -14,6 +14,7 @@ typedef enum {
 
 struct Obj {
     ObjectType type;
+    bool is_marked;
     struct Obj* next;
 };
 

@@ -2,6 +2,8 @@
 #define uza_common_h
 
 #ifndef NDEBUG
+    #define DEBUG_STRESS_GC
+    #define DEBUG_LOG_GC
     #define DEBUG_TRACE_EXECUTION_STACK
     #define DEBUG_TRACE_EXECUTION_OP
     #define DEBUG_DUMP_VM

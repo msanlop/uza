@@ -29,8 +29,11 @@ ObjectString* object_string_allocate(Table *strings, const char *chars, const in
     memcpy(str->chars, chars, string_length);
     str->chars[string_length] = 0;
     str->obj.type = OBJ_STRING;
+    str->obj.next = NULL;
     str->hash = hash;
     tableSet(strings, str, VAL_NIL);
+    str->obj.next = vm.objects;
+    vm.objects = str;
     return str;
 }
 
@@ -69,6 +72,8 @@ ObjectString* object_string_concat(Table *strings, const ObjectString *lhs, cons
 
 ObjectFunction *object_function_allocate() {
     ObjectFunction* function = (ObjectFunction *) calloc(1, sizeof(ObjectFunction));
+    function->obj.next = vm.objects;
+    vm.objects = function;
     function->obj.type = OBJ_FUNCTION;
     function->arity = 0;
     function->name = NULL;

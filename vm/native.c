@@ -14,6 +14,7 @@ void native_println(void * vm_ptr) {
 #endif
 
     PRINT_VALUE(val, stdout);
+    printf(NEWLINE);
 
 #ifndef NDEBUG
     fflush(stdout);

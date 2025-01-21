@@ -2,6 +2,8 @@
 #define uza_memory_h
 
 #include "common.h"
+#include "table.h"
+#include "vm.h"
 
 // prefer stack string buffer allocations
 #define STRING_STACK_BUFF_LEN 256
@@ -24,5 +26,9 @@
         sizeof(type) * (new_count))
 
 void* reallocate(void* ptr, size_t old_size, size_t new_size);
+void markObject(Obj* object);
+void markValue(Value value);
+void collectGarbage();
+void sweep();
 
 #endif // uza_memory_h

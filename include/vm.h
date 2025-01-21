@@ -22,6 +22,7 @@ typedef struct {
 
 typedef struct {
     // uint8_t version[3];
+    Obj *objects;
     Chunk **chunks;
     size_t chunk_count;
     Value stack[STACK_MAX];
@@ -31,10 +32,14 @@ typedef struct {
     Frame frame_stacks[FRAMES_MAX]; // points to the spot after last local
     Table strings;
     Table globals;
+    int gray_count;
+    int gray_capacity;
+    Obj** gray_stack;
 } VM;
 
 
 extern VM vm;
+extern bool enable_garbage_collection;
 
 void  push(Value value);
 Value peek();
