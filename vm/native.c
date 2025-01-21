@@ -4,12 +4,11 @@
 #include "value.h"
 #include "vm.h"
 
-void native_println(void * vm_ptr) {
-    VM * vm = (VM *) vm_ptr;
-    Value val = pop((VM *) vm);
+void native_println(void) {
+    Value val = pop();
 #ifndef NDEBUG
     fflush(stdout);
-    DEBUG_PRINT(BRIGHT_RED "STDOUT PRINTLN: `" RESET);
+    DEBUG_PRINT(BRIGHT_RED "STDOUT PRINTLN:`" RESET);
     fflush(stderr);
 #endif
 
@@ -18,7 +17,7 @@ void native_println(void * vm_ptr) {
 
 #ifndef NDEBUG
     fflush(stdout);
-    DEBUG_PRINT("`" NEWLINE);
+    DEBUG_PRINT(BRIGHT_RED "`" RESET NEWLINE);
 #endif
 }
 
@@ -31,3 +30,6 @@ const NativeFunction *const native_functions_get(size_t* out_count) {
     *out_count = sizeof(native_builtins) / sizeof(NativeFunction);
     return native_builtins;
 }
+
+// native functions
+void native_println(void);

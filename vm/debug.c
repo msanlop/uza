@@ -185,7 +185,7 @@ void debug_chunk_print(Chunk* chunk) {
     }
  }
 
-void debug_vm_dump() {
+void debug_vm_dump(void) {
     DEBUG_PRINT("\n");
     DEBUG_PRINT("\n");
     DEBUG_PRINT(BLUE "##### DUMP ####\n" RESET);

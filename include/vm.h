@@ -35,20 +35,21 @@ typedef struct {
     int gray_count;
     int gray_capacity;
     Obj** gray_stack;
+    size_t bytesAllocated;
+    size_t nextGC;
 } VM;
 
 
 extern VM vm;
 extern bool enable_garbage_collection;
 
-void  push(Value value);
-Value peek();
-Value pop();
+extern inline void  push(Value value);
+extern inline Value pop(void);
 
 void vm_init(program_bytes_t* program);
-void vm_stack_reset();
-void vm_free();
+void vm_stack_reset(void);
+void vm_free(void);
 
-int interpret();
+int interpret(void);
 
 #endif // uza_vm_h

@@ -41,13 +41,13 @@ int run_vm(int byte_count, char* code) {
     vm_init(&program);
 
 #ifdef DEBUG_DUMP_VM
-    debug_vm_dump(vm);
-    int res = interpret(vm);
-    debug_vm_dump(vm);
+    debug_vm_dump();
+    int res = interpret();
+    debug_vm_dump();
 #else
-    int res = interpret(vm);
+    int res = interpret();
 #endif
-    vm_free(vm);
+    vm_free();
     // fflush(stdout);
     // fflush(stderr);
     return res;

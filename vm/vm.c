@@ -33,8 +33,8 @@
 
 #define BINARY_OP(op) \
     do { \
-        Value rhs = pop(vm); \
-        Value lhs = pop(vm); \
+        Value rhs = pop(); \
+        Value lhs = pop(); \
         if(IS_DOUBLE(lhs) || IS_DOUBLE(rhs)) { \
             if(IS_INTEGER(lhs)) {I2D(lhs);} \
             else if(IS_INTEGER(rhs)) {I2D(rhs);} \
@@ -68,11 +68,7 @@ inline void push(Value value) {
     #endif //#define DEBUG_TRACE_EXECUTION_STACK
 }
 
-inline Value peek() {
-    return vm.stack_top[-1];
-}
-
-inline Value pop() {
+inline Value pop(void) {
     vm.stack_top--;
     #ifdef DEBUG_TRACE_EXECUTION_STACK
         DEBUG_PRINT("stack pop\n");
@@ -81,12 +77,13 @@ inline Value pop() {
 }
 
 
-inline void vm_stack_reset() {
+inline void vm_stack_reset(void) {
     vm.stack_top = vm.stack;
 }
 
 void vm_init(program_bytes_t* program) {
     vm = (VM) {0};
+    vm.nextGC = 1024 * 1024;
     enable_garbage_collection = false;
 
     initTable(&vm.strings);
@@ -118,18 +115,18 @@ void vm_init(program_bytes_t* program) {
     global_frame->is_block = false;
     global_frame->locals = vm.stack;
 
-    vm_stack_reset(vm);
+    vm_stack_reset();
     vm.stack_top += global_frame->locals_count;
 }
 
-void vm_free(){
+void vm_free(void){
     freeTable(&vm.strings);
     freeTable(&vm.globals);
     // chunk_free(vm.chunks);
     if (vm.gray_stack) free(vm.gray_stack);
 }
 
-int interpret() {
+int interpret(void) {
     enable_garbage_collection = true;
     while(!stop_interpreting) {
 
@@ -152,14 +149,14 @@ int interpret() {
 
         switch (instruction) {
         case OP_RETURN: {
-            Value ret_val = pop(vm);
+            Value ret_val = pop();
             vm.stack_top = GET_FRAME(0)->locals;
             vm.depth--;
             push(ret_val);
         }
         break;
         case OP_CALL: {
-            Value func_name = pop(vm);
+            Value func_name = pop();
             Value func_val = {0};
             tableGet(&vm.globals, AS_STRING(func_name), &func_val);
             ObjectFunction *func = AS_FUNCTION(func_val);
@@ -206,16 +203,16 @@ int interpret() {
         }
         break;
         case OP_POP:
-            pop(vm);
+            pop();
             break;
         case OP_LFUNC: {
             Value idx = CONSTANT(IP_FETCH_INCR);
-            pop(vm); // unused local_count, update lfunc call
-            Value arity = pop(vm);
+            pop(); // unused local_count, update lfunc call
+            Value arity = pop();
             ObjectFunction *func = object_function_allocate();
             func->chunk = vm.chunks[idx.as.integer];
             func->chunk->local_count = func->chunk->local_count;
-            func->name = AS_STRING(pop(vm));
+            func->name = AS_STRING(pop());
             func->arity = arity.as.integer;
             tableSet(&vm.globals, func->name, (Value) {TYPE_OBJ, .as.object= (Obj *) func});
         }
@@ -231,20 +228,20 @@ int interpret() {
             push(VAL_BOOL(false));
             break;
         case OP_JUMP_IF_FALSE: {
-            Value val = peek(vm);
+            Value val = PEEK(vm);
             JUMP_IF(!val.as.boolean);
         }
         break;
         case OP_JUMP_IF_TRUE: {
-            Value val = peek(vm);
+            Value val = PEEK(vm);
             JUMP_IF(val.as.boolean);
         }
         break;
         case OP_ADD: {
             Value top = PEEK(vm);
             if (IS_STRING(top)) {
-                Value rhs = pop(vm);
-                Value lhs = pop(vm);
+                Value rhs = pop();
+                Value lhs = pop();
                 ObjectString *new_object_string = object_string_concat(&vm.strings, AS_STRING(lhs), AS_STRING(rhs));
                 Value new_object_value = {
                     .type=TYPE_OBJ,
@@ -282,7 +279,7 @@ int interpret() {
         case OP_DEFGLOBAL: {
             int constant = IP_FETCH_INCR;
             ObjectString *identifier = AS_STRING(CONSTANT(constant));
-            tableSet(&vm.globals, identifier, pop(vm));
+            tableSet(&vm.globals, identifier, pop());
         }
         break;
         case OP_GETGLOBAL: {
@@ -296,12 +293,12 @@ int interpret() {
         case OP_SETGLOBAL: {
         int constant = IP_FETCH_INCR;
         ObjectString *identifier = AS_STRING(CONSTANT(constant));
-        Value val = pop(vm);
+        Value val = pop();
         tableSet(&vm.globals, identifier, val);
         }
         break;
         case OP_DEFLOCAL: {
-            Value val = pop(vm);
+            Value val = pop();
             frame->locals[IP_FETCH_INCR] = val;
         }
         break;
@@ -310,7 +307,7 @@ int interpret() {
         }
         break;
         case OP_SETLOCAL: {
-            frame->locals[IP_FETCH_INCR] = pop(vm);
+            frame->locals[IP_FETCH_INCR] = pop();
         }
         break;
         case OP_EXITVM:

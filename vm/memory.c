@@ -12,10 +12,15 @@
 extern bool enable_garbage_collection;
 
 void* reallocate(void* ptr, size_t old_size, size_t new_size) {
+    vm.bytesAllocated += new_size - old_size;
     if (new_size > old_size) {
 #ifdef DEBUG_STRESS_GC
         collectGarbage();
 #endif
+    }
+
+    if (vm.bytesAllocated > vm.nextGC) {
+      collectGarbage();
     }
 
     if(new_size == 0 ) {

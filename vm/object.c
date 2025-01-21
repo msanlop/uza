@@ -21,9 +21,20 @@ ObjectString* object_string_allocate(Table *strings, const char *chars, const in
         return res;
     }
 
+    size_t alloc_size = sizeof(Obj) + sizeof(int) + sizeof(uint32_t) + string_length + 1;
+
+    vm.bytesAllocated += alloc_size;
+#ifdef DEBUG_STRESS_GC
+        collectGarbage();
+#endif
+    if (vm.bytesAllocated > vm.nextGC) {
+      collectGarbage();
+    }
+    vm.nextGC = vm.bytesAllocated * GC_HEAP_GROW_FACTOR;
+
     ObjectString* str = calloc(
         1,
-        sizeof(Obj) + sizeof(int) + sizeof(uint32_t) + string_length + 1
+        alloc_size
     );
     str->length = string_length;
     memcpy(str->chars, chars, string_length);
@@ -71,7 +82,17 @@ ObjectString* object_string_concat(Table *strings, const ObjectString *lhs, cons
 }
 
 ObjectFunction *object_function_allocate() {
-    ObjectFunction* function = (ObjectFunction *) calloc(1, sizeof(ObjectFunction));
+    size_t alloc_size = sizeof(ObjectFunction);
+    vm.bytesAllocated += alloc_size;
+#ifdef DEBUG_STRESS_GC
+        collectGarbage();
+#endif
+    if (vm.bytesAllocated > vm.nextGC) {
+      collectGarbage();
+    }
+    vm.nextGC = vm.bytesAllocated * GC_HEAP_GROW_FACTOR;
+
+    ObjectFunction* function = (ObjectFunction *) calloc(1, alloc_size);
     function->obj.next = vm.objects;
     vm.objects = function;
     function->obj.type = OBJ_FUNCTION;

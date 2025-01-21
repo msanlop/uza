@@ -46,6 +46,6 @@ void object_string_hash(struct ObjectString *string);
 void object_string_free(struct ObjectString* obj_string);
 struct ObjectString* object_string_concat(Table *strings, const struct ObjectString *lhs, const struct ObjectString *rhs);
 
-ObjectFunction *object_function_allocate();
+ObjectFunction *object_function_allocate(void);
 
 #endif // uza_object_h
