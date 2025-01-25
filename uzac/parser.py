@@ -523,7 +523,9 @@ class Parser:
             elif tok.kind == token_paren_l:
                 self._expect(token_paren_l)
                 arguments = self._get_function_args()
-                self._expect(token_paren_r)
+                paren_l_span = self._expect(token_paren_r).span
+                if len(arguments) > 0:
+                    arguments[-1].span += paren_l_span
                 func_call = Application(identifier, *arguments)
                 return self._get_infix(func_call)
 

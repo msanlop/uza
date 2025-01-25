@@ -20,6 +20,7 @@ typedef enum {
     OP_SUB,
     OP_MUL,
     OP_DIV,
+    OP_MOD,
     OP_NEG,
     OP_EQ,
     OP_NE,
@@ -28,6 +29,9 @@ typedef enum {
     OP_GT,
     OP_GE,
     OP_NOT,
+    OP_TOFLOAT,
+    OP_TOSTRING,
+    OP_TOINT,
     OP_DEFGLOBAL,
     OP_GETGLOBAL,
     OP_SETGLOBAL,
@@ -35,6 +39,7 @@ typedef enum {
     OP_GETLOCAL,
     OP_SETLOCAL,
     OP_EXITVM,
+    OP_OPCODES_COUNT
 } OpCode;
 
 #endif // uza_bytecodes_h

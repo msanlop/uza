@@ -369,3 +369,43 @@ println(fibTailRec(8, 0, 1))
 #expected
 21
 21
+
+#test fizzbuzz
+for var i = 0; i <= 10; i += 1 {
+    var temp = ""
+    if i % 3 == 0 then temp += "Fizz"
+    if i % 5 == 0 then temp += "Buzz"
+    if i % 5 != 0 and i % 3 != 0 then temp += toString(i)
+    println(temp)
+}
+#expected
+FizzBuzz
+1
+2
+Fizz
+4
+Buzz
+Fizz
+7
+8
+Fizz
+Buzz
+
+#test simple conversions
+const a = 1.5
+const b = toInt(a)
+println(b)
+println(toInt(a * 6))
+const c = toFloat(b)
+println(a * c)
+#expected
+1
+9
+1.500
+
+#test toString
+const foo = 42
+const bar = toString(foo)
+println(bar + "foo")
+#expected
+42foo

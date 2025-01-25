@@ -1,6 +1,21 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
-from operator import add, and_, eq, ge, gt, le, lt, mul, ne, not_, or_, pow, truediv
+from operator import (
+    add,
+    and_,
+    eq,
+    ge,
+    gt,
+    le,
+    lt,
+    mod,
+    mul,
+    ne,
+    not_,
+    or_,
+    pow,
+    truediv,
+)
 from typing import Callable, List, Optional
 from uzac.type import (
     ArrowType,
@@ -36,6 +51,9 @@ class BuiltIn:
     interpret: Callable[..., Value]  # tree walk interpretation in python
     type_signatures: List[ArrowType]  # len == 1 if not polymorphic
     arity: int = field(init=False)
+    is_op_code: bool = field(
+        default=False
+    )  # if true, emits specific opcode instead of CALL_NATIVE
 
     def __post_init__(self):
         # adds itself to the dict that holds all the builtins
@@ -76,6 +94,7 @@ bi_sub = BuiltIn(
 )
 bi_mul = BuiltIn("*", mul, [*_bi_arith_types])
 bi_div = BuiltIn("/", truediv, [*_bi_arith_types])
+bi_mod = BuiltIn("%", mod, [ArrowType([type_int, type_int], type_int)])
 bi_pow = BuiltIn("**", pow, [*_bi_arith_types])
 bi_max = BuiltIn("max", max, [*_bi_arith_types])
 bi_min = BuiltIn("min", min, [*_bi_arith_types])
@@ -131,9 +150,41 @@ bi_ge = BuiltIn(">=", ge, _bool_cmp_overloads)
 
 bi_not = BuiltIn("not", not_, [ArrowType([type_bool], type_bool)])
 
+# TYPE CONVERSION FUNCTIONS
+
 bi_to_int = BuiltIn(
-    "toInt", int, [ArrowType([type_string | type_float | type_int], type_int)]
+    "toInt",
+    int,
+    [
+        ArrowType([type_float], type_int),
+        ArrowType([type_string], type_int),
+        ArrowType([type_int], type_int),
+    ],
+    is_op_code=True,
 )
+
+bi_to_float = BuiltIn(
+    "toFloat",
+    float,
+    [
+        ArrowType([type_float], type_float),
+        ArrowType([type_int], type_float),
+        ArrowType([type_string], type_float),
+    ],
+    is_op_code=True,
+)
+
+bi_to_string = BuiltIn(
+    "toString",
+    str,
+    [
+        ArrowType([type_int], type_string),
+        ArrowType([type_float], type_string),
+        ArrowType([type_string], type_string),
+    ],
+    is_op_code=True,
+)
+
 
 bi_new_list = BuiltIn("list", list, [ArrowType([], type_array)])
 bi_len = BuiltIn("len", len, [ArrowType([type_array | type_string], type_int)])

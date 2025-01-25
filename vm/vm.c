@@ -262,6 +262,13 @@ int interpret(void) {
             BINARY_OP(/);
         }
         break;
+        case OP_MOD: {
+            Value rhs = pop();
+            Value lhs = pop();
+            int res = (lhs).as.integer % (rhs).as.integer;
+            push(VAL_INT(res));
+        }
+        break;
         case OP_NEG: {
             Value val = PEEK(vm);
             if (val.type == TYPE_DOUBLE) {
@@ -313,6 +320,60 @@ int interpret(void) {
             SET_STACK_VALUE_TO_BOOL;
         }
         break;
+        case OP_TOSTRING: {
+            if(IS_STRING(PEEK(vm))) {
+                break;
+            }
+
+            Value val = pop();
+            ObjectString *res;
+            char buff[512] = {0};
+            if(IS_INTEGER(val)) {
+                int char_count = sprintf(buff, "%ld", val.as.integer);
+                res = object_string_allocate(&vm.strings, buff, char_count);
+            }
+            else if(IS_DOUBLE(val)) {
+                int char_count = sprintf(buff, "%lf", val.as.fp);
+                res = object_string_allocate(&vm.strings, buff, char_count);
+            }
+
+            push(VAL_OBJ(res));
+        }
+        break;
+        case OP_TOFLOAT: {
+            if(IS_DOUBLE(PEEK(vm))) {
+                break;
+            }
+            if(IS_STRING(PEEK(vm))) {
+                PRINT_ERR_ARGS("at %s:%d not implemented string to float : %d\n\n",
+                __FILE__, __LINE__, instruction);
+                return 1;
+            }
+
+            Value *val = &PEEK(vm);
+            if(IS_INTEGER(*val)) {
+                val->as.fp = (double) val->as.integer;
+                val->type = TYPE_DOUBLE;
+            }
+        }
+        break;
+        case OP_TOINT: {
+            if(IS_INTEGER(PEEK(vm))) {
+                break;
+            }
+            if(IS_STRING(PEEK(vm))) {
+                PRINT_ERR_ARGS("at %s:%d not implemented string to int: %d\n\n",
+                __FILE__, __LINE__, instruction);
+                return 1;
+            }
+
+            Value *val = &PEEK(vm);
+            if(IS_DOUBLE(*val)) {
+                val->as.integer = (int64_t) val->as.fp;
+                val->type = TYPE_LONG;
+            }
+        }
+        break;
         case OP_DEFGLOBAL: {
             int constant = IP_FETCH_INCR;
             ObjectString *identifier = AS_STRING(CONSTANT(constant));
@@ -352,7 +413,7 @@ int interpret(void) {
         default: {
             PRINT_ERR_ARGS("at %s:%d unknown instruction : %d\n\n",
                 __FILE__, __LINE__, instruction);
-            return 1;
+            exit(1);
         }
         break;
         }

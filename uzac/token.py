@@ -39,10 +39,10 @@ class TokenKind:
 class Token:
     kind: TokenKind
     span: Span
-    repr: str = ""
+    repr: str = field(default=None)
 
     def __post_init__(self):
-        if self.repr == "":
+        if self.repr is None:
             object.__setattr__(self, "repr", self.kind.repr)  # bypass frozen=True
 
     def __eq__(self, value: object) -> bool:

@@ -93,6 +93,18 @@ int debug_op_print(Chunk* chunk, int offset) {
         DEBUG_PRINT_TO("%-20s", "OP_BOOLTRUE");
         return 1;
         break;
+    case OP_TOSTRING:
+        DEBUG_PRINT_TO("%-20s", "OP_TOSTRING");
+        return 1;
+        break;
+    case OP_TOINT:
+        DEBUG_PRINT_TO("%-20s", "OP_TOINT");
+        return 1;
+        break;
+    case OP_TOFLOAT:
+        DEBUG_PRINT_TO("%-20s", "OP_TOFLOAT");
+        return 1;
+        break;
     case OP_BOOLFALSE:
         DEBUG_PRINT_TO("%-20s", "OP_BOOLFALSE");
         return 1;
@@ -166,6 +178,10 @@ int debug_op_print(Chunk* chunk, int offset) {
         return 1;
     case OP_DIV:
         DEBUG_PRINT_TO("%-20s", "OP_DIV");
+        return 1;
+        break;
+    case OP_MOD:
+        DEBUG_PRINT_TO("%-20s", "OP_MOD");
         return 1;
         break;
     case OP_NEG:

@@ -32,6 +32,7 @@ from uzac.utils import Span
 from uzac.interpreter import (
     bi_add,
     bi_div,
+    bi_mod,
     bi_mul,
     bi_sub,
     bi_and,
@@ -43,6 +44,9 @@ from uzac.interpreter import (
     bi_le,
     bi_gt,
     bi_ge,
+    bi_to_int,
+    bi_to_float,
+    bi_to_string,
 )
 
 BYTE_ORDER = "little"
@@ -74,6 +78,7 @@ class OPCODE(Enum):
     SUB = auto()
     MUL = auto()
     DIV = auto()
+    MOD = auto()
     NEG = auto()
 
     # compare
@@ -84,6 +89,11 @@ class OPCODE(Enum):
     GT = auto()
     GE = auto()
     NOT = auto()
+
+    # conversion
+    TOFLOAT = auto()
+    TOSTRING = auto()
+    TOINT = auto()
 
     # variables
     DEFGLOBAL = auto()
@@ -388,11 +398,9 @@ class ByteCodeProgram:
         pop_pred = Op(OPCODE.POP, if_else.predicate.span)
         self.emit_op(pop_pred)
         if_else.truthy_case.visit(self)
-        skip_truthy.jump_offset = (
-            self._written - skip_truthy_point
-        )  # jump over the uint16 offset too
+
         falsy = if_else.falsy_case
-        if falsy is not None:
+        if falsy is not None:  # else
             jump_false_op = Op(
                 OPCODE.JUMP, falsy.span, jump_offset=0
             )  # truthy case, skip else clause
@@ -404,6 +412,15 @@ class ByteCodeProgram:
             falsy.visit(self)
             self.emit_op(pop_pred)
             jump_false_op.jump_offset = self._written - skip_falsy_point
+        else:
+            skip_pop = Op(
+                OPCODE.JUMP, if_else.span, jump_offset=pop_pred.size_in_bytes()
+            )
+            self.emit_op(skip_pop)
+            skip_truthy.jump_offset = (
+                self._written - skip_truthy_point
+            )  # jump over the uint16 offset too
+            self.emit_op(pop_pred)
 
         return self._written
 
@@ -499,17 +516,24 @@ class ByteCodeProgram:
         for arg in application.args:
             arg.visit(self)
 
-        if get_builtin(application.func_id):
-            return self.emit_op(
-                Op(
-                    OPCODE.CALL_NATIVE,
-                    constant=application.func_id.name,
-                    span=application.span,
-                )
-            )
-        self.emit_op(
-            Op(OPCODE.LCONST, constant=application.func_id.name, span=application.span)
-        )
+        bi = get_builtin(application.func_id)
+        if bi and bi.is_op_code:
+            if bi == bi_to_float:
+                opcode = OPCODE.TOFLOAT
+            if bi == bi_to_string:
+                opcode = OPCODE.TOSTRING
+            if bi == bi_to_int:
+                opcode = OPCODE.TOINT
+            op = Op(opcode, span=application.span)
+            return self.emit_op(op)
+        elif bi:
+            opcode = OPCODE.CALL_NATIVE
+            op = Op(opcode, constant=application.func_id.name, span=application.span)
+            return self.emit_op(op)
+
+        opcode = OPCODE.LCONST
+        op = Op(opcode, constant=application.func_id.name, span=application.span)
+        self.emit_op(op)
         return self.emit_op(Op(OPCODE.CALL, span=application.span))
 
     def visit_return(self, ret: Return) -> int:
@@ -524,7 +548,7 @@ class ByteCodeProgram:
         self.emit_op(Op(OPCODE.POP, and_app.span))
         and_app.rhs.visit(self)
         short_circuit_op.jump_offset = self._written - jump_point
-        return -1
+        return self._written
 
     def _or(self, or_app: InfixApplication) -> int:
         or_app.lhs.visit(self)
@@ -556,6 +580,8 @@ class ByteCodeProgram:
             opc = OPCODE.MUL
         elif function == bi_div:
             opc = OPCODE.DIV
+        elif function == bi_mod:
+            opc = OPCODE.MOD
         elif function == bi_and:
             return self._and(application)
         elif function == bi_or:
