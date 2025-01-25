@@ -40,7 +40,7 @@ void object_free(Obj *obj) {
     switch (obj->type)
     {
     case OBJ_STRING:
-        object_string_free(obj);
+        object_string_free((ObjectString *) obj);
         break;
     default:
         break;
@@ -82,12 +82,12 @@ static void blackenObject(Obj* object) {
   switch (object->type) {
     case OBJ_FUNCTION_NATIVE: {
         ObjectFunction * func = (ObjectFunction *) object;
-        markObject(func->name);
+        markObject((Obj *) func->name);
         break;
     }
     case OBJ_FUNCTION: {
         ObjectFunction * func = (ObjectFunction *) object;
-        markObject(func->name);
+        markObject((Obj *) func->name);
         markArray(&func->chunk->constants);
         break;
     }

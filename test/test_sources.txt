@@ -337,3 +337,35 @@ c += "d"
 println(c)
 #expected
 cabababababababababababababababd
+
+#test not operator and le
+const foo = true
+if not not foo {
+    println(1 <= 1 and (-54) <= 100)
+}
+else {
+    println("WRONG")
+}
+#expected
+true
+
+#test op parsing order
+println(not ((5 > 3 and 10 <= 20) or (15 == 10 + 5 and not (8 != 8))) and ((7 < 9 or 12 >= 13) and not (6 == 6 and 4 > 2)))
+#expected
+false
+
+#test fibonacci
+func fib(n : int) => int {
+    if n <= 1 then return n
+    return fib(n-1) + fib(n-2)
+}
+func fibTailRec(n : int, prev: int, curr: int) => int {
+    if n == 0 then return prev
+    if n == 1 then return curr
+    return fibTailRec(n-1, curr, prev + curr)
+}
+println(fib(8))
+println(fibTailRec(8, 0, 1))
+#expected
+21
+21

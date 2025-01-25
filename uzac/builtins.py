@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
-from operator import add, and_, eq, lt, mul, ne, or_, pow, truediv
+from operator import add, and_, eq, ge, gt, le, lt, mul, ne, not_, or_, pow, truediv
 from typing import Callable, List, Optional
 from uzac.type import (
     ArrowType,
@@ -11,8 +11,6 @@ from uzac.type import (
     type_string,
     type_array,
     type_void,
-    type_arithmetic,
-    type_bool_logic,
 )
 
 from uzac.ast import Identifier, Value
@@ -50,10 +48,15 @@ class BuiltIn:
 
 # ARITHMETIC FUNCTIONS
 
-_bi_arith_type = ArrowType([type_arithmetic, type_arithmetic], type_arithmetic)
+_bi_arith_types = [
+    ArrowType([type_int, type_int], type_int),
+    ArrowType([type_float, type_float], type_float),
+    ArrowType([type_int, type_float], type_float),
+    ArrowType([type_float, type_int], type_float),
+]
 _bi_string_concat = ArrowType([type_string, type_string], type_string)
 
-bi_add = BuiltIn("+", add, [_bi_arith_type, _bi_string_concat])
+bi_add = BuiltIn("+", add, [*_bi_arith_types, _bi_string_concat])
 
 
 def _sub_or_neg(*args):
@@ -63,13 +66,19 @@ def _sub_or_neg(*args):
 
 
 bi_sub = BuiltIn(
-    "-", _sub_or_neg, [_bi_arith_type, ArrowType([type_arithmetic], type_arithmetic)]
+    "-",
+    _sub_or_neg,
+    [
+        *_bi_arith_types,
+        ArrowType([type_int], type_int),
+        ArrowType([type_float], type_float),
+    ],
 )
-bi_mul = BuiltIn("*", mul, [_bi_arith_type])
-bi_div = BuiltIn("/", truediv, [_bi_arith_type])
-bi_pow = BuiltIn("**", pow, [_bi_arith_type])
-bi_max = BuiltIn("max", max, [_bi_arith_type])
-bi_min = BuiltIn("min", min, [_bi_arith_type])
+bi_mul = BuiltIn("*", mul, [*_bi_arith_types])
+bi_div = BuiltIn("/", truediv, [*_bi_arith_types])
+bi_pow = BuiltIn("**", pow, [*_bi_arith_types])
+bi_max = BuiltIn("max", max, [*_bi_arith_types])
+bi_min = BuiltIn("min", min, [*_bi_arith_types])
 
 
 # IO FUNCTIONS
@@ -104,12 +113,23 @@ bi_readAll = BuiltIn("readAll", _read_file, [ArrowType([type_string], type_strin
 # BOOLEAN STUFF
 
 _bool_func_type = ArrowType([type_any, type_any], type_bool)
+_bool_cmp_overloads = [
+    ArrowType([type_int, type_int], type_bool),
+    ArrowType([type_float, type_float], type_bool),
+    ArrowType([type_int, type_float], type_bool),
+    ArrowType([type_float, type_int], type_bool),
+]
 
 bi_and = BuiltIn("and", and_, [_bool_func_type])
 bi_or = BuiltIn("or", or_, [_bool_func_type])
 bi_eq = BuiltIn("==", eq, [_bool_func_type])
 bi_ne = BuiltIn("!=", ne, [_bool_func_type])
-bi_lt = BuiltIn("<", lt, [_bool_func_type])
+bi_lt = BuiltIn("<", lt, _bool_cmp_overloads)
+bi_le = BuiltIn("<=", le, _bool_cmp_overloads)
+bi_gt = BuiltIn(">", gt, _bool_cmp_overloads)
+bi_ge = BuiltIn(">=", ge, _bool_cmp_overloads)
+
+bi_not = BuiltIn("not", not_, [ArrowType([type_bool], type_bool)])
 
 bi_to_int = BuiltIn(
     "toInt", int, [ArrowType([type_string | type_float | type_int], type_int)]

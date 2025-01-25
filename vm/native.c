@@ -21,8 +21,25 @@ void native_println(void) {
 #endif
 }
 
+void native_print(void) {
+    Value val = pop();
+#ifndef NDEBUG
+    fflush(stdout);
+    DEBUG_PRINT(BRIGHT_RED "STDOUT PRINTLN:`" RESET);
+    fflush(stderr);
+#endif
+
+    PRINT_VALUE(val, stdout);
+
+#ifndef NDEBUG
+    fflush(stdout);
+    DEBUG_PRINT(BRIGHT_RED "`" RESET NEWLINE);
+#endif
+}
+
 const NativeFunction native_builtins[] = {
     {"println", sizeof("println") - 1, {(native_function) native_println}, 1},
+    {"print", sizeof("print") - 1, {(native_function) native_print}, 1},
 };
 
 

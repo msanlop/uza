@@ -86,6 +86,9 @@ class SymbolicType(Type):
     def __str__(self) -> str:
         return f"{self.__class__}({self.identifier})"
 
+    def __hash__(self):
+        return self.identifier.__hash__()
+
 
 @dataclass(frozen=True)
 class IncompleteBranchType(Type):
@@ -213,6 +216,7 @@ class Applies(Constraint):
     """
 
     args: list[Type]
+    ret_type: Type
     args_span: list[Span]
     b: ArrowType
     span: Span  # TODO: change args to have more precise span to the argument
@@ -246,7 +250,8 @@ class Applies(Constraint):
                     )
                     fatal = True
                     continue
-                if substitution.get_type_of(a) is not None:
+                sub_type = substitution.get_type_of(a)
+                if sub_type is not None and (not isinstance(sub_type, SymbolicType)):
                     type_str = str(self.b)
                     self._err_msgs += (
                         f"for function type: {in_color(type_str, ANSIColor.GREEN)}\nat "
@@ -260,7 +265,11 @@ class Applies(Constraint):
 
         if fatal:
             return False, None
-        return solved, [option]
+
+        if isinstance(self.ret_type, SymbolicType):
+            return solved, option + (self.ret_type, self.b.return_type)
+
+        return solved, []
 
     def fail_message(self) -> str:
         if self._args_num_incorrect:
@@ -283,17 +292,24 @@ class OneOf(Constraint):
     substitution: Substitution = field(default=None)
     _a_solved: list[bool] = field(default=None)
 
-    def solve(self, substitution: Substitution) -> bool:
+    def solve(
+        self, substitution: Substitution
+    ) -> tuple[bool, Optional[list[Substitution]]]:
         self.substitution = substitution
         choices_options = []
         for choice in self.choices:
             works, options = choice.solve(substitution)
             if works:
-                return works, None
+                return works, options
             if options:
                 choices_options.append(options)
         if len(choices_options) == 0:
             choices_options = None
+
+        if choices_options:
+            assert isinstance(
+                choices_options[0], Substitution
+            ), f"found {choices_options =}"
         return False, choices_options
 
     def fail_message(self) -> str:
@@ -338,11 +354,11 @@ class Typer:
         self._error_strings: list[str] = []
         self._warnings: list[str] = []
 
-    def _create_new_symbol(self, node: Node):
+    def _create_new_symbol(self, span: Span):
         """
         Return a new unique SymbolicType.
         """
-        return SymbolicType("symbolic_" + str(next(self._symbol_gen)), node.span)
+        return SymbolicType("symbolic_" + str(next(self._symbol_gen)), span)
 
     def _get_type_of_identifier(self, identifier: str) -> Type:
         return self._symbol_table.get(identifier)[0]
@@ -392,7 +408,9 @@ class Typer:
 
         return f_signature.return_type, None
 
-    def visit_builtin(self, bi: BuiltIn, *arguments: Node) -> tuple[Type, ReturnType]:
+    def visit_builtin(
+        self, bi: BuiltIn, *arguments: Node, span: Span
+    ) -> tuple[Type, ReturnType]:
         arg_types = [arg.visit(self)[0] for arg in arguments]
         signatures = bi.type_signatures
 
@@ -403,11 +421,13 @@ class Typer:
             )
 
         if len(signatures) > 1:  # polymorphic
+            overload_func_ret = self._create_new_symbol(span)
             constraints = []
             for signature in signatures:
                 constraints.append(
                     Applies(
                         list(arg_types),
+                        overload_func_ret,
                         [arg.span for arg in arguments],
                         signature,
                         Span.from_list(
@@ -418,12 +438,13 @@ class Typer:
             self.add_constaint(
                 OneOf(constraints, Span.from_list(arguments, empty_case=span_zero))
             )
-            return arg_types[0], type_void
+            return overload_func_ret, type_void
         else:
             func_type = signatures[0]
             self.add_constaint(
                 Applies(
                     list(arg_types),
+                    func_type.return_type,
                     [arg.span for arg in arguments],
                     func_type,
                     Span.from_list(arguments, empty_case=span_zero),
@@ -440,7 +461,7 @@ class Typer:
         func_id = infix.func_id
         builtin = get_builtin(func_id)
         assert builtin
-        return self.visit_builtin(builtin, infix.lhs, infix.rhs)
+        return self.visit_builtin(builtin, infix.lhs, infix.rhs, span=infix.span)
 
     def visit_prefix_application(
         self, prefix: PrefixApplication
@@ -448,7 +469,7 @@ class Typer:
         func_id = prefix.func_id
         builtin = get_builtin(func_id)
         assert builtin
-        return self.visit_builtin(builtin, prefix.expr)
+        return self.visit_builtin(builtin, prefix.expr, span=prefix.span)
 
     def visit_if_else(self, if_else: IfElse) -> tuple[Type, ReturnType]:
         pred, pred_ret = if_else.predicate.visit(self)
@@ -481,9 +502,21 @@ class Typer:
         func_id = app.func_id
         builtin = get_builtin(func_id)
         if builtin:
-            return self.visit_builtin(builtin, *app.args)
+            return self.visit_builtin(builtin, *app.args, span=app.span)
         func: Function = self._functions.get(func_id)
         func_type = func.type_signature
+        arg_count = len(app.args)
+        param_count = len(func_type.param_types)
+        if arg_count != param_count:
+            raise TypeError(
+                in_color(
+                    "\n"
+                    + Span.from_list(app.args).get_underlined(
+                        f"Expected {param_count} arguments but found {arg_count}"
+                    ),
+                    ANSIColor.RED,
+                )
+            )
         app_types = (arg.visit(self)[0] for arg in app.args)
         for a, b, spannable in zip(app_types, func_type.param_types, app.args):
             self.add_constaint(IsType(a, b, spannable.span))
@@ -491,7 +524,7 @@ class Typer:
         return func_type.return_type, type_void
 
     def visit_var_def(self, var_def: VarDef) -> tuple[Type, ReturnType]:
-        t = var_def.type_ if var_def.type_ else self._create_new_symbol(var_def)
+        t = var_def.type_ if var_def.type_ else self._create_new_symbol(var_def.span)
         self.constaints.append(IsType(t, var_def.value.visit(self)[0], var_def.span))
         self._symbol_table.define(var_def.identifier, (t, var_def.immutable))
         return type_void, type_void
@@ -599,6 +632,10 @@ class Typer:
                         if not err:
                             return 0, "", new_map
                     break
+                case True, sub:
+                    if sub:
+                        assert isinstance(sub, Substitution)
+                        substitution = sub
 
         return err, err_string, substitution
 

@@ -138,8 +138,6 @@ type_void = BuiltInType("void", _builtin_types)
 type_array = BuiltInType("array", _builtin_types)
 
 type_any = reduce(lambda x, y: x | y, _builtin_types.values())
-type_arithmetic = type_int | type_float
-type_bool_logic = type_bool | type_int | type_float
 
 _python_to_uza = {
     int: type_int,

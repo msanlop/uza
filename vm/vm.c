@@ -17,11 +17,7 @@
 
 #define PEEK(vm) (*(vm.stack_top - 1))
 
-#ifndef NDEBUG
-#define DEBUG_SET_STACK_VALUE_TO_BOOL (vm.stack_top[-1].type = TYPE_BOOL)
-#else
-#define DEBUG_SET_STACK_VALUE_TO_BOOL
-#endif
+#define SET_STACK_VALUE_TO_BOOL (vm.stack_top[-1].type = TYPE_BOOL)
 
 #define GET_FRAME(up_count) (&vm.frame_stacks[vm.depth - up_count])
 
@@ -266,14 +262,55 @@ int interpret(void) {
             BINARY_OP(/);
         }
         break;
+        case OP_NEG: {
+            Value val = PEEK(vm);
+            if (val.type == TYPE_DOUBLE) {
+                val.as.fp = -val.as.fp;
+            }
+            else if (val.type == TYPE_LONG) {
+                val.as.integer = -val.as.integer;
+            }
+            else {
+                PRINT_ERR_ARGS("at %s:%d cannot neg type : %d\n\n",
+                __FILE__, __LINE__, val.type);
+            return 1;
+            }
+        }
+        break;
         case OP_EQ: {
             BINARY_OP(==);
-            DEBUG_SET_STACK_VALUE_TO_BOOL;
+            SET_STACK_VALUE_TO_BOOL;
+        }
+        break;
+        case OP_NE: {
+            BINARY_OP(!=);
+            SET_STACK_VALUE_TO_BOOL;
         }
         break;
         case OP_LT: {
             BINARY_OP(<);
-            DEBUG_SET_STACK_VALUE_TO_BOOL;
+            SET_STACK_VALUE_TO_BOOL;
+        }
+        break;
+        case OP_LE: {
+            BINARY_OP(<=);
+            SET_STACK_VALUE_TO_BOOL;
+        }
+        break;
+        case OP_GT: {
+            BINARY_OP(>);
+            SET_STACK_VALUE_TO_BOOL;
+        }
+        break;
+        case OP_GE: {
+            BINARY_OP(>=);
+            SET_STACK_VALUE_TO_BOOL;
+        }
+        break;
+        case OP_NOT: {
+            PEEK(vm).as.boolean = !PEEK(vm).as.boolean;
+            PEEK(vm).type = TYPE_BOOL;
+            SET_STACK_VALUE_TO_BOOL;
         }
         break;
         case OP_DEFGLOBAL: {

@@ -134,8 +134,28 @@ int debug_op_print(Chunk* chunk, int offset) {
         DEBUG_PRINT_TO("%-20s", "OP_EQ");
         return 1;
         break;
+    case OP_NE:
+        DEBUG_PRINT_TO("%-20s", "OP_NE");
+        return 1;
+        break;
     case OP_LT:
         DEBUG_PRINT_TO("%-20s", "OP_LT ( < )");
+        return 1;
+        break;
+    case OP_LE:
+        DEBUG_PRINT_TO("%-20s", "OP_LE ( <= )");
+        return 1;
+        break;
+    case OP_GT:
+        DEBUG_PRINT_TO("%-20s", "OP_GT ( > )");
+        return 1;
+        break;
+    case OP_GE:
+        DEBUG_PRINT_TO("%-20s", "OP_GE ( >= )");
+        return 1;
+        break;
+    case OP_NOT:
+        DEBUG_PRINT_TO("%-20s", "OP_NOT ( not )");
         return 1;
         break;
     case OP_SUB:
@@ -146,6 +166,10 @@ int debug_op_print(Chunk* chunk, int offset) {
         return 1;
     case OP_DIV:
         DEBUG_PRINT_TO("%-20s", "OP_DIV");
+        return 1;
+        break;
+    case OP_NEG:
+        DEBUG_PRINT_TO("%-20s", "OP_NEG");
         return 1;
         break;
     case OP_EXITVM:

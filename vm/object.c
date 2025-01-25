@@ -44,7 +44,7 @@ ObjectString* object_string_allocate(Table *strings, const char *chars, const in
     str->hash = hash;
     tableSet(strings, str, VAL_NIL);
     str->obj.next = vm.objects;
-    vm.objects = str;
+    vm.objects = (Obj *) str;
     return str;
 }
 
@@ -94,7 +94,7 @@ ObjectFunction *object_function_allocate() {
 
     ObjectFunction* function = (ObjectFunction *) calloc(1, alloc_size);
     function->obj.next = vm.objects;
-    vm.objects = function;
+    vm.objects = (Obj *) function;
     function->obj.type = OBJ_FUNCTION;
     function->arity = 0;
     function->name = NULL;

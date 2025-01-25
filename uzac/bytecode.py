@@ -20,6 +20,7 @@ from uzac.ast import (
     InfixApplication,
     Literal,
     Node,
+    PrefixApplication,
     Return,
     VarDef,
     Program,
@@ -37,7 +38,11 @@ from uzac.interpreter import (
     bi_or,
     get_builtin,
     bi_eq,
+    bi_ne,
     bi_lt,
+    bi_le,
+    bi_gt,
+    bi_ge,
 )
 
 BYTE_ORDER = "little"
@@ -45,11 +50,13 @@ operations = []
 
 
 class OPCODE(Enum):
+    # control flow
     RETURN = 0
     CALL = auto()
     CALL_NATIVE = auto()
     JUMP = auto()
     LOOP = auto()
+
     POP = auto()
     LFUNC = auto()
     LCONST = auto()
@@ -59,19 +66,33 @@ class OPCODE(Enum):
     BOOLFALSE = auto()
     JUMP_IF_FALSE = auto()
     JUMP_IF_TRUE = auto()
+
+    # TODO: conversions
+
+    # arithmetic
     ADD = auto()
     SUB = auto()
     MUL = auto()
     DIV = auto()
     NEG = auto()
+
+    # compare
     EQ = auto()
+    NE = auto()
     LT = auto()
+    LE = auto()
+    GT = auto()
+    GE = auto()
+    NOT = auto()
+
+    # variables
     DEFGLOBAL = auto()
     GETGLOBAL = auto()
     SETGLOBAL = auto()
     DEFLOCAL = auto()
     GETLOCAL = auto()
     SETLOCAL = auto()
+
     EXITVM = auto()
 
 
@@ -263,6 +284,7 @@ class ByteCodeLocals:
             self._get_current_frame().block_depth -= 1
         else:
             self.depth -= 1
+            self.frames.pop()
 
     def get(self, variable_name: str) -> Optional[tuple[int, int]]:
         """
@@ -474,7 +496,7 @@ class ByteCodeProgram:
         return self.emit_op(Op(OPCODE.SETLOCAL, var_redef.span, local_index=idx))
 
     def visit_application(self, application: Application) -> int:
-        for arg in application.args[::-1]:
+        for arg in application.args:
             arg.visit(self)
 
         if get_builtin(application.func_id):
@@ -514,6 +536,15 @@ class ByteCodeProgram:
         short_circuit_op.jump_offset = self._written - jump_point
         return -1
 
+    def visit_prefix_application(self, application: PrefixApplication) -> int:
+        application.expr.visit(self)
+        if application.func_id.name == "not":
+            return self.emit_op(Op(OPCODE.NOT, application.span))
+        elif application.func_id.name == "-":
+            return self.emit_op(Op(OPCODE.NEG, application.span))
+        else:
+            raise Exception(f"Can't handle : {application}")
+
     def visit_infix_application(self, application: InfixApplication) -> int:
         function = get_builtin(application.func_id)
         opc = ""
@@ -531,8 +562,16 @@ class ByteCodeProgram:
             return self._or(application)
         elif function == bi_eq:
             opc = OPCODE.EQ
+        elif function == bi_ne:
+            opc = OPCODE.NE
         elif function == bi_lt:
             opc = OPCODE.LT
+        elif function == bi_le:
+            opc = OPCODE.LE
+        elif function == bi_gt:
+            opc = OPCODE.GT
+        elif function == bi_ge:
+            opc = OPCODE.GE
         else:
             raise NotImplementedError(f"vm can't do {function} yet")
 
@@ -699,9 +738,9 @@ class ByteCodeProgramSerializer:
                 offset_bytes = struct.pack("<H", opcode.jump_offset)
                 written += self._write(offset_bytes)
 
-            assert written == opcode.size, (
-                f"For {opcode=}\n exepected it to be {opcode.size} in size but wrote {written} instead"
-            )
+            assert (
+                written == opcode.size
+            ), f"For {opcode=}\n exepected it to be {opcode.size} in size but wrote {written} instead"
             written = 0
 
         for opcode in code:

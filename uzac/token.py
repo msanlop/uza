@@ -16,8 +16,9 @@ class TokenKind:
     repr: str
     _token_dict: dict = field(init=False, default_factory=lambda: token_types)
     precedence: int = -1
-    right_assoc: bool = False
-    is_user_value: bool = False
+    is_prefix_operator: bool = field(default=False)
+    right_assoc: bool = field(default=False)
+    is_user_value: bool = field(default=False)
 
     def __post_init__(self):
         self._token_dict[self.repr] = self
@@ -55,16 +56,35 @@ class Token:
         return True
 
 
+# OPERATORS
+token_star_double = TokenKind("**", 14, right_assoc=True)
+
+token_star = TokenKind("*", 13)
+token_mod = TokenKind("%", 13)
+token_slash = TokenKind("/", 13)
+
+token_plus = TokenKind("+", 12)
+token_minus = TokenKind("-", 12)
+
+token_eq_double = TokenKind("==", 7)
+token_bang_eq = TokenKind("!=", 7)
+token_angle_bracket_l = TokenKind("<", 7)
+token_angle_bracket_r = TokenKind(">", 7)
+token_le = TokenKind("<=", 7)
+token_ge = TokenKind(">=", 7)
+
+token_not = TokenKind("not", 6, is_prefix_operator=True)
+token_and = TokenKind("and", 5)
+token_or = TokenKind("or", 4)
+
+
 token_new_line = TokenKind("\n")
+token_tab = TokenKind("\t")
 token_space = TokenKind(" ")
-token_plus = TokenKind("+", 1)
+token_bang = TokenKind("!")
 token_plus_eq = TokenKind("+=")
-token_minus = TokenKind("-", 1)
 token_minus_eq = TokenKind("-=")
-token_star = TokenKind("*", 2)
-token_slash = TokenKind("/", 3)
 token_slash_slash = TokenKind("//")
-token_star_double = TokenKind("**", 9, right_assoc=True)
 token_paren_l = TokenKind("(")
 token_paren_r = TokenKind(")")
 token_bracket_l = TokenKind("{")
@@ -77,11 +97,6 @@ token_return = TokenKind("return")
 token_arrow = TokenKind("=>")
 token_var = TokenKind("var")
 token_eq = TokenKind("=")
-token_eq_double = TokenKind("==", 1)
-token_bang = TokenKind("!", 1)
-token_bang_eq = TokenKind("!=", 1)
-token_angle_bracket_l = TokenKind("<", 1)
-token_angle_bracket_r = TokenKind(">", 1)
 token_identifier = TokenKind("identifier")
 token_comment = TokenKind("comment")
 token_def = TokenKind("def")
@@ -89,8 +104,6 @@ token_if = TokenKind("if")
 token_then = TokenKind("then")
 token_else = TokenKind("else")
 token_comma = TokenKind(",")
-token_and = TokenKind("and", 1)
-token_or = TokenKind("or", 1)
 token_false = TokenKind("false", is_user_value=True)
 token_true = TokenKind("true", is_user_value=True)
 token_quote = TokenKind('"')

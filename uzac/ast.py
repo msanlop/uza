@@ -6,6 +6,8 @@ from uzac.utils import Span
 from uzac.token import *
 from uzac.type import *
 
+DEBUG_PARSE = False
+
 
 class Node(ABC):
     """
@@ -54,6 +56,11 @@ class Literal(Node):
 
     def visit(self, that):
         return that.visit_literal(self)
+
+    if DEBUG_PARSE:
+
+        def __repr__(self):
+            return f"{self.value}"
 
 
 @dataclass
@@ -106,6 +113,11 @@ class Application(Node):
     def visit(self, that):
         return that.visit_application(self)
 
+    if DEBUG_PARSE:
+
+        def __repr__(self):
+            return f"({self.func_id.name}[{[repr(a) for a in self.args]}])"
+
 
 @dataclass
 class InfixApplication(Node):
@@ -120,6 +132,11 @@ class InfixApplication(Node):
     def visit(self, that):
         return that.visit_infix_application(self)
 
+    if DEBUG_PARSE:
+
+        def __repr__(self):
+            return f"({self.lhs} {self.func_id.name} {self.rhs})"
+
 
 @dataclass
 class PrefixApplication(Node):
@@ -132,6 +149,11 @@ class PrefixApplication(Node):
 
     def visit(self, that):
         return that.visit_prefix_application(self)
+
+    if DEBUG_PARSE:
+
+        def __repr__(self):
+            return f"({self.func_id.name} {self.expr})"
 
 
 @dataclass

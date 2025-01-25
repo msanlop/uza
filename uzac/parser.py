@@ -58,7 +58,7 @@ class Scanner:
         while not self._overflows(end):
             char = self._char_at(end)
             if not (
-                char in string.ascii_letters or char in string.digits or char in "_-"
+                char in string.ascii_letters or char in string.digits or char in "_"
             ):
                 break
             end += 1
@@ -485,7 +485,7 @@ class Parser:
 
         return Range(node, start, end, single_item, node.span + bracket_tok.span)
 
-    def _get_expr(self) -> Node:
+    def _get_expr(self, parsing_infix=False) -> Node:
         tok = self._consume_white_space_and_peek()
 
         if tok.kind in (token_const, token_var):
@@ -494,6 +494,8 @@ class Parser:
             self._expect(token_paren_l)
             node = self._get_infix(self._get_expr())
             self._expect(token_paren_r)
+            if parsing_infix:
+                return node
             return self._get_infix(node)
         elif tok.kind == token_while:
             return self._get_while_loop()
@@ -529,12 +531,22 @@ class Parser:
 
         elif tok.kind.is_op():
             prefix_tok = self._expect(tok.kind)
-            return PrefixApplication(
-                self._get_expr(), Identifier(prefix_tok, prefix_tok.span)
+            lhs = self._get_expr(parsing_infix=True)
+            expr = self._get_infix(lhs, prefix_tok.kind.precedence)
+            prefix_app = PrefixApplication(
+                expr, Identifier(prefix_tok, prefix_tok.span + expr.span)
             )
+            if not parsing_infix:
+                return self._get_infix(prefix_app)
+            else:
+                return prefix_app
+
         elif tok.kind.is_user_value:
             val = Literal(self._expect(tok.kind))
-            return self._get_infix(val)
+            if parsing_infix:
+                return val
+            else:
+                return self._get_infix(val)
         else:
             source_excerp = self._source[
                 max(tok.span.start - 2, 0) : min(tok.span.end + 2, len(self._source))
@@ -558,14 +570,9 @@ class Parser:
         evaluates operations with in the appropriate order of precedence
         """
         valid_op, curr_op_precedence = self._peek_valid_op(precedence)
-        while valid_op:
-            if self._peek().kind == token_square_bracket_l:
-                lhs = self._get_range(lhs)
-                valid_op, curr_op_precedence = self._peek_valid_op(precedence)
-                continue
-
+        while valid_op and curr_op_precedence >= precedence:
             op = self._expect(op=True)
-            rhs = self._get_expr()
+            rhs = self._get_expr(parsing_infix=True)
 
             higher_op, next_op_precedence = self._peek_valid_op(curr_op_precedence + 1)
             while higher_op:
@@ -573,7 +580,8 @@ class Parser:
                 higher_op, next_op_precedence = self._peek_valid_op(
                     curr_op_precedence + 1
                 )
-
+            if op.kind.is_prefix_operator:
+                rhs = PrefixApplication(rhs, Identifier(op, op.span))
             lhs = InfixApplication(lhs, Identifier(op, op.span), rhs)
             valid_op, curr_op_precedence = self._peek_valid_op(precedence)
 
