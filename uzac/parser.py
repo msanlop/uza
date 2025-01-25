@@ -161,7 +161,7 @@ class Scanner:
             if token.kind == token_new_line:
                 self._line += 1
             if self._discard_style:
-                while token and token.kind in (token_comment, token_space):
+                while token and token.kind in (token_comment, token_space, token_tab):
                     token = self._next_token()
 
             if token is None:
