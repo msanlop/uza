@@ -1,7 +1,8 @@
 from __future__ import annotations
+from dataclasses import field
 from typing import List
-
-from uza.token import *
+from functools import reduce
+from uzac.token import *
 
 
 @dataclass(frozen=True)
@@ -9,8 +10,6 @@ class Type:
     """
     A uza Type.
     """
-
-    identifier: str
 
     def resolve_type(self, substitution) -> Type:
         """
@@ -30,6 +29,30 @@ class Type:
         """
         return self
 
+    def __or__(self, that: object) -> bool:
+        if Type.matches(self, that):
+            return self
+        if isinstance(that, BuiltInType):
+            return UnionType(self, that)
+        if isinstance(that, UnionType):
+            return UnionType(self, that.types)
+        if issubclass(Type, that.__class__):
+            return that | self
+        raise NotImplementedError(f"for {self} | {that}")
+
+    def __contains__(self, that: object):
+        if issubclass(that.__class__, Type):
+            return False
+        raise NotImplementedError
+
+    @staticmethod
+    def matches(a: Type, b: Type):
+        if isinstance(b, UnionType):
+            if isinstance(a, UnionType):
+                return a in b
+            return a in b
+        return a == b
+
 
 @dataclass(frozen=True, eq=True)
 class UnionType(Type):
@@ -37,25 +60,36 @@ class UnionType(Type):
     Represents a union type.
     """
 
-    types: List[Type]
+    types: List[Type] = field(init=False)
 
     def __init__(self, *types: List[Type]) -> None:
-        super().__init__("union")
         object.__setattr__(self, "types", types)
 
     def __str__(self) -> str:
         union = " | ".join(str(t) for t in self.types)
-        return f"{union}"
+        return union
 
     def __eq__(self, that: object) -> bool:
+        if isinstance(that, UnionType):
+            for own, their in zip(self.types, that.types):
+                if own not in that.types:
+                    return False
+                if their not in self.types:
+                    return False
+            return True
+        if issubclass(that.__class__, Type):
+            return False
+        raise NotImplementedError
+
+    def __contains__(self, that: object):
+        if isinstance(that, self.__class__):
+            return all(map(lambda t: t in self.types, that.types))
         if issubclass(that.__class__, Type):
             return that in self.types
-        if not isinstance(that, UnionType):
-            raise NotImplementedError
-        return all(a == b for (a, b) in zip(self.types, that.types))
+        raise NotImplementedError
 
-    def __add__(self, that: object) -> bool:
-        if isinstance(that, BuiltInType):
+    def __or__(self, that: object) -> bool:
+        if isinstance(that, Type):
             return UnionType(*self.types, that)
         if isinstance(that, UnionType):
             return UnionType(self.types, that.types)
@@ -68,21 +102,14 @@ class ArrowType(Type):
     An arrow type takes in a type and returns another type.
     """
 
-    parameters: list[Type]
-    returns: Type
-
-    def __init__(self, parameters: list[Type], returns: Type) -> None:
-        super().__init__("arrow")
-        object.__setattr__(self, "parameters", parameters)
-        object.__setattr__(self, "returns", returns)
+    param_types: list[Type]
+    return_type: Type
 
     def __str__(self) -> str:
-        return (
-            f"({', '.join((str(p) for p in self.parameters))}) -> {str(self.returns)}"
-        )
+        return f"({', '.join((str(p) for p in self.param_types))}) -> {str(self.return_type)}"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=True)
 class BuiltInType(Type):
     """
     A BuiltInType is a type that is part of the standard library.
@@ -108,12 +135,15 @@ type_float = BuiltInType("float", _builtin_types)
 type_string = BuiltInType("string", _builtin_types)
 type_bool = BuiltInType("bool", _builtin_types)
 type_void = BuiltInType("void", _builtin_types)
+type_array = BuiltInType("array", _builtin_types)
 
+type_any = reduce(lambda x, y: x | y, _builtin_types.values())
 
 _python_to_uza = {
     int: type_int,
     float: type_float,
     str: type_string,
+    list: type_array,
     bool: type_bool,
     None: type_void,
 }
@@ -124,6 +154,7 @@ _id_to_uza = {
     "string": type_string,
     "bool": type_bool,
     "void": type_void,
+    "array": type_array,
 }
 
 

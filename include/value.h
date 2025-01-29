@@ -2,14 +2,13 @@
 #define uza_value_h
 
 #include "common.h"
-#include "object.h"
-
 
 typedef struct Obj Obj;
 typedef struct ObjectString ObjectString;
 
 typedef enum {
   TYPE_INVALID = -1,
+  TYPE_NIL,
   TYPE_LONG,
   TYPE_BOOL,
   TYPE_DOUBLE,
@@ -26,14 +25,22 @@ typedef struct {
   } as;
 } Value;
 
+#define VAL_NIL ((Value){TYPE_NIL, {.integer = 0}})
+#define VAL_INT(i) ((Value){TYPE_LONG, {.integer = i}})
+#define VAL_BOOL(val) ((Value) {TYPE_BOOL, .as.boolean=val})
+#define VAL_OBJ(obj) ((Value) {TYPE_OBJ, .as.object=(Obj *) obj})
+
 #define IS_INTEGER(value) ((value).type == TYPE_LONG)
 #define IS_DOUBLE(value) ((value).type == TYPE_DOUBLE)
 #define IS_BOOL(value) ((value).type == TYPE_BOOL)
 #define IS_OBJECT(value) ((value).type == TYPE_OBJ)
+#define IS_NIL(value)     ((value).type == TYPE_NIL)
 
 #define AS_INTEGER(value) ((value).as.integer)
 #define AS_DOUBLE(value) ((value).as.fp)
 #define AS_OBJECT(value) ((Obj*) (value).as.object)
+#define AS_STRING(value) ((ObjectString*) AS_OBJECT(value))
+#define AS_FUNCTION(value) ((ObjectFunction*) AS_OBJECT(value))
 
 #define I2D(value) \
   do { \
@@ -47,18 +54,32 @@ typedef struct {
   do { \
     switch ((value).type) \
     { \
+    case TYPE_NIL: \
+      fprintf((out), "(nil)"); break; \
     case TYPE_LONG: \
-      fprintf((out), "%lld", (value).as.integer); break; \
+      fprintf((out), "%ld", (value).as.integer); break; \
     case TYPE_DOUBLE: \
       fprintf((out), "%.3lf", (value).as.fp); break; \
-    case TYPE_BOOL: \
-      fprintf((out), "%d", (value).as.boolean); break; \
+    case TYPE_BOOL: { \
+      if ((value).as.boolean) fprintf((out), "true"); \
+      else fprintf((out), "false"); \
+    } \
+      break; \
     case TYPE_OBJ: \
       if(AS_OBJECT(value)->type == OBJ_STRING) { \
-        fprintf((out), "%s", ((ObjectString*) AS_OBJECT(value))->chars); \
+        fprintf((out), "%s", (AS_STRING((value)))->chars); \
+      } \
+      else if(AS_OBJECT(value)->type == OBJ_FUNCTION) { \
+        fprintf((out), "func[%s]", AS_FUNCTION(value)->name->chars); \
+      } \
+      else if(AS_OBJECT(value)->type == OBJ_FUNCTION_NATIVE) { \
+        fprintf((out), "func[%s]", AS_FUNCTION(value)->name->chars); \
       } \
       else { \
+        fprintf(stderr, "Could not print object of type %d\n", (AS_OBJECT(value)->type)); \
+        exit(1); \
       } \
+      break; \
     default: break; \
     } \
   } while (false); \

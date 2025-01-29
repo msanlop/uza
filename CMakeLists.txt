@@ -15,11 +15,20 @@ if(NOT CMAKE_BUILD_TYPE)
     message("Setting default CMAKE_BUILD_TYPE=" ${CMAKE_BUILD_TYPE})
 endif()
 
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -fsanitize=undefined -g")
-elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -O3")
+if(CMAKE_C_COMPILER_ID MATCHES "MSVC")
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /W4 /Zi /Ob1")
+    elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /W4 /O2 /Ob2")
+    endif()
+else() # GCC/Clang
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Winline -g")
+    elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Winline -O3")
+    endif()
 endif()
+
 
 
 add_subdirectory(include)

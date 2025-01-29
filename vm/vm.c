@@ -3,23 +3,34 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "chunk.h"
 #include "common.h"
-#include "serializer.h"
+#include "serialize.h"
 #include "vm.h"
 #include "memory.h"
 #include "value.h"
+#include "chunk.h"
+#include "native.h"
 
-#ifdef DEBUG
+#ifndef NDEBUG
 #include "debug.h"
 #endif
 
-#define PEEK(vm) (*(vm->stack_top - 1))
+#define PEEK(vm) (*(vm.stack_top - 1))
 
-#define BINARY_OP(vm, op) \
+#define SET_STACK_VALUE_TO_BOOL (vm.stack_top[-1].type = TYPE_BOOL)
+
+#define GET_FRAME(up_count) (&vm.frame_stacks[vm.depth - up_count])
+
+#define IP_FETCH_INCR (*(frame->ip++))
+#define CURR_FRAME ()
+
+#define CONSTANT(constant_offset) (chunk->constants.values[constant_offset])
+
+
+#define BINARY_OP(op) \
     do { \
-        Value rhs = pop(vm); \
-        Value lhs = pop(vm); \
+        Value rhs = pop(); \
+        Value lhs = pop(); \
         if(IS_DOUBLE(lhs) || IS_DOUBLE(rhs)) { \
             if(IS_INTEGER(lhs)) {I2D(lhs);} \
             else if(IS_INTEGER(rhs)) {I2D(rhs);} \
@@ -27,136 +38,390 @@
         } else { \
             (lhs).as.integer = (lhs).as.integer op (rhs).as.integer; \
         } \
-        push(vm, lhs); \
+        push(lhs); \
     } while (false); \
 
 
-void push(VM* vm, Value value) {
-    *vm->stack_top++ = value;
+#define JUMP_IF(value) \
+    do {                                                                       \
+        if (value) {                                                 \
+            int offset =  ((uint16_t) *(frame->ip)) + sizeof(uint16_t);           \
+            frame->ip += offset;                                                  \
+        }                                                                      \
+        else {                                                                 \
+            frame->ip += sizeof(uint16_t);                                        \
+        }                                                                      \
+    } while (0);
+
+extern bool stop_interpreting;
+VM vm = {0};
+bool enable_garbage_collection = false;
+
+inline void push(Value value) {
+    *vm.stack_top++ = value;
     #ifdef DEBUG_TRACE_EXECUTION_STACK
-        debug_stack_print(vm, "stack: push");
+        DEBUG_PRINT("stack push\n");
     #endif //#define DEBUG_TRACE_EXECUTION_STACK
 }
 
-Value pop(VM* vm) {
-    vm->stack_top--;
+inline Value pop(void) {
+    vm.stack_top--;
     #ifdef DEBUG_TRACE_EXECUTION_STACK
-        debug_stack_print(vm, "stack: pop");
+        DEBUG_PRINT("stack pop\n");
     #endif //#define DEBUG_TRACE_EXECUTION_STACK
-    return *vm->stack_top;
+    return *vm.stack_top;
 }
 
 
-void vm_stack_reset(VM* vm) {
-    vm->stack_top = vm->stack;
+inline void vm_stack_reset(void) {
+    vm.stack_top = vm.stack;
 }
 
-VM* vm_init(program_bytes_t* program) {
-    VM* vm = calloc(1, sizeof(VM));
-    if (vm == NULL) return vm;
-    read_program(&vm->chunk, program);
-    vm->ip = vm->chunk.code;
-    vm_stack_reset(vm);
-    return vm;
+void vm_init(program_bytes_t* program) {
+    vm = (VM) {0};
+    vm.nextGC = 1024 * 1024;
+    enable_garbage_collection = false;
+
+    initTable(&vm.strings);
+    initTable(&vm.globals);
+    read_program(program);
+
+    size_t count;
+    const NativeFunction *natives = native_functions_get(&count);
+    for (size_t i = 0; i < count; i++)
+    {
+        const NativeFunction *func = &natives[i];
+        ObjectString *func_name = object_string_allocate(&vm.strings, func->name, func->name_len);
+        ObjectFunction *func_obj = object_function_allocate();
+        func_obj->arity = func->arity;
+        func_obj->function = func->function;
+        func_obj->obj = (Obj) {OBJ_FUNCTION_NATIVE, NULL};
+        func_obj->name = func_name;
+        tableSet(&vm.globals, func_name, VAL_OBJ(func_obj));
+    }
+
+
+    vm.depth = 0;
+    Frame *global_frame = &vm.frame_stacks[vm.depth];
+    global_frame->function = object_function_allocate();
+    global_frame->function->chunk = vm.chunks[0];
+    global_frame->function->name = object_string_allocate(&vm.strings, "__global__", sizeof("__global__"));
+    global_frame->ip = global_frame->function->chunk->code;
+    global_frame->locals_count = global_frame->function->chunk->local_count;
+    global_frame->is_block = false;
+    global_frame->locals = vm.stack;
+
+    vm_stack_reset();
+    vm.stack_top += global_frame->locals_count;
 }
 
-void vm_free(VM* vm){
-    chunk_free(&vm->chunk);
-    free(vm);
+void vm_free(void){
+    freeTable(&vm.strings);
+    freeTable(&vm.globals);
+    // chunk_free(vm.chunks);
+    if (vm.gray_stack) free(vm.gray_stack);
 }
 
-void interpret(VM* vm) {
+int interpret(void) {
+    enable_garbage_collection = true;
+    while(!stop_interpreting) {
 
-        // char* string = "Hello ";
-        // int string_len = strlen(string);
-        // ObjectString* new_string = calloc(
-        //     1,
-        //     sizeof(Obj) + sizeof(int) + string_len + 1
-        // );
-        // new_string->length = string_len;
-        // new_string->obj.type = OBJ_STRING;
-        // strlcpy(new_string->chars, string, string_len + 1);
-        // push(vm, (Value) {.type=TYPE_OBJ, .as.object=new_string});
-
-        // char* string1 = "world!";
-        // int string_len1 = strlen(string1);
-        // ObjectString* new_string1 = calloc(
-        //     1,
-        //     sizeof(Obj) + sizeof(int) + string_len1 + 1
-        // );
-        // new_string1->length = string_len1;
-        // new_string1->obj.type = OBJ_STRING;
-        // strlcpy(new_string1->chars, string1, string_len1 + 1);
-        // push(vm, (Value) {.type=TYPE_OBJ, .as.object=new_string1});
-    while(true) {
+        Frame *frame = &vm.frame_stacks[vm.depth];
+        Chunk *chunk = frame->function->chunk;
 
         #ifdef DEBUG_TRACE_EXECUTION_OP
             DEBUG_PRINT(PURPLE "running op\n  " RESET);
-            debug_op_print(&vm->chunk, (int) (vm->ip - vm->chunk.code));
-            dprintf("\n");
+            debug_op_print(chunk, (int) (frame->ip - chunk->code));
+            fprintf(stderr, "\n");
             // DEBUG_PRINT("----------\n");
 
         #endif // #define DEBUG_TRACE_EXECUTION_OP
-        OpCode instruction = *vm->ip++;
-        switch (instruction)
-        {
-        case OP_RETURN:
-            // simulate print() to test code, TODO: remove when obsolete
-            PRINT_VALUE((*(vm->stack_top-1)), stdout);
-            printf(NEWLINE);
-            return;
+        #ifdef DEBUG_TRACE_EXECUTION_STACK
+            debug_stack_print("before");
+            debug_locals_print("locals");
+        #endif //#define DEBUG_TRACE_EXECUTION_STACK
+
+        OpCode instruction = IP_FETCH_INCR;
+
+        switch (instruction) {
+        case OP_RETURN: {
+            Value ret_val = pop();
+            vm.stack_top = GET_FRAME(0)->locals;
+            vm.depth--;
+            push(ret_val);
+        }
+        break;
+        case OP_CALL: {
+            Value func_name = pop();
+            Value func_val = {0};
+            tableGet(&vm.globals, AS_STRING(func_name), &func_val);
+            ObjectFunction *func = AS_FUNCTION(func_val);
+            vm.depth++;
+            Frame *curr = GET_FRAME(0);
+            frame = curr;
+            curr->function = func;
+            chunk = frame->function->chunk;
+            curr->locals_count = func->chunk->local_count;
+            curr->locals = vm.stack_top - func->arity; // args are in the stack
+            curr->ip = func->chunk->code;
+            curr->is_block = false;
+            vm.stack_top = curr->locals + curr->locals_count;
+
+#ifndef NDEBUG
+            // set non initialized local to NIL
+            for(Value *local = curr->locals + func->arity; local != vm.stack_top; local += 1) {
+                *local = VAL_NIL;
+            }
+#endif
+        };
+        break;
+        case OP_CALL_NATIVE: {
+            Value func_val = VAL_NIL;
+            Value func_name = CONSTANT(IP_FETCH_INCR);
+            if (!tableGet(&vm.globals, AS_STRING(func_name), &func_val)) {
+                PRINT_ERR("Could not find function: ");
+                PRINT_VALUE(func_name, stderr);
+                fprintf(stderr, NEWLINE);
+                exit(1);
+            }
+            ObjectFunction *func = AS_FUNCTION(func_val);
+            func->function();
+        }
+        break;
+        case OP_JUMP: {
+            int offset =  ((uint16_t) *(frame->ip)) + sizeof(uint16_t);
+            frame->ip += offset;
+        }
+        break;
+        case OP_LOOP: {
+            int offset =  ((uint16_t) *(frame->ip)) + 1;
+            frame->ip -= offset;
+        }
+        break;
+        case OP_POP:
+            pop();
+            break;
+        case OP_LFUNC: {
+            Value idx = CONSTANT(IP_FETCH_INCR);
+            pop(); // unused local_count, update lfunc call
+            Value arity = pop();
+            ObjectFunction *func = object_function_allocate();
+            func->chunk = vm.chunks[idx.as.integer];
+            func->chunk->local_count = func->chunk->local_count;
+            func->name = AS_STRING(pop());
+            func->arity = arity.as.integer;
+            tableSet(&vm.globals, func->name, (Value) {TYPE_OBJ, .as.object= (Obj *) func});
+        }
+        break;
         case OP_STRCONST:
         case OP_DCONST:
-        case OP_LCONST: push(vm, vm->chunk.constants.values[*(vm->ip++)]);
+        case OP_LCONST: push(CONSTANT(IP_FETCH_INCR));
             break;
+        case OP_BOOLTRUE:
+            push(VAL_BOOL(true));
+            break;
+        case OP_BOOLFALSE:
+            push(VAL_BOOL(false));
+            break;
+        case OP_JUMP_IF_FALSE: {
+            Value val = PEEK(vm);
+            JUMP_IF(!val.as.boolean);
+        }
+        break;
+        case OP_JUMP_IF_TRUE: {
+            Value val = PEEK(vm);
+            JUMP_IF(val.as.boolean);
+        }
+        break;
         case OP_ADD: {
             Value top = PEEK(vm);
             if (IS_STRING(top)) {
-                Value rhs = pop(vm);
-                Value lhs = pop(vm);
-                ObjectString* lhs_string = AS_STRING(lhs);
-                int new_len = lhs_string->length + AS_STRING(rhs)->length;
-                ObjectString* new_object_string = object_string_allocate(new_len);
-                memcpy(new_object_string->chars, lhs_string->chars, lhs_string->length);
-                strncat(
-                    new_object_string->chars,
-                    AS_STRING(rhs)->chars,
-                    new_len + 1
-                );
-                new_object_string->length = new_len;
-                new_object_string->obj.type = OBJ_STRING;
+                Value rhs = pop();
+                Value lhs = pop();
+                ObjectString *new_object_string = object_string_concat(&vm.strings, AS_STRING(lhs), AS_STRING(rhs));
                 Value new_object_value = {
                     .type=TYPE_OBJ,
                     .as.object=(Obj*) new_object_string
                 };
-                // new_chars->length = new_size;
-                push(vm, new_object_value);
+                push(new_object_value);
             }
             else {
-                BINARY_OP(vm, +);
+                BINARY_OP(+);
             }
-            break;
         }
+        break;
         case OP_SUB: {
-            BINARY_OP(vm, -);
-            break;
+            BINARY_OP(-);
         }
+        break;
         case OP_MUL: {
-            BINARY_OP(vm, *);
-            break;
+            BINARY_OP(*);
         }
+        break;
         case OP_DIV: {
-            BINARY_OP(vm, /);
-            break;
+            BINARY_OP(/);
         }
+        break;
+        case OP_MOD: {
+            Value rhs = pop();
+            Value lhs = pop();
+            int res = (lhs).as.integer % (rhs).as.integer;
+            push(VAL_INT(res));
+        }
+        break;
+        case OP_NEG: {
+            Value val = PEEK(vm);
+            if (val.type == TYPE_DOUBLE) {
+                val.as.fp = -val.as.fp;
+            }
+            else if (val.type == TYPE_LONG) {
+                val.as.integer = -val.as.integer;
+            }
+            else {
+                PRINT_ERR_ARGS("at %s:%d cannot neg type : %d\n\n",
+                __FILE__, __LINE__, val.type);
+            return 1;
+            }
+        }
+        break;
+        case OP_EQ: {
+            BINARY_OP(==);
+            SET_STACK_VALUE_TO_BOOL;
+        }
+        break;
+        case OP_NE: {
+            BINARY_OP(!=);
+            SET_STACK_VALUE_TO_BOOL;
+        }
+        break;
+        case OP_LT: {
+            BINARY_OP(<);
+            SET_STACK_VALUE_TO_BOOL;
+        }
+        break;
+        case OP_LE: {
+            BINARY_OP(<=);
+            SET_STACK_VALUE_TO_BOOL;
+        }
+        break;
+        case OP_GT: {
+            BINARY_OP(>);
+            SET_STACK_VALUE_TO_BOOL;
+        }
+        break;
+        case OP_GE: {
+            BINARY_OP(>=);
+            SET_STACK_VALUE_TO_BOOL;
+        }
+        break;
+        case OP_NOT: {
+            PEEK(vm).as.boolean = !PEEK(vm).as.boolean;
+            PEEK(vm).type = TYPE_BOOL;
+            SET_STACK_VALUE_TO_BOOL;
+        }
+        break;
+        case OP_TOSTRING: {
+            if(IS_STRING(PEEK(vm))) {
+                break;
+            }
+
+            Value val = pop();
+            ObjectString *res;
+            char buff[512] = {0};
+            if(IS_INTEGER(val)) {
+                int char_count = sprintf(buff, "%ld", val.as.integer);
+                res = object_string_allocate(&vm.strings, buff, char_count);
+            }
+            else if(IS_DOUBLE(val)) {
+                int char_count = sprintf(buff, "%lf", val.as.fp);
+                res = object_string_allocate(&vm.strings, buff, char_count);
+            }
+
+            push(VAL_OBJ(res));
+        }
+        break;
+        case OP_TOFLOAT: {
+            if(IS_DOUBLE(PEEK(vm))) {
+                break;
+            }
+            if(IS_STRING(PEEK(vm))) {
+                PRINT_ERR_ARGS("at %s:%d not implemented string to float : %d\n\n",
+                __FILE__, __LINE__, instruction);
+                return 1;
+            }
+
+            Value *val = &PEEK(vm);
+            if(IS_INTEGER(*val)) {
+                val->as.fp = (double) val->as.integer;
+                val->type = TYPE_DOUBLE;
+            }
+        }
+        break;
+        case OP_TOINT: {
+            if(IS_INTEGER(PEEK(vm))) {
+                break;
+            }
+            if(IS_STRING(PEEK(vm))) {
+                PRINT_ERR_ARGS("at %s:%d not implemented string to int: %d\n\n",
+                __FILE__, __LINE__, instruction);
+                return 1;
+            }
+
+            Value *val = &PEEK(vm);
+            if(IS_DOUBLE(*val)) {
+                val->as.integer = (int64_t) val->as.fp;
+                val->type = TYPE_LONG;
+            }
+        }
+        break;
+        case OP_DEFGLOBAL: {
+            int constant = IP_FETCH_INCR;
+            ObjectString *identifier = AS_STRING(CONSTANT(constant));
+            tableSet(&vm.globals, identifier, pop());
+        }
+        break;
+        case OP_GETGLOBAL: {
+            int constant = IP_FETCH_INCR;
+            ObjectString *identifier = AS_STRING(CONSTANT(constant));
+            Value val = {0};
+            tableGet(&vm.globals, identifier, &val);
+            push(val);
+        }
+        break;
+        case OP_SETGLOBAL: {
+        int constant = IP_FETCH_INCR;
+        ObjectString *identifier = AS_STRING(CONSTANT(constant));
+        Value val = pop();
+        tableSet(&vm.globals, identifier, val);
+        }
+        break;
+        case OP_DEFLOCAL: {
+            Value val = pop();
+            frame->locals[IP_FETCH_INCR] = val;
+        }
+        break;
+        case OP_GETLOCAL: {
+            push(frame->locals[IP_FETCH_INCR]);
+        }
+        break;
+        case OP_SETLOCAL: {
+            frame->locals[IP_FETCH_INCR] = pop();
+        }
+        break;
+        case OP_EXITVM:
+            return 0;
         default: {
             PRINT_ERR_ARGS("at %s:%d unknown instruction : %d\n\n",
                 __FILE__, __LINE__, instruction);
             exit(1);
-            break;
         }
+        break;
         }
+        #ifdef DEBUG_TRACE_EXECUTION_STACK
+            debug_stack_print("after");
+        #endif //#define DEBUG_TRACE_EXECUTION_STACK
     }
+    return 1;
 }
 
 #undef BINARY_OP

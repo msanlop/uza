@@ -4,7 +4,7 @@ from os.path import dirname, join
 import sys
 import importlib
 
-from uza.bytecode import ByteCodeProgramSerializer
+from uzac.bytecode import ByteCodeProgramSerializer
 
 LIB_NAME = "vm"
 

@@ -2,11 +2,19 @@
 #define uza_memory_h
 
 #include "common.h"
+#include "table.h"
+#include "vm.h"
+
+// prefer stack string buffer allocations
+#define STRING_STACK_BUFF_LEN 256
 
 
+#define GC_HEAP_GROW_FACTOR 2
 #define ARRAY_GROWTH_FACTOR 2
 #define MIN_ARRAY_CAP 8
 
+#define ALLOCATE(type, count) \
+    (type*)reallocate(NULL, 0, sizeof(type) * (count))
 
 #define FREE_ARRAY(type, pointer, oldCount) \
     reallocate(pointer, sizeof(type) * (oldCount), 0)
@@ -19,5 +27,9 @@
         sizeof(type) * (new_count))
 
 void* reallocate(void* ptr, size_t old_size, size_t new_size);
+void markObject(Obj* object);
+void markValue(Value value);
+void collectGarbage(void);
+void sweep(void);
 
 #endif // uza_memory_h

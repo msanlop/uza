@@ -1,7 +1,9 @@
 #ifndef uza_common_h
 #define uza_common_h
 
-#ifdef DEBUG
+#ifndef NDEBUG
+    #define DEBUG_STRESS_GC
+    #define DEBUG_LOG_GC
     #define DEBUG_TRACE_EXECUTION_STACK
     #define DEBUG_TRACE_EXECUTION_OP
     #define DEBUG_DUMP_VM
@@ -29,6 +31,11 @@
         fprintf(stderr, PURPLE fmt RESET, ##__VA_ARGS__);
     #define DEBUG_PRINT(fmt, ...) \
         fprintf(stderr, fmt, ##__VA_ARGS__);
+    #define DEBUG_PRINT_TO(fmt, ...) \
+        fprintf(stderr, fmt, ##__VA_ARGS__);
+#else
+    #define DEBUG_PRINT(fmt, ...) \
+        do{}while(0);
 #endif
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -40,6 +47,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <stddef.h>
 
 #define MIN(a, b) (a < b ? a : b)
 #define MAX(a, b) (a > b ? a : b)

@@ -12,4 +12,4 @@ repos:
   hooks:
     # Run the formatter.
     - id: ruff-format
-      args: [ src ]
+      args: [ uza, vm ]

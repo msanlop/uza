@@ -1,0 +1,80 @@
+
+const input_str = "3   4
+4   3
+2   5
+1   3
+3   9
+3   3"
+
+const list_left = list()
+const list_right = list()
+
+func parse_lines(input: string) => array {
+    var start: int = 0
+    var end: int = 0
+    const lines = list()
+    const input_len = len(input)
+    while end < input_len {
+        while ((end < input_len) and (input[end] != "\n")) {
+            end+=1
+        }
+        append(lines, input[start: end])
+        start = end + 1
+        end += 1
+    }
+    return lines
+}
+
+func parse_two_ints(line: string, l: array, r: array) => void {
+    var start = 0
+    var end = 0
+    while line[end] != " " {
+        end += 1
+    }
+    append(l, toInt(line[start: end]))
+
+    while line[end] == " " do end += 1 //clear gap
+    start = end
+    const line_len = len(line)
+    while (end<line_len) and (line[end] != "\n") {
+        end += 1
+    }
+    append(r, toInt(line[start: end]))
+
+}
+
+const lines = parse_lines(input_str)
+for var i = 0; i < len(lines); i+=1
+    do parse_two_ints(lines[i], list_left, list_right)
+sort(list_left)
+sort(list_right)
+
+
+// SUM DIFFERENCES
+var sum = 0
+for var i=0; i < len(list_left); i+=1 {
+    const diff = list_left[i] - list_right[i]
+
+    const abs_diff = if diff < 0 then -diff else diff
+    sum += abs_diff
+}
+print("Sum of differences is: ")
+println(sum)
+
+//DISGUSTING SIMILARITY SCORE
+sum = 0
+const pair_count = len(list_left)
+var right_start = 0 // don't compare values we know are smaller
+for var i = 0; i < pair_count; i+=1 {
+    const curr = list_left[i]
+    for var j = right_start; ((j < pair_count) and (list_right[j] + 1 < curr)); j+=1 {
+        const right_num = list_right[j]
+        if curr == right_num then {
+            sum += right_num
+        }
+        if right_num < curr then right_start = j
+    }
+}
+
+print("Similarity score is: ")
+println(sum)

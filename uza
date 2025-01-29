@@ -1,4 +1,4 @@
-from uza import cli
+from uzac import cli
 import sys
 
 

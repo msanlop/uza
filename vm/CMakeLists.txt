@@ -3,10 +3,12 @@ set(SOURCES
     chunk.c
     vm.c
     debug.c
-    serializer.c
+    serialize.c
     object.c
     value.c
     memory.c
+    table.c
+    native.c
 )
 
 add_library(vm SHARED ${SOURCES})

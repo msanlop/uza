@@ -1,5 +1,4 @@
 // All new line characters are ignored in the expected and tested output
-
 // declare test:
 // #test __name_of_test__
 // __source_code__
@@ -26,26 +25,387 @@ println(3.333 * 3) // some dumb stupid little comment!!!!
 #expected
 9.999
 
+#test long strings
+println("Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus blandit, felis sit amet euismod fermentum, lectus ligula gravida nunc, vitae venenatis lorem ante quis justo. Suspendisse vehicula interdum justo, a ornare lorem euismod ac. Morbi consequat nisl eget nisi euismod, ut elementum purus dignissim. Ut semper tempor porta. Nam fermentum metus eget nibh cursus, at commodo sem fringilla. Nullam in mi nec tellus luctus dignissim nec eget purus. Cras ex sapien, pellentesque a urna vel, tempus hendrerit orci. Vestibulum imperdiet et nulla et convallis. Nulla scelerisque, orci eu consectetur pellentesque, eros neque porta justo, vitae pretium quam dolor non lectus. Aliquam viverra bibendum urna. Donec varius massa fringilla metus feugiat congue. Duis gravida urna vitae tellus vehicula, et placerat sapien vestibulum. Vestibulum non sapien arcu. Curabitur vestibulum vehicula interdum. Nam augue purus, rutrum eget semper at, cursus quis felis. Nullam et ex lacus. Nulla gravida nec mi elementum congue. Vestibulum gravida diam sed eros accumsan, a consequat arcu tempor. In quis dolor et neque consectetur efficitur. Ut consequat eros libero, et finibus erat faucibus et. Quisque at tristique elit. Etiam mattis est ac tincidunt scelerisque.Nam lacinia, ligula vel lobortis consectetur, eros ligula faucibus lorem, non rhoncus augue augue vel lorem. Etiam eu faucibus sem. Proin malesuada, ligula ut aliquet hendrerit, nisi felis euismod erat, id vestibulum justo mi ut augue. Sed aliquam velit sed varius tristique. Curabitur sagittis odio in elementum accumsan. Vivamus placerat pharetra mollis. Ut elementum, est a fermentum viverra, sem ante ultricies libero, id dignissim sapien neque nec ex. Maecenas dolor arcu, vestibulum ut sem eu, sagittis tristique lacus. Duis eu cursus velit. Vestibulum ut lectus eget sapien consequat tincidunt a quis ex. Donec lorem orci, auctor ornare suscipit sit amet, euismod sed sem. Vestibulum eleifend metus a ex pharetra, ut convallis leo lectus. " + "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus blandit, felis sit amet euismod fermentum, lectus ligula gravida nunc, vitae venenatis lorem ante quis justo. Suspendisse vehicula interdum justo, a ornare lorem euismod ac. Morbi consequat nisl eget nisi euismod, ut elementum purus dignissim. Ut semper tempor porta. Nam fermentum metus eget nibh cursus, at commodo sem fringilla. Nullam in mi nec tellus luctus dignissim nec eget purus. Cras ex sapien, pellentesque a urna vel, tempus hendrerit orci. Vestibulum imperdiet et nulla et convallis. Nulla scelerisque, orci eu consectetur pellentesque, eros neque porta justo, vitae pretium quam dolor non lectus. Aliquam viverra bibendum urna. Donec varius massa fringilla metus feugiat congue. Duis gravida urna vitae tellus vehicula, et placerat sapien vestibulum. Vestibulum non sapien arcu. Curabitur vestibulum vehicula interdum. Nam augue purus, rutrum eget semper at, cursus quis felis. Nullam et ex lacus. Nulla gravida nec mi elementum congue. Vestibulum gravida diam sed eros accumsan, a consequat arcu tempor. In quis dolor et neque consectetur efficitur. Ut consequat eros libero, et finibus erat faucibus et. Quisque at tristique elit. Etiam mattis est ac tincidunt scelerisque. Nam lacinia, ligula vel lobortis consectetur, eros ligula faucibus lorem, non rhoncus augue augue vel lorem. Etiam eu faucibus sem. Proin malesuada, ligula ut aliquet hendrerit, nisi felis euismod erat, id vestibulum justo mi ut augue. Sed aliquam velit sed varius tristique. Curabitur sagittis odio in elementum accumsan. Vivamus placerat pharetra mollis. Ut elementum, est a fermentum viverra, sem ante ultricies libero, id dignissim sapien neque nec ex. Maecenas dolor arcu, vestibulum ut sem eu, sagittis tristique lacus. Duis eu cursus velit. Vestibulum ut lectus eget sapien consequat tincidunt a quis ex. Donec lorem orci, auctor ornare suscipit sit amet, euismod sed sem. Vestibulum eleifend metus a ex pharetra, ut convallis leo lectus.")
+#expected
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus blandit, felis sit amet euismod fermentum, lectus ligula gravida nunc, vitae venenatis lorem ante quis justo. Suspendisse vehicula interdum justo, a ornare lorem euismod ac. Morbi consequat nisl eget nisi euismod, ut elementum purus dignissim. Ut semper tempor porta. Nam fermentum metus eget nibh cursus, at commodo sem fringilla. Nullam in mi nec tellus luctus dignissim nec eget purus. Cras ex sapien, pellentesque a urna vel, tempus hendrerit orci. Vestibulum imperdiet et nulla et convallis. Nulla scelerisque, orci eu consectetur pellentesque, eros neque porta justo, vitae pretium quam dolor non lectus. Aliquam viverra bibendum urna. Donec varius massa fringilla metus feugiat congue. Duis gravida urna vitae tellus vehicula, et placerat sapien vestibulum. Vestibulum non sapien arcu. Curabitur vestibulum vehicula interdum. Nam augue purus, rutrum eget semper at, cursus quis felis. Nullam et ex lacus. Nulla gravida nec mi elementum congue. Vestibulum gravida diam sed eros accumsan, a consequat arcu tempor. In quis dolor et neque consectetur efficitur. Ut consequat eros libero, et finibus erat faucibus et. Quisque at tristique elit. Etiam mattis est ac tincidunt scelerisque.Nam lacinia, ligula vel lobortis consectetur, eros ligula faucibus lorem, non rhoncus augue augue vel lorem. Etiam eu faucibus sem. Proin malesuada, ligula ut aliquet hendrerit, nisi felis euismod erat, id vestibulum justo mi ut augue. Sed aliquam velit sed varius tristique. Curabitur sagittis odio in elementum accumsan. Vivamus placerat pharetra mollis. Ut elementum, est a fermentum viverra, sem ante ultricies libero, id dignissim sapien neque nec ex. Maecenas dolor arcu, vestibulum ut sem eu, sagittis tristique lacus. Duis eu cursus velit. Vestibulum ut lectus eget sapien consequat tincidunt a quis ex. Donec lorem orci, auctor ornare suscipit sit amet, euismod sed sem. Vestibulum eleifend metus a ex pharetra, ut convallis leo lectus. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus blandit, felis sit amet euismod fermentum, lectus ligula gravida nunc, vitae venenatis lorem ante quis justo. Suspendisse vehicula interdum justo, a ornare lorem euismod ac. Morbi consequat nisl eget nisi euismod, ut elementum purus dignissim. Ut semper tempor porta. Nam fermentum metus eget nibh cursus, at commodo sem fringilla. Nullam in mi nec tellus luctus dignissim nec eget purus. Cras ex sapien, pellentesque a urna vel, tempus hendrerit orci. Vestibulum imperdiet et nulla et convallis. Nulla scelerisque, orci eu consectetur pellentesque, eros neque porta justo, vitae pretium quam dolor non lectus. Aliquam viverra bibendum urna. Donec varius massa fringilla metus feugiat congue. Duis gravida urna vitae tellus vehicula, et placerat sapien vestibulum. Vestibulum non sapien arcu. Curabitur vestibulum vehicula interdum. Nam augue purus, rutrum eget semper at, cursus quis felis. Nullam et ex lacus. Nulla gravida nec mi elementum congue. Vestibulum gravida diam sed eros accumsan, a consequat arcu tempor. In quis dolor et neque consectetur efficitur. Ut consequat eros libero, et finibus erat faucibus et. Quisque at tristique elit. Etiam mattis est ac tincidunt scelerisque. Nam lacinia, ligula vel lobortis consectetur, eros ligula faucibus lorem, non rhoncus augue augue vel lorem. Etiam eu faucibus sem. Proin malesuada, ligula ut aliquet hendrerit, nisi felis euismod erat, id vestibulum justo mi ut augue. Sed aliquam velit sed varius tristique. Curabitur sagittis odio in elementum accumsan. Vivamus placerat pharetra mollis. Ut elementum, est a fermentum viverra, sem ante ultricies libero, id dignissim sapien neque nec ex. Maecenas dolor arcu, vestibulum ut sem eu, sagittis tristique lacus. Duis eu cursus velit. Vestibulum ut lectus eget sapien consequat tincidunt a quis ex. Donec lorem orci, auctor ornare suscipit sit amet, euismod sed sem. Vestibulum eleifend metus a ex pharetra, ut convallis leo lectus.
+
 //#test simple arithmetic with values
-//val a float = 1.5
-//val b float = 1.5
-//val c float = 2
-//val d float = 3
+//const a : float = 1.5
+//const b : float = 1.5
+//const c : float = 2.
+//const d : float = 3.
 //println(((a + b) ** c) / (d * 3))
 //#expected
 //1.0
-//
-//#test variable names
-//val my_var_c_123532 string = "hello world!"
-//val d float = 9
-//println(my_var_c_123532)
-//#expected
-//hello world!
-//
+
+#test variable names
+const my_var_c_123532 : string = "hello world!"
+const d : float = 9.
+println(my_var_c_123532)
+#expected
+hello world!
+
+#test get and set globals
+var foo = "hello world"
+println(foo)
+foo = "different"
+println(foo)
+#expected
+hello world
+different
+
+#test typer variable shadowing
+const foo = "global!"
+{
+
+    const foo = "BLOCK"
+    println(foo)
+}
+println(foo)
+#expected
+BLOCK
+global!
+
+#test variable shadowing
+const foo = "hello "
+const bar = "world!"
+{
+
+    const foo = "FOO"
+    println(foo)
+}
+println(foo + bar)
+#expected
+FOO
+hello world!
+
+#test bool true
+var foo = true
+println(foo)
+foo = false
+println(false)
+#expected
+true
+false
+
+#test if works
+if true then println("ok")
+#expected
+ok
+
+#test if else works
+if false then println("WRONG")
+else println("ok")
+#expected
+ok
+
+#test if false no else
+if false then println("ok")
+println(0)
+#expected
+0
+
+#test if with var
+const pred = true
+if true then println("ok")
+#expected
+ok
+
+#test if blocks
+const pred = true
+if true then {
+    const temp = "ok"
+    println(temp)
+}
+else println("WRONG")
+#expected
+ok
+
+#test boolean 'and' as well as ifelse
+if true and false then println("WRONG")
+else println(true and false)
+if false and true then println("WRONG")
+else println(false and true)
+if false and false then println("WRONG")
+else println(false and false)
+println(true and true)
+#expected
+false
+false
+false
+true
+
+#test boolean 'or' as well as ifelse
+if true or false then println(true or false)
+else println("WRONG")
+if false or true then println(false or true)
+else println("WRONG")
+if false or false then println("WRONG")
+else println(false or false)
+println(true or true)
+#expected
+true
+true
+false
+true
+
+#test while loop
+var i = 0
+var run = true
+while run {
+    println(i)
+    if i == 5 {
+        run = false
+    }
+    i+=1
+}
+println("end")
+#expected
+0
+1
+2
+3
+4
+5
+end
+
+#test for loop
+for var i = 0;i < 3; i+=1 {
+    println(i)
+}
+println("end")
+#expected
+0
+1
+2
+end
+
+#test for loop without initializer
+var i = 0
+for ;i < 3; i+=1 {
+    println(i)
+}
+println("end")
+#expected
+0
+1
+2
+end
+
+#test for loop clauses (making suuureee)
+var i = 0
+for println("initialize");i < 2; println("increment") {
+    println(i)
+    i+=1
+}
+println("end")
+#expected
+initialize
+0
+increment
+1
+increment
+end
+
+#test for loop without incr
+for var i = 0;i < 3; {
+    println(i)
+    i+=1
+}
+println("end")
+#expected
+0
+1
+2
+end
+
+#test for loop only cond
+var i = 0
+for ;i < 3; {
+    println(i)
+    i+= 1
+}
+println("end")
+#expected
+0
+1
+2
+end
+
+#test for loop do notation
+for var i = 0;i < 3; i+=1 do
+    println(i)
+println("end")
+#expected
+0
+1
+2
+end
+
+
 //#test min and max builtins
-//val a int = -5
-//val b int = 0
-//val c int = 10
+//const a int = -5
+//const b int = 0
+//const c int = 10
 //println(min(a, b) * max(b, c))
 //#expected
 //-50
+
+#test simple function
+func test() => void {
+    println("foobar")
+}
+test()
+println("end")
+#expected
+foobar
+end
+
+#test simple function return
+func test() => int {
+    return 42
+}
+println(test())
+#expected
+42
+
+#test function return
+func test(foo: int) => int {
+    return foo
+}
+println(test(42))
+#expected
+42
+
+#test function locals
+func test(foo: int) => int {
+    const temp = 2
+    return 2 + foo
+}
+println(test(42))
+#expected
+44
+
+#test function stuffs
+var i = 0
+var res = 0
+func test(foo: int) => int {
+    while i < foo {
+        println(i)
+        res += i
+        i+= 1
+    }
+    return res
+}
+println(test(3))
+#expected
+0
+1
+2
+3
+
+#test function scopes
+var i = 0
+var res = 0
+func test(foo: string) => void {
+    {
+        const foo = 42
+        {
+            const foo = "inner"
+            println(foo)
+        }
+        println(foo)
+    }
+    println(foo)
+}
+test("arg")
+#expected
+inner
+42
+arg
+
+#test memory leaks (use valgrind)
+const a = "a"
+const b = "b"
+var c = "c"
+for var i = 0; i < 15; i += 1 {
+    const temp = a + b
+    c += temp
+}
+c += "d"
+println(c)
+#expected
+cabababababababababababababababd
+
+#test not operator and le
+const foo = true
+if not not foo {
+    println(1 <= 1 and (-54) <= 100)
+}
+else {
+    println("WRONG")
+}
+#expected
+true
+
+#test op parsing order
+println(not ((5 > 3 and 10 <= 20) or (15 == 10 + 5 and not (8 != 8))) and ((7 < 9 or 12 >= 13) and not (6 == 6 and 4 > 2)))
+#expected
+false
+
+#test fibonacci
+func fib(n : int) => int {
+    if n <= 1 then return n
+    return fib(n-1) + fib(n-2)
+}
+func fibTailRec(n : int, prev: int, curr: int) => int {
+    if n == 0 then return prev
+    if n == 1 then return curr
+    return fibTailRec(n-1, curr, prev + curr)
+}
+println(fib(8))
+println(fibTailRec(8, 0, 1))
+#expected
+21
+21
+
+#test fizzbuzz
+for var i = 0; i <= 10; i += 1 {
+    var temp = ""
+    if i % 3 == 0 then temp += "Fizz"
+    if i % 5 == 0 then temp += "Buzz"
+    if i % 5 != 0 and i % 3 != 0 then temp += toString(i)
+    println(temp)
+}
+#expected
+FizzBuzz
+1
+2
+Fizz
+4
+Buzz
+Fizz
+7
+8
+Fizz
+Buzz
+
+#test simple conversions
+const a = 1.5
+const b = toInt(a)
+println(b)
+println(toInt(a * 6))
+const c = toFloat(b)
+println(a * c)
+#expected
+1
+9
+1.500
+
+#test toString
+const foo = 42
+const bar = toString(foo)
+println(bar + "foo")
+#expected
+42foo
