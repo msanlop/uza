@@ -24,3 +24,18 @@ void value_array_free(ValueArray* array) {
     FREE_ARRAY(Value, array->values, array->capacity);
     value_array_init(array);
 }
+
+void value_array_print(ValueArray *array, FILE *out) {
+    fprintf(out, "[");
+    int i;
+    for (i = 0; i < array->count - 1; i++)
+    {
+        PRINT_VALUE(array->values[i], out);
+        fprintf(out, ", ");
+    }
+
+    if (i < array->count) {
+        PRINT_VALUE(array->values[i], out);
+    }
+    fprintf(out, "]");
+}

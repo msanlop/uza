@@ -129,21 +129,29 @@ class BuiltInType(Type):
         return f"{BuiltInType.__name__}({self.identifier})"
 
 
+@dataclass(frozen=True)
+class NonInferableType(Type):
+    """
+    Type cannot be inferred.
+    """
+
+
 _builtin_types: dict[str, BuiltInType] = {}
 type_int = BuiltInType("int", _builtin_types)
 type_float = BuiltInType("float", _builtin_types)
 type_string = BuiltInType("string", _builtin_types)
 type_bool = BuiltInType("bool", _builtin_types)
 type_void = BuiltInType("void", _builtin_types)
-type_array = BuiltInType("array", _builtin_types)
+type_list_int = BuiltInType("List<int>", _builtin_types)
+type_list_string = BuiltInType("List<string>", _builtin_types)
+type_list_float = BuiltInType("List<float>", _builtin_types)
+type_list_bool = BuiltInType("List<bool>", _builtin_types)
 
-type_any = reduce(lambda x, y: x | y, _builtin_types.values())
 
 _python_to_uza = {
     int: type_int,
     float: type_float,
     str: type_string,
-    list: type_array,
     bool: type_bool,
     None: type_void,
 }
@@ -154,7 +162,10 @@ _id_to_uza = {
     "string": type_string,
     "bool": type_bool,
     "void": type_void,
-    "array": type_array,
+    "List<int>": type_list_int,
+    "List<bool>": type_list_bool,
+    "List<string>": type_list_string,
+    "List<float>": type_list_float,
 }
 
 

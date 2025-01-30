@@ -91,6 +91,11 @@ static void blackenObject(Obj* object) {
         markArray(&func->chunk->constants);
         break;
     }
+    case OBJ_LIST: {
+      ObjectList *list = (ObjectList *) object;
+      markObject(&list->obj);
+      markArray(&list->list);
+    }
     case OBJ_STRING:
       break;
   }

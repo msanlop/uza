@@ -215,7 +215,7 @@ class Return(Node):
 
     value: Node
     span: Span = field(compare=False)
-    type_: Type = field(init=False, default=type_void)
+    type_: Type = field(init=False, default_factory=lambda: type_void)
 
     def visit(self, that):
         return that.visit_return(self)
@@ -243,7 +243,7 @@ class Block(ExpressionList):
     A block is a list of nodes. Creates a new scope.
     """
 
-    type_: Type = type_void
+    type_: Type = field(default_factory=lambda: type_void)
 
     def visit(self, that):
         return that.visit_block(self)

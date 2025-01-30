@@ -160,9 +160,13 @@ class IsType(Constraint):
         self.substitution = substitution
         type_a = self.a.resolve_type(substitution)
         type_b = self.b.resolve_type(substitution)
+        if isinstance(type_a, NonInferableType) or isinstance(type_b, NonInferableType):
+            if isinstance(type_a, SymbolicType) or isinstance(type_b, SymbolicType):
+                raise TypeError("\n" + self.span.get_underlined(f"Cannot infer type"))
+            return True, None
         if type_a == type_b:
             return True, None
-        if isinstance(type_a, SymbolicType) or isinstance(type_b, SymbolicType):
+        elif isinstance(type_a, SymbolicType) or isinstance(type_b, SymbolicType):
             return False, [substitution + (self.a, self.b)]
         return False, None
 
@@ -307,9 +311,9 @@ class OneOf(Constraint):
             choices_options = None
 
         if choices_options:
-            assert isinstance(choices_options[0], Substitution), (
-                f"found {choices_options =}"
-            )
+            assert isinstance(
+                choices_options[0], Substitution
+            ), f"found {choices_options =}"
         return False, choices_options
 
     def fail_message(self) -> str:
@@ -493,7 +497,7 @@ class Typer:
         else:
             ret_type = truthy_type_ret | falsy_type_ret
 
-        return truthy_type | falsy_type, ret_type
+        return type_void, ret_type
 
     def visit_identifier(self, identifier: Identifier) -> tuple[Type, ReturnType]:
         return self._symbol_table.get(identifier.name)[0], type_void
@@ -571,26 +575,26 @@ class Typer:
         _, loop_ret = wl.loop.visit(self)
         return type_void, loop_ret
 
-    def visit_range(self, range: Range) -> tuple[Type, ReturnType]:
-        indexee_type, _ = range.node.visit(self)
-        index_constraint = OneOf(
-            [
-                IsSubType(indexee_type, type_string, range.node.span),
-                IsSubType(indexee_type, type_array, range.node.span),
-            ],
-            range.span,
-        )
-        self.add_constaint(index_constraint)
-        if range.start is not None:
-            start_type, _ = range.start.visit(self)
-            self.add_constaint(IsType(start_type, type_int, range.start.span))
-        if range.end is not None:
-            start_type, _ = range.end.visit(self)
-            self.add_constaint(IsType(start_type, type_int, range.end.span))
+    # def visit_range(self, range: Range) -> tuple[Type, ReturnType]:
+    #     indexee_type, _ = range.node.visit(self)
+    #     index_constraint = OneOf(
+    #         [
+    #             IsSubType(indexee_type, type_string, range.node.span),
+    #             IsSubType(indexee_type, type_list, range.node.span),
+    #         ],
+    #         range.span,
+    #     )
+    #     self.add_constaint(index_constraint)
+    #     if range.start is not None:
+    #         start_type, _ = range.start.visit(self)
+    #         self.add_constaint(IsType(start_type, type_int, range.start.span))
+    #     if range.end is not None:
+    #         start_type, _ = range.end.visit(self)
+    #         self.add_constaint(IsType(start_type, type_int, range.end.span))
 
-        if indexee_type == type_string:
-            return type_string, type_void
-        return type_int | type_string, type_void
+    #     if indexee_type == type_string:
+    #         return type_string, type_void
+    #     return type_int | type_string, type_void
 
     def visit_for_loop(self, fl: ForLoop) -> tuple[Type, ReturnType]:
         with self._symbol_table.new_frame():

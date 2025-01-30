@@ -72,7 +72,6 @@ ObjectString* object_string_concat(Table *strings, const ObjectString *lhs, cons
         rhs->chars,
         new_len
     );
-    uint32_t hash = hash_string(buff, new_len);
 
     ObjectString *new_str = object_string_allocate(strings, buff, new_len);
     if (new_len > STRING_STACK_BUFF_LEN) {
@@ -104,4 +103,20 @@ ObjectFunction *object_function_allocate() {
 
 void object_string_free(ObjectString* obj_string) {
     free(obj_string);
+}
+
+ObjectList *object_list_allocate(void) {
+    ObjectList *list = ALLOCATE(ObjectList, 1);
+    value_array_init(&list->list);
+
+    list->obj.type = OBJ_LIST;
+    list->obj.next = vm.objects;
+    vm.objects = &list->obj;
+
+    return list;
+}
+
+void object_list_free(ObjectList *list) {
+    value_array_free(&list->list);
+    free(list);
 }

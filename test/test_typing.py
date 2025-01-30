@@ -1,3 +1,4 @@
+import pytest
 from uzac.typer import Typer
 from uzac.parser import Parser
 
@@ -97,3 +98,13 @@ def test_var_type_redef_fails():
     typer = Typer(Parser(source).parse())
     err, _, _, _ = typer.check_types()
     assert err > 0
+
+
+def test_fail_on_generic_decl_without_type():
+    source = """
+    const foo = List()
+    println(foo)
+    """
+    with pytest.raises(TypeError):
+        typer = Typer(Parser(source).parse())
+        typer.check_types()

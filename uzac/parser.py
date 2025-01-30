@@ -346,14 +346,34 @@ class Parser:
 
         return VarRedef(identifier.name, value, identifier.span + value.span)
 
+    def _get_type(self, recurse=True) -> Type:
+        type_tok = self._expect(token_identifier)
+        tok = self._peek()
+        generic = None
+        if tok.kind == token_angle_bracket_l:
+            if recurse == False:
+                raise TypeError(
+                    tok.span.get_underlined(f"Invalid type, can't do nested Lists yet!")
+                )
+            self._expect(token_angle_bracket_l)
+            generic = self._get_type(recurse=False)
+            tok = self._peek()
+            if tok.kind == token_angle_bracket_r:
+                r_brack = self._expect(token_angle_bracket_r)
+                span = type_tok.span + r_brack.span
+                type_tok = Token(token_identifier, span, repr=span.get_source())
+
+        type_ = typer.identifier_to_uza_type(type_tok)
+
+        return type_
+
     def _get_var_def(self) -> Node:
         decl_token = self._expect(token_var, token_const)
         immutable = decl_token.kind == token_const
         identifier = self._expect(token_identifier)
         if self._peek().kind == token_colon:
-            type_tok = self._expect(token_colon)
-            type_tok = self._expect(token_identifier)
-            type_ = typer.identifier_to_uza_type(type_tok)
+            self._expect(token_colon)
+            type_ = self._get_type()
         else:
             type_ = None
         self._expect(token_eq)

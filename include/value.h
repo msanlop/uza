@@ -2,6 +2,7 @@
 #define uza_value_h
 
 #include "common.h"
+#include "stdio.h"
 
 typedef struct Obj Obj;
 typedef struct ObjectString ObjectString;
@@ -41,6 +42,7 @@ typedef struct {
 #define AS_OBJECT(value) ((Obj*) (value).as.object)
 #define AS_STRING(value) ((ObjectString*) AS_OBJECT(value))
 #define AS_FUNCTION(value) ((ObjectFunction*) AS_OBJECT(value))
+#define AS_LIST(value) ((ObjectList *) AS_OBJECT(value))
 
 #define I2D(value) \
   do { \
@@ -75,6 +77,9 @@ typedef struct {
       else if(AS_OBJECT(value)->type == OBJ_FUNCTION_NATIVE) { \
         fprintf((out), "func[%s]", AS_FUNCTION(value)->name->chars); \
       } \
+      else if(IS_LIST(value)) { \
+        value_array_print(&AS_LIST(value)->list, (out)); \
+      } \
       else { \
         fprintf(stderr, "Could not print object of type %d\n", (AS_OBJECT(value)->type)); \
         exit(1); \
@@ -91,6 +96,7 @@ typedef struct {
   Value* values;
 } ValueArray;
 
+void value_array_print(ValueArray *array, FILE *out);
 void value_array_init(ValueArray* array);
 void value_array_write(ValueArray* array, Value value);
 void value_array_free(ValueArray* array);

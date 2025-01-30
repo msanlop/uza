@@ -19,12 +19,15 @@ from operator import (
 from typing import Callable, List, Optional
 from uzac.type import (
     ArrowType,
-    type_any,
+    NonInferableType,
     type_bool,
     type_int,
     type_float,
     type_string,
-    type_array,
+    type_list_int,
+    type_list_bool,
+    type_list_float,
+    type_list_string,
     type_void,
 )
 
@@ -116,10 +119,20 @@ def _lower_str_bool(func, **kwargs):
     return decorated
 
 
-_bi_print_type = ArrowType([type_any], type_void)
+_bi_print_types = [
+    ArrowType([type_string], type_void),
+    ArrowType([type_int], type_void),
+    ArrowType([type_float], type_void),
+    ArrowType([type_list_int], type_void),
+    ArrowType([type_list_string], type_void),
+    ArrowType([type_list_float], type_void),
+    ArrowType([type_bool], type_void),
+    ArrowType([type_void], type_void),
+    ArrowType([type_list_bool], type_void),
+]
 
-bi_print = BuiltIn("print", _lower_str_bool(print, end=""), [_bi_print_type])
-bi_println = BuiltIn("println", _lower_str_bool(print), [_bi_print_type])
+bi_print = BuiltIn("print", _lower_str_bool(print, end=""), _bi_print_types)
+bi_println = BuiltIn("println", _lower_str_bool(print), _bi_print_types)
 
 
 def _read_file(file_name):
@@ -131,7 +144,12 @@ bi_readAll = BuiltIn("readAll", _read_file, [ArrowType([type_string], type_strin
 
 # BOOLEAN STUFF
 
-_bool_func_type = ArrowType([type_any, type_any], type_bool)
+_bool_func_types = [
+    ArrowType([type_bool, type_bool], type_bool),
+    ArrowType([type_int, type_int], type_bool),
+    ArrowType([type_string, type_string], type_bool),
+    ArrowType([type_float, type_float], type_bool),
+]
 _bool_cmp_overloads = [
     ArrowType([type_int, type_int], type_bool),
     ArrowType([type_float, type_float], type_bool),
@@ -139,10 +157,10 @@ _bool_cmp_overloads = [
     ArrowType([type_float, type_int], type_bool),
 ]
 
-bi_and = BuiltIn("and", and_, [_bool_func_type])
-bi_or = BuiltIn("or", or_, [_bool_func_type])
-bi_eq = BuiltIn("==", eq, [_bool_func_type])
-bi_ne = BuiltIn("!=", ne, [_bool_func_type])
+bi_and = BuiltIn("and", and_, _bool_func_types)
+bi_or = BuiltIn("or", or_, _bool_func_types)
+bi_eq = BuiltIn("==", eq, _bool_func_types)
+bi_ne = BuiltIn("!=", ne, _bool_func_types)
 bi_lt = BuiltIn("<", lt, _bool_cmp_overloads)
 bi_le = BuiltIn("<=", le, _bool_cmp_overloads)
 bi_gt = BuiltIn(">", gt, _bool_cmp_overloads)
@@ -186,25 +204,80 @@ bi_to_string = BuiltIn(
 )
 
 
-bi_new_list = BuiltIn("list", list, [ArrowType([], type_array)])
-bi_len = BuiltIn("len", len, [ArrowType([type_array | type_string], type_int)])
+bi_new_list = BuiltIn(
+    "List",
+    list,
+    [
+        ArrowType([], NonInferableType()),
+        ArrowType([], NonInferableType()),
+        ArrowType([], NonInferableType()),
+        ArrowType([], NonInferableType()),
+    ],
+)
+bi_len = BuiltIn(
+    "len",
+    len,
+    [
+        ArrowType([type_list_int], type_int),
+        ArrowType([type_list_string], type_int),
+        ArrowType([type_list_float], type_int),
+        ArrowType([type_list_bool], type_int),
+        ArrowType([type_string], type_int),
+    ],
+)
 bi_append = BuiltIn(
     "append",
     list.append,
     [
-        ArrowType(
-            [type_array, type_string | type_int | type_float | type_array], type_void
-        )
+        ArrowType([type_list_int, type_int], type_void),
+        ArrowType([type_list_string, type_string], type_void),
+        ArrowType([type_list_float, type_float], type_void),
+        ArrowType([type_list_bool, type_bool], type_void),
+    ],
+)
+bi_get = BuiltIn(
+    "get",
+    lambda l, i: l[i],
+    [
+        ArrowType([type_list_int, type_int], type_int),
+        ArrowType([type_list_string, type_int], type_string),
+        ArrowType([type_list_float, type_int], type_float),
+        ArrowType([type_list_bool, type_int], type_bool),
+        ArrowType([type_string, type_int], type_string),
     ],
 )
 
 
-def _del_item(array, idx):
-    del array[idx]
+def _interpreter_set(value, idx, val):
+    value[idx] = val
 
 
-bi_append = BuiltIn(
-    "removeAt", _del_item, [ArrowType([type_array, type_int], type_void)]
+bi_get = BuiltIn(
+    "set",
+    _interpreter_set,
+    [
+        ArrowType([type_list_int, type_int, type_int], type_void),
+        ArrowType([type_list_string, type_int, type_string], type_void),
+        ArrowType([type_list_float, type_int, type_float], type_void),
+        ArrowType([type_list_bool, type_int, type_bool], type_void),
+    ],
 )
-bi_append = BuiltIn("copy", list.copy, [ArrowType([type_array], type_array)])
-bi_sort = BuiltIn("sort", list.sort, [ArrowType([type_array], type_void)])
+
+bi_substring = BuiltIn(
+    "substring",
+    lambda l, start, end: l[start:end],
+    [
+        ArrowType([type_string, type_int, type_int], type_string),
+    ],
+)
+
+
+# def _del_item(array, idx):
+#     del array[idx]
+
+
+# bi_append = BuiltIn(
+#     "removeAt", _del_item, [ArrowType([type_list, type_int], type_void)]
+# )
+# bi_append = BuiltIn("copy", list.copy, [ArrowType([type_list], type_list)])
+# bi_sort = BuiltIn("sort", list.sort, [ArrowType([type_list], type_void)])

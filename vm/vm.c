@@ -210,7 +210,9 @@ int interpret(void) {
             func->chunk->local_count = func->chunk->local_count;
             func->name = AS_STRING(pop());
             func->arity = arity.as.integer;
+            push(VAL_OBJ(func)); // avoid free(func)
             tableSet(&vm.globals, func->name, (Value) {TYPE_OBJ, .as.object= (Obj *) func});
+            pop();
         }
         break;
         case OP_STRCONST:
@@ -270,16 +272,16 @@ int interpret(void) {
         }
         break;
         case OP_NEG: {
-            Value val = PEEK(vm);
-            if (val.type == TYPE_DOUBLE) {
-                val.as.fp = -val.as.fp;
+            Value *val = &PEEK(vm);
+            if (val->type == TYPE_DOUBLE) {
+                val->as.fp = -val->as.fp;
             }
-            else if (val.type == TYPE_LONG) {
-                val.as.integer = -val.as.integer;
+            else if (val->type == TYPE_LONG) {
+                val->as.integer = -val->as.integer;
             }
             else {
                 PRINT_ERR_ARGS("at %s:%d cannot neg type : %d\n\n",
-                __FILE__, __LINE__, val.type);
+                __FILE__, __LINE__, val->type);
             return 1;
             }
         }
@@ -377,7 +379,8 @@ int interpret(void) {
         case OP_DEFGLOBAL: {
             int constant = IP_FETCH_INCR;
             ObjectString *identifier = AS_STRING(CONSTANT(constant));
-            tableSet(&vm.globals, identifier, pop());
+            tableSet(&vm.globals, identifier, PEEK(vm));
+            pop();
         }
         break;
         case OP_GETGLOBAL: {
@@ -389,10 +392,11 @@ int interpret(void) {
         }
         break;
         case OP_SETGLOBAL: {
-        int constant = IP_FETCH_INCR;
-        ObjectString *identifier = AS_STRING(CONSTANT(constant));
-        Value val = pop();
-        tableSet(&vm.globals, identifier, val);
+            int constant = IP_FETCH_INCR;
+            ObjectString *identifier = AS_STRING(CONSTANT(constant));
+            Value val = PEEK(vm);
+            tableSet(&vm.globals, identifier, val);
+            pop();
         }
         break;
         case OP_DEFLOCAL: {
