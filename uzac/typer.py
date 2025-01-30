@@ -311,9 +311,9 @@ class OneOf(Constraint):
             choices_options = None
 
         if choices_options:
-            assert isinstance(
-                choices_options[0], Substitution
-            ), f"found {choices_options =}"
+            assert isinstance(choices_options[0], Substitution), (
+                f"found {choices_options =}"
+            )
         return False, choices_options
 
     def fail_message(self) -> str:
