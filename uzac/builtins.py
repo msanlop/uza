@@ -273,10 +273,10 @@ bi_substring = BuiltIn(
 
 bi_sort = BuiltIn(
     "sort",
-    lambda l: l.sort(reverse=True),
+    lambda l, rev: l.sort(reverse=rev),
     [
-        ArrowType([type_list_int], type_void),
-        ArrowType([type_list_float], type_void),
+        ArrowType([type_list_int, type_bool], type_void),
+        ArrowType([type_list_float, type_bool], type_void),
     ],
 )
 

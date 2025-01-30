@@ -138,26 +138,47 @@ void native_substring(void) {
     }
 }
 
-static int cmp_ints(const void *a, const void *b) {
+static int asc_cmp(const void *a, const void *b) {
     Value val_a = *(Value *)a;
     Value val_b = *(Value *)b;
 
     if (IS_INTEGER(val_a)) {
-        return AS_INTEGER(val_a) < AS_INTEGER(val_b);
+        return AS_INTEGER(val_a) - AS_INTEGER(val_b);
     }
     else if (IS_DOUBLE(val_a)) {
-        return AS_DOUBLE(val_a) < AS_DOUBLE(val_b);
+        return AS_DOUBLE(val_a) - AS_DOUBLE(val_b);
     }
     else {
         PRINT_ERR("Cannot sort type\n");
         exit(1);
     }
+}
 
+static int desc_cmp(const void *a, const void *b) {
+    Value val_a = *(Value *)a;
+    Value val_b = *(Value *)b;
+
+    if (IS_INTEGER(val_a)) {
+        return AS_INTEGER(val_b) - AS_INTEGER(val_a);
+    }
+    else if (IS_DOUBLE(val_a)) {
+        return  AS_DOUBLE(val_b) - AS_DOUBLE(val_a);
+    }
+    else {
+        PRINT_ERR("Cannot sort type\n");
+        exit(1);
+    }
 }
 
 void native_sort(void) {
+    Value desc = pop();
     Value list = pop();
-    qsort(AS_LIST(list)->list.values, AS_LIST(list)->list.count, sizeof(Value), cmp_ints);
+    if (desc.as.boolean) {
+        qsort(AS_LIST(list)->list.values, AS_LIST(list)->list.count, sizeof(Value), desc_cmp);
+    }
+    else {
+        qsort(AS_LIST(list)->list.values, AS_LIST(list)->list.count, sizeof(Value), asc_cmp);
+    }
 }
 
 const NativeFunction native_builtins[] = {

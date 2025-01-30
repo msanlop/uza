@@ -485,8 +485,11 @@ append(foo, 1337)
 append(foo, 1)
 append(foo, 42)
 println(foo)
-sort(foo)
+sort(foo, true)
+println(foo)
+sort(foo, false)
 println(foo)
 #expected
 [97, 0, 1337, 1, 42]
 [1337, 97, 42, 1, 0]
+[0, 1, 42, 97, 1337]
