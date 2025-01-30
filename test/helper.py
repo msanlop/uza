@@ -33,7 +33,6 @@ def parse_test_file(file_path) -> list[tuple]:
         title, source, expected = ("", "", "")
         line = file.readline()
         while line:
-            print(line)
             if line.startswith(COMMENTED_OUT):
                 pass
             elif line.startswith(TEST_HEADER):
@@ -43,15 +42,17 @@ def parse_test_file(file_path) -> list[tuple]:
                 temp = remove_new_lines(file.readline())
                 while True:
                     expected += temp
-                    print(expected)
                     temp = remove_new_lines(file.readline())
                     if len(temp) == 0:
                         line = temp
                         break
+                print(f"APPENDING TEST {title}")
                 tests.append((title, source, expected))
                 source = ""
             else:
                 source += line
             line = file.readline()
+            print(line)
 
+    print([t[0] for t in tests])
     return tests

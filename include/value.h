@@ -61,7 +61,7 @@ typedef struct {
     case TYPE_LONG: \
       fprintf((out), "%ld", (value).as.integer); break; \
     case TYPE_DOUBLE: \
-      fprintf((out), "%.3lf", (value).as.fp); break; \
+      fprintf((out), "%.2lf", (value).as.fp); break; \
     case TYPE_BOOL: { \
       if ((value).as.boolean) fprintf((out), "true"); \
       else fprintf((out), "false"); \

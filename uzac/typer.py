@@ -311,9 +311,9 @@ class OneOf(Constraint):
             choices_options = None
 
         if choices_options:
-            assert isinstance(choices_options[0], Substitution), (
-                f"found {choices_options =}"
-            )
+            assert isinstance(
+                choices_options[0], Substitution
+            ), f"found {choices_options =}"
         return False, choices_options
 
     def fail_message(self) -> str:
@@ -424,7 +424,7 @@ class Typer:
                 len(bi.identifier), len(bi.identifier + "()"), bi.identifier + "()"
             )
 
-        if len(signatures) > 1:  # polymorphic
+        if len(signatures) > 1:  # overloads
             overload_func_ret = self._create_new_symbol(span)
             constraints = []
             for signature in signatures:

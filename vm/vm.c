@@ -15,7 +15,6 @@
 #include "debug.h"
 #endif
 
-#define PEEK(vm) (*(vm.stack_top - 1))
 
 #define SET_STACK_VALUE_TO_BOOL (vm.stack_top[-1].type = TYPE_BOOL)
 
@@ -364,9 +363,8 @@ int interpret(void) {
                 break;
             }
             if(IS_STRING(PEEK(vm))) {
-                PRINT_ERR_ARGS("at %s:%d not implemented string to int: %d\n\n",
-                __FILE__, __LINE__, instruction);
-                return 1;
+                int64_t num = atoll(AS_STRING(pop())->chars);
+                push(VAL_INT(num));
             }
 
             Value *val = &PEEK(vm);

@@ -410,27 +410,19 @@ println(bar + "foo")
 #expected
 42foo
 
-#test lists
-const a : List<string> = List()
-
-append(a, "hello")
-println(a)
-append(a, "world")
-println(a)
-
-
+#test lists functions
 func test() => List<int> {
     const temp : List<int> = List()
-
     append(temp, 123)
     return temp
 }
-
 const b = test()
 println(b)
-#expect
-[hello, world]
+append(b, 42)
+println(b)
+#expected
 [123]
+[123, 42]
 
 #test list get
 const foo : List<int> = List()
@@ -443,7 +435,7 @@ for var i = 0; i < len(foo); i += 1 {
     sum += get(foo, i)
 }
 println(sum)
-#expect
+#expected
 10
 
 #test string get char
@@ -451,21 +443,15 @@ const foo = "foo bar"
 for var i = 0; i < len(foo); i += 1 {
     println(get(foo, i))
 }
-#expect
-f
-o
-o
-
-b
-a
-r
+#expected (new lines ignored)
+foo bar
 
 #test string substring
 const foo = "foobar"
-for var i = 0; i < len(foo); i += 1 {
+for var i = 0; i <= len(foo); i += 1 {
     println(substring(foo, 0, i))
 }
-#expect
+#expected
 f
 fo
 foo
@@ -483,10 +469,24 @@ append(bar, 1)
 append(bar, 2)
 append(bar, 3)
 const dernier = get(bar, -1)
-println(dernier == get(foo, 2))
+println(dernier == get(bar, 2))
 println(dernier)
-#expect
+#expected
 true
 r
 true
 3
+
+#test sort func
+const foo : List<int> = List()
+append(foo, 97)
+append(foo, 0)
+append(foo, 1337)
+append(foo, 1)
+append(foo, 42)
+println(foo)
+sort(foo)
+println(foo)
+#expected
+[97, 0, 1337, 1, 42]
+[1337, 97, 42, 1, 0]

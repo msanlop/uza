@@ -39,6 +39,7 @@ typedef struct {
     size_t nextGC;
 } VM;
 
+#define PEEK(vm) (*(vm.stack_top - 1))
 
 extern VM vm;
 extern bool enable_garbage_collection;

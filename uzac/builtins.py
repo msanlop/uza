@@ -52,7 +52,7 @@ class BuiltIn:
 
     identifier: str
     interpret: Callable[..., Value]  # tree walk interpretation in python
-    type_signatures: List[ArrowType]  # len == 1 if not polymorphic
+    type_signatures: List[ArrowType]  # len == 1 if no overloads
     arity: int = field(init=False)
     is_op_code: bool = field(
         default=False
@@ -271,6 +271,15 @@ bi_substring = BuiltIn(
     ],
 )
 
+bi_sort = BuiltIn(
+    "sort",
+    lambda l: l.sort(reverse=True),
+    [
+        ArrowType([type_list_int], type_void),
+        ArrowType([type_list_float], type_void),
+    ],
+)
+
 
 # def _del_item(array, idx):
 #     del array[idx]
@@ -280,4 +289,3 @@ bi_substring = BuiltIn(
 #     "removeAt", _del_item, [ArrowType([type_list, type_int], type_void)]
 # )
 # bi_append = BuiltIn("copy", list.copy, [ArrowType([type_list], type_list)])
-# bi_sort = BuiltIn("sort", list.sort, [ArrowType([type_list], type_void)])

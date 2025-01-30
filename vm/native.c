@@ -44,8 +44,9 @@ void native_list_construct(void) {
 
 void native_list_append(void) {
     Value val = pop();
-    Value list = pop();
+    Value list = PEEK(vm);
     value_array_write(&AS_LIST(list)->list, val);
+    pop();
 }
 
 void native_len(void) {
@@ -120,7 +121,7 @@ void native_substring(void) {
     int start = start_val.as.integer;
     int end = end_val.as.integer;
     if (IS_STRING(val)) {
-        if (end >= AS_STRING(val)->length) {
+        if (end > AS_STRING(val)->length) {
             PRINT_ERR("Index out of bounds: %d for string of length %d.", end, AS_STRING(val)->length);
             exit(1);
         }
@@ -128,13 +129,35 @@ void native_substring(void) {
             PRINT_ERR("Index out of bounds: %d for string of length %d.", start, AS_STRING(val)->length);
             exit(1);
         }
-        ObjectString *character = object_string_allocate(&vm.strings, &AS_STRING(val)->chars[start], end-start + 1);
+        ObjectString *character = object_string_allocate(&vm.strings, &AS_STRING(val)->chars[start], end-start);
         push(VAL_OBJ(character));
     }
     else {
         PRINT_ERR("Called do substring on invalid value.");
         exit(1);
     }
+}
+
+static int cmp_ints(const void *a, const void *b) {
+    Value val_a = *(Value *)a;
+    Value val_b = *(Value *)b;
+
+    if (IS_INTEGER(val_a)) {
+        return AS_INTEGER(val_a) < AS_INTEGER(val_b);
+    }
+    else if (IS_DOUBLE(val_a)) {
+        return AS_DOUBLE(val_a) < AS_DOUBLE(val_b);
+    }
+    else {
+        PRINT_ERR("Cannot sort type\n");
+        exit(1);
+    }
+
+}
+
+void native_sort(void) {
+    Value list = pop();
+    qsort(AS_LIST(list)->list.values, AS_LIST(list)->list.count, sizeof(Value), cmp_ints);
 }
 
 const NativeFunction native_builtins[] = {
@@ -146,6 +169,7 @@ const NativeFunction native_builtins[] = {
     {"get", sizeof("get") - 1, {(native_function) native_get}, 2},
     {"set", sizeof("set") - 1, {(native_function) native_set}, 3},
     {"substring", sizeof("substring") - 1, {(native_function) native_substring}, 3},
+    {"sort", sizeof("sort") - 1, {(native_function) native_sort}, 1},
 };
 
 

@@ -255,7 +255,7 @@ class ByteCodeLocals:
             variable_name = f"_blk{frame.block_depth}__{variable_name}"
         frame_locals = frame.locals
         if variable_name in frame_locals:
-            raise ValueError(f"{variable_name} already defined in scope")
+            return frame_locals.index(variable_name)
 
         if self.depth == 0 and frame.block_depth == 0:
             return None
@@ -764,9 +764,9 @@ class ByteCodeProgramSerializer:
                 offset_bytes = struct.pack("<H", opcode.jump_offset)
                 written += self._write(offset_bytes)
 
-            assert written == opcode.size, (
-                f"For {opcode=}\n exepected it to be {opcode.size} in size but wrote {written} instead"
-            )
+            assert (
+                written == opcode.size
+            ), f"For {opcode=}\n exepected it to be {opcode.size} in size but wrote {written} instead"
             written = 0
 
         for opcode in code:
