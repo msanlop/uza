@@ -28,6 +28,7 @@ from uzac.type import (
     type_list_bool,
     type_list_float,
     type_list_string,
+    type_list_list_int,
     type_void,
 )
 
@@ -209,9 +210,6 @@ bi_new_list = BuiltIn(
     list,
     [
         ArrowType([], NonInferableType()),
-        ArrowType([], NonInferableType()),
-        ArrowType([], NonInferableType()),
-        ArrowType([], NonInferableType()),
     ],
 )
 bi_len = BuiltIn(
@@ -223,6 +221,7 @@ bi_len = BuiltIn(
         ArrowType([type_list_float], type_int),
         ArrowType([type_list_bool], type_int),
         ArrowType([type_string], type_int),
+        ArrowType([type_list_list_int], type_int),
     ],
 )
 bi_append = BuiltIn(
@@ -233,6 +232,7 @@ bi_append = BuiltIn(
         ArrowType([type_list_string, type_string], type_void),
         ArrowType([type_list_float, type_float], type_void),
         ArrowType([type_list_bool, type_bool], type_void),
+        ArrowType([type_list_list_int, type_list_int], type_void),
     ],
 )
 bi_get = BuiltIn(
@@ -242,6 +242,7 @@ bi_get = BuiltIn(
         ArrowType([type_list_int, type_int], type_int),
         ArrowType([type_list_string, type_int], type_string),
         ArrowType([type_list_float, type_int], type_float),
+        ArrowType([type_list_list_int, type_int], type_list_int),
         ArrowType([type_list_bool, type_int], type_bool),
         ArrowType([type_string, type_int], type_string),
     ],

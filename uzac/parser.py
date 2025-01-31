@@ -351,10 +351,6 @@ class Parser:
         tok = self._peek()
         generic = None
         if tok.kind == token_angle_bracket_l:
-            if recurse == False:
-                raise TypeError(
-                    tok.span.get_underlined(f"Invalid type, can't do nested Lists yet!")
-                )
             self._expect(token_angle_bracket_l)
             generic = self._get_type(recurse=False)
             tok = self._peek()

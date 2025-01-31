@@ -143,6 +143,7 @@ type_string = BuiltInType("string", _builtin_types)
 type_bool = BuiltInType("bool", _builtin_types)
 type_void = BuiltInType("nil", _builtin_types)
 type_list_int = BuiltInType("List<int>", _builtin_types)
+type_list_list_int = BuiltInType("List<List<int>>", _builtin_types)
 type_list_string = BuiltInType("List<string>", _builtin_types)
 type_list_float = BuiltInType("List<float>", _builtin_types)
 type_list_bool = BuiltInType("List<bool>", _builtin_types)
@@ -165,6 +166,7 @@ _id_to_uza = {
     "void": type_void,
     "nil": type_void,
     "List<int>": type_list_int,
+    "List<List<int>>": type_list_list_int,
     "List<bool>": type_list_bool,
     "List<string>": type_list_string,
     "List<float>": type_list_float,

@@ -8,6 +8,7 @@ func fibTailRec(n : int, prev: int, curr: int) => int {
     return fibTailRec(n-1, curr, prev + curr)
 }
 
-print("the 40th fibonacci number is : ")
-//println(fib(40))
-println(fibTailRec(40, 0, 1))
+const n = 50
+//const res = fib(n)
+const res = fibTailRec(n, 0, 1)
+println("fib(" + toString(n) + ") = " + toString(res))
