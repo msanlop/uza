@@ -147,9 +147,10 @@ int interpret(void) {
       push(ret_val);
     } break;
     case OP_CALL: {
-      Value func_name = pop();
+      Value func_name = PEEK(vm);
       Value func_val = {0};
       tableGet(&vm.globals, AS_STRING(func_name), &func_val);
+      pop();
       ObjectFunction *func = AS_FUNCTION(func_val);
       vm.depth++;
       Frame *curr = GET_FRAME(0);
@@ -171,16 +172,27 @@ int interpret(void) {
 #endif
     }; break;
     case OP_CALL_NATIVE: {
-      Value func_val = VAL_NIL;
-      Value func_name = CONSTANT(IP_FETCH_INCR);
-      if (!tableGet(&vm.globals, AS_STRING(func_name), &func_val)) {
-        PRINT_ERR("Could not find function: ");
-        PRINT_VALUE(func_name, stderr);
-        fprintf(stderr, NEWLINE);
-        exit(1);
+      uint8_t offset = IP_FETCH_INCR;
+      Value *func_ptr = &(CONSTANT(offset));
+
+      if (IS_STRING(*func_ptr)) {
+        ObjectFunction *func_obj = AS_STRING(*func_ptr)->cached_function;
+        if (func_obj != NULL) {
+          func_obj->function();
+        } else {
+          Value func_val = VAL_NIL;
+          if (!tableGet(&vm.globals, AS_STRING(*func_ptr), &func_val)) {
+            PRINT_ERR("Could not find function: ");
+            PRINT_VALUE(*func_ptr, stderr);
+            fprintf(stderr, NEWLINE);
+            exit(1);
+          }
+
+          func_obj = AS_FUNCTION(func_val);
+          AS_STRING(*func_ptr)->cached_function = func_obj;
+          func_obj->function();
+        }
       }
-      ObjectFunction *func = AS_FUNCTION(func_val);
-      func->function();
     } break;
     case OP_JUMP: {
       int offset = ((uint16_t)*(frame->ip)) + sizeof(uint16_t);

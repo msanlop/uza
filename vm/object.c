@@ -22,8 +22,8 @@ ObjectString *object_string_allocate(Table *strings, const char *chars,
     return res;
   }
 
-  size_t alloc_size =
-      sizeof(Obj) + sizeof(int) + sizeof(uint32_t) + string_length + 1;
+  size_t alloc_size = sizeof(Obj) + sizeof(int) + sizeof(ObjectFunction *) +
+                      sizeof(uint32_t) + string_length + 1;
 
   vm.bytesAllocated += alloc_size;
 #ifdef DEBUG_STRESS_GC

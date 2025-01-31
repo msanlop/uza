@@ -34,6 +34,7 @@ struct ObjectString {
   struct Obj obj;
   int length;
   uint32_t hash;
+  ObjectFunction *cached_function; // cache native functions once resolved
   char chars[];
 };
 
@@ -43,6 +44,8 @@ typedef struct {
 } ObjectList;
 
 #define OBJ_TYPE(object) (AS_OBJECT((object))->type)
+#define IS_FUNCTION_NATIVE(value)                                              \
+  (IS_OBJECT(value) && (OBJ_TYPE(value) == OBJ_FUNCTION_NATIVE))
 #define IS_STRING(value) (IS_OBJECT(value) && (OBJ_TYPE(value) == OBJ_STRING))
 #define IS_LIST(value) (IS_OBJECT(value) && (OBJ_TYPE(value) == OBJ_LIST))
 
