@@ -18,7 +18,6 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 // IN THE SOFTWARE.
 
-
 //> Hash Tables table-h
 #ifndef uza_table_h
 #define uza_table_h
@@ -30,7 +29,7 @@
 typedef struct ObjectString ObjectString;
 
 typedef struct {
-  ObjectString* key;
+  ObjectString *key;
   Value value;
 } Entry;
 //< entry
@@ -38,36 +37,36 @@ typedef struct {
 typedef struct {
   int count;
   int capacity;
-  Entry* entries;
+  Entry *entries;
 } Table;
 
 //> init-table-h
-void initTable(Table* table);
+void initTable(Table *table);
 //> free-table-h
-void freeTable(Table* table);
+void freeTable(Table *table);
 //< free-table-h
 //> table-get-h
-bool tableGet(Table* table, ObjectString* key, Value* value);
+bool tableGet(Table *table, ObjectString *key, Value *value);
 //< table-get-h
 //> table-set-h
-bool tableSet(Table* table, ObjectString* key, Value value);
+bool tableSet(Table *table, ObjectString *key, Value value);
 //< table-set-h
 //> table-delete-h
-bool tableDelete(Table* table, ObjectString* key);
+bool tableDelete(Table *table, ObjectString *key);
 //< table-delete-h
 //> table-add-all-h
-void tableAddAll(Table* from, Table* to);
+void tableAddAll(Table *from, Table *to);
 //< table-add-all-h
 //> table-find-string-h
-ObjectString* tableFindString(Table* table, const char* chars,
-                           int length, uint32_t hash);
+ObjectString *tableFindString(Table *table, const char *chars, int length,
+                              uint32_t hash);
 //< table-find-string-h
 //> Garbage Collection table-remove-white-h
 
-void tableRemoveWhite(Table* table);
+void tableRemoveWhite(Table *table);
 //< Garbage Collection table-remove-white-h
 //> Garbage Collection mark-table-h
-void markTable(Table* table);
+void markTable(Table *table);
 //< Garbage Collection mark-table-h
 
 //< init-table-h
