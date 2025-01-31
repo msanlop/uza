@@ -219,6 +219,9 @@ int interpret(void) {
                (Value){TYPE_OBJ, .as.object = (Obj *)func});
       pop();
     } break;
+    case OP_LNIL: {
+      push(VAL_NIL);
+    } break;
     case OP_STRCONST:
     case OP_DCONST:
     case OP_LCONST:

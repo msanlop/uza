@@ -9,6 +9,7 @@ typedef enum {
   OP_LOOP,
   OP_POP,
   OP_LFUNC,
+  OP_LNIL,
   OP_LCONST,
   OP_DCONST,
   OP_STRCONST,

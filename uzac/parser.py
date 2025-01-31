@@ -510,6 +510,13 @@ class Parser:
 
         if tok.kind in (token_const, token_var):
             return self._get_var_def()
+        elif tok.kind == token_nil:
+            tok = self._expect(token_nil)
+            if parsing_infix:
+                return Literal(tok)
+            else:
+                return self._get_infix(Literal(tok))
+
         elif tok.kind == token_paren_l:
             self._expect(token_paren_l)
             node = self._get_infix(self._get_expr())

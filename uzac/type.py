@@ -141,7 +141,7 @@ type_int = BuiltInType("int", _builtin_types)
 type_float = BuiltInType("float", _builtin_types)
 type_string = BuiltInType("string", _builtin_types)
 type_bool = BuiltInType("bool", _builtin_types)
-type_void = BuiltInType("void", _builtin_types)
+type_void = BuiltInType("nil", _builtin_types)
 type_list_int = BuiltInType("List<int>", _builtin_types)
 type_list_string = BuiltInType("List<string>", _builtin_types)
 type_list_float = BuiltInType("List<float>", _builtin_types)
@@ -154,6 +154,7 @@ _python_to_uza = {
     str: type_string,
     bool: type_bool,
     None: type_void,
+    "nil": type_void,
 }
 
 _id_to_uza = {
@@ -162,6 +163,7 @@ _id_to_uza = {
     "string": type_string,
     "bool": type_bool,
     "void": type_void,
+    "nil": type_void,
     "List<int>": type_list_int,
     "List<bool>": type_list_bool,
     "List<string>": type_list_string,
@@ -170,7 +172,9 @@ _id_to_uza = {
 
 
 def python_type_to_uza_type(type_) -> BuiltInType:
-    return _python_to_uza[type_]
+    if type_ == type_void:
+        return type_
+    return _python_to_uza.get(type_)
 
 
 def identifier_to_uza_type(identifier: Token) -> BuiltInType:

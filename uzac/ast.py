@@ -36,7 +36,7 @@ class Node(ABC):
 @dataclass
 class Literal(Node):
     token: Token
-    value: bool | str | int | float = field(init=False)
+    value: bool | str | int | float | Token = field(init=False)
     span: Span = field(compare=False, init=False)
 
     def __post_init__(self) -> None:
@@ -47,6 +47,8 @@ class Literal(Node):
             self.value = False
         elif kind == token_string:
             self.value = self.token.repr
+        elif kind == token_nil:
+            self.value = None
         elif kind == token_number:
             try:
                 self.value: int | float = int(self.token.repr)

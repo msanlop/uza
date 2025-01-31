@@ -311,14 +311,14 @@ class OneOf(Constraint):
             choices_options = None
 
         if choices_options:
-            assert isinstance(choices_options[0], Substitution), (
-                f"found {choices_options =}"
-            )
+            assert isinstance(
+                choices_options[0], Substitution
+            ), f"found {choices_options =}"
         return False, choices_options
 
     def fail_message(self) -> str:
         fails_msgs = (c.fail_message() for c in self.choices)
-        msg = f"\n{in_bold('or:')} \n".join(fails_msgs)
+        msg = f"\n{"-" * 50}\n{in_bold('or:')} \n".join(fails_msgs)
         return f"{in_bold('None of the following hold:')} \n{msg}"
 
 
@@ -556,7 +556,11 @@ class Typer:
         return type_void, type_void
 
     def visit_literal(self, literal: Literal) -> tuple[Type, ReturnType]:
-        return python_type_to_uza_type(type(literal.value)), type_void
+        if literal.value is None:
+            t = type_void
+        else:
+            t = type(literal.value)
+        return python_type_to_uza_type(t), type_void
 
     def visit_error(self, error: Error) -> tuple[Type, ReturnType]:
         raise RuntimeError(f"Unexpected visit to error node :{error} in typer")

@@ -63,6 +63,7 @@ class OPCODE(Enum):
 
     POP = auto()
     LFUNC = auto()
+    LNIL = auto()
     LCONST = auto()
     DCONST = auto()
     STRCONST = auto()
@@ -385,6 +386,8 @@ class ByteCodeProgram:
             opc = OPCODE.DCONST
         elif type_ == str:
             opc = OPCODE.STRCONST
+        elif literal.value is None:
+            opc = OPCODE.LNIL
         else:
             raise NotImplementedError(f"can't do opcode for literal '{literal}'")
         return self.emit_op(Op(opc, literal.span, constant=literal.value))
@@ -448,8 +451,7 @@ class ByteCodeProgram:
             func.body.visit(self)
             self.emit_op(
                 Op(
-                    OPCODE.LCONST,
-                    constant="NIL",
+                    OPCODE.LNIL,
                     span=func.body.span,
                 )
             )
@@ -764,9 +766,9 @@ class ByteCodeProgramSerializer:
                 offset_bytes = struct.pack("<H", opcode.jump_offset)
                 written += self._write(offset_bytes)
 
-            assert written == opcode.size, (
-                f"For {opcode=}\n exepected it to be {opcode.size} in size but wrote {written} instead"
-            )
+            assert (
+                written == opcode.size
+            ), f"For {opcode=}\n exepected it to be {opcode.size} in size but wrote {written} instead"
             written = 0
 
         for opcode in code:
