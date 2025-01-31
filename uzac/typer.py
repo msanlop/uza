@@ -181,6 +181,14 @@ class IsType(Constraint):
 
 
 @dataclass
+class IsReturnType(IsType):
+    def fail_message(self):
+        msg = super().fail_message()
+        idx = msg.index("type")
+        return msg[:idx] + "return " + msg[idx:]
+
+
+@dataclass
 class IsSubType(Constraint):
     """
     A constraint for a type to be a subtype of another or equal to it.
@@ -318,7 +326,8 @@ class OneOf(Constraint):
 
     def fail_message(self) -> str:
         fails_msgs = (c.fail_message() for c in self.choices)
-        msg = f"\n{"-" * 50}\n{in_bold('or:')} \n".join(fails_msgs)
+        line = "-" * 50
+        msg = f"\n{line}\n{in_bold('or:')} \n".join(fails_msgs)
         return f"{in_bold('None of the following hold:')} \n{msg}"
 
 
@@ -381,34 +390,39 @@ class Typer:
 
     def visit_return(self, ret: Return) -> tuple[Type, ReturnType]:
         ret_type, _ = ret.value.visit(self)
+        self.add_constaint(
+            IsReturnType(ret_type, self._functions.get("__func_ret_type"), ret.span)
+        )
         return type_void, ret_type
 
     def visit_function(self, func: Function) -> tuple[Type, ReturnType]:
         f_signature = func.type_signature
         self._functions.define(func.identifier, func)
+        self._functions.define("__func_ret_type", f_signature.return_type)
         with self._symbol_table.new_frame():
             for ident, type_ in zip(func.param_names, f_signature.param_types):
                 self._symbol_table.define(ident.name, (type_, False))
             _, body_ret = func.body.visit(self)
-            if (
-                isinstance(body_ret, IncompleteBranchType)
-                and type_void not in f_signature.return_type
-            ):
-                # warning only because I'm not entirely convinced of my implementation
-                warning = func.span.get_underlined(
-                    in_color(
-                        f" Warning: function branches might not always return '{f_signature.return_type}'",
-                        ANSIColor.YELLOW,
-                    )
-                )
-                self._warnings.append(warning)
-                self.add_constaint(
-                    IsType(body_ret.path_type, f_signature.return_type, func.span)
-                )
-            else:
-                if isinstance(body_ret, IncompleteBranchType):
-                    body_ret = body_ret.path_type | type_void
-                self.add_constaint(IsType(body_ret, f_signature.return_type, func.span))
+            # if (
+            #     isinstance(body_ret, IncompleteBranchType)
+            #     and type_void not in f_signature.return_type
+            # ):
+            #     # warning only because I'm not entirely convinced of my implementation
+            #     warning = func.span.get_underlined(
+            #         in_color(
+            #             f" Warning: function branches might not always return '{f_signature.return_type}'",
+            #             ANSIColor.YELLOW,
+            #         )
+            #     )
+            #     self._warnings.append(warning)
+            #     self.add_constaint(
+            #         IsType(body_ret.path_type, f_signature.return_type, func.span)
+            #     )
+            # else:
+            #     if isinstance(body_ret, IncompleteBranchType):
+            #         body_ret = body_ret.path_type
+
+            #     self.add_constaint(IsType(body_ret, f_signature.return_type, func.span))
 
         return f_signature.return_type, None
 

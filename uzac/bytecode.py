@@ -1,3 +1,5 @@
+# pylint: disable=missing-docstring
+
 """
 This bytecode module handles bytecode generation to be interpreted by the VM.
 

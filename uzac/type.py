@@ -32,12 +32,12 @@ class Type:
     def __or__(self, that: object) -> bool:
         if Type.matches(self, that):
             return self
-        if isinstance(that, BuiltInType):
-            return UnionType(self, that)
         if isinstance(that, UnionType):
             return UnionType(self, that.types)
         if issubclass(Type, that.__class__):
             return that | self
+        if isinstance(that, Type):
+            return UnionType(self, that)
         raise NotImplementedError(f"for {self} | {that}")
 
     def __contains__(self, that: object):

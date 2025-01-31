@@ -1,3 +1,5 @@
+# pylint: disable=missing-docstring
+
 from abc import ABC
 from typing import List, Optional
 from dataclasses import dataclass, field

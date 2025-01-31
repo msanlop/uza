@@ -77,6 +77,10 @@ int debug_op_print(Chunk *chunk, int offset) {
     DEBUG_PRINT_TO("%-20s", "OP_LFUNC")
     return 2;
     break;
+  case OP_LNIL:
+    DEBUG_PRINT_TO("%-20s", "OP_LNIL");
+    return 1;
+    break;
   case OP_LCONST:
     debug_constant_print("OP_LCONST", chunk, offset + 1);
     return 2;
