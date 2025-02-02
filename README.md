@@ -1,5 +1,5 @@
 # Uza
-Uza is a simple statically typed programming language, mainly inspired from Scala and Python.
+Uza is a simple statically typed programming language, that takes inspiration from Scala and Python.
 This repo features an uza compiler/interpreter written in Python in the `uzac` directory, as well as a custom Virtual Machine written in C in the `vm` directory.
 
 Here is fibonacci in uza:
@@ -129,6 +129,7 @@ You can now run uza by executing `python uza` from root dir of the repo.
 ```bash
 printf "#!$(which python3)\n$(cat uza)" > uza
 export PATH=$(pwd):$PATH
+./uza --help
 ```
 Export in shell config file, e.g. `~/.bashrc`, to persist across sessions.
 
@@ -137,3 +138,13 @@ Export in shell config file, e.g. `~/.bashrc`, to persist across sessions.
 pip install -r requirements.txt
 pytest
 ```
+
+## TODO
+- Generics
+- Closures, lambda functions
+- Structs, methods
+- Iterators
+- Maps
+- Modules, stdlib
+- JIT, convert the interpreter to RPython and see how well it performs
+- it never ends...
