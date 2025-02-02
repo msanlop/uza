@@ -349,6 +349,19 @@ class IsNotVoid(Constraint):
 NodeAlwaysReturns = bool
 
 
+@dataclass(frozen=True)
+class TyperDiagnostic:
+    """
+    A TyperDiagnostic record that contains the number of errors, error and
+    warning messages and the substitution that unifies the program if it exists.
+    """
+
+    error_count: int
+    error_msg: str
+    warning_msg: str
+    substitution: Optional[Substitution]
+
+
 class Typer:
     """
     Represents a typer than can typecheck a uza program.
@@ -655,29 +668,23 @@ class Typer:
 
         # return errors, err_str, substitution
 
-    def check_types(self, output_substitution=False) -> tuple[int, str, str, str]:
+    def check_types(self) -> TyperDiagnostic:
         """
-        Types checks the proram and returns the returns a tuple with the number
-        of errors found and any error messages.
+        Types checks an uza program.
 
         Args:
             generate_substitution (Substitution): generates and returns the substitution string
                 if True
 
         Returns:
-            tuple[int, str, str]: (errors found, error message, substitution string or none)
+            A TyperDiagnostic
         """
         self.program.syntax_tree.visit(self)
         errors, err_str, substitution = self._check_with_sub(
             self.constaints, self.substitution
         )
 
-        if output_substitution:
-            verbose_map = substitution.pretty_string()
-        else:
-            verbose_map = ""
-
         errors += len(self._error_strings)
         err_str = "\n".join(self._error_strings) + err_str
-        # TODO: diagnostic into the program or create some class
-        return errors, err_str, self._warnings, verbose_map
+        warn_str = "\n".join(self._warnings)
+        return TyperDiagnostic(errors, err_str, warn_str, substitution)

@@ -10,8 +10,8 @@ def test_add_int_float():
     foo + bar
     """
     typer = Typer(Parser(source).parse())
-    err, _, _, _ = typer.check_types()
-    assert not err
+    typer_res = typer.check_types()
+    assert not typer_res.error_count
 
 
 def test_add_int_string():
@@ -21,8 +21,8 @@ def test_add_int_string():
     foo + bar
     """
     typer = Typer(Parser(source).parse())
-    err, _, _, _ = typer.check_types()
-    assert err > 0
+    typer_res = typer.check_types()
+    assert typer_res.error_count > 0
 
 
 def test_inference():
@@ -32,8 +32,8 @@ def test_inference():
     foo + bar
     """
     typer = Typer(Parser(source).parse())
-    err, _, _, _ = typer.check_types()
-    assert not err
+    typer_res = typer.check_types()
+    assert not typer_res.error_count
 
 
 def test_inference_fail():
@@ -43,8 +43,8 @@ def test_inference_fail():
     foo + bar
     """
     typer = Typer(Parser(source).parse())
-    err, _, _, _ = typer.check_types()
-    assert err > 0
+    typer_res = typer.check_types()
+    assert typer_res.error_count > 0
 
 
 def test_inference_fail_nested():
@@ -54,8 +54,8 @@ def test_inference_fail_nested():
     foo + bar + "hi"
     """
     typer = Typer(Parser(source).parse())
-    err, _, _, _ = typer.check_types()
-    assert err > 0
+    typer_res = typer.check_types()
+    assert typer_res.error_count > 0
 
 
 def test_inference_var_defs():
@@ -66,8 +66,8 @@ def test_inference_var_defs():
     println(test)
     """
     typer = Typer(Parser(source).parse())
-    err, _, _, _ = typer.check_types()
-    assert not err
+    typer_res = typer.check_types()
+    assert not typer_res.error_count
 
 
 def test_const_redef_fails():
@@ -76,8 +76,8 @@ def test_const_redef_fails():
     foo = 2.
     """
     typer = Typer(Parser(source).parse())
-    err, _, _, _ = typer.check_types()
-    assert err == 1
+    typer_res = typer.check_types()
+    assert typer_res.error_count == 1
 
 
 def test_var_redef_works():
@@ -86,8 +86,8 @@ def test_var_redef_works():
     foo = 2.
     """
     typer = Typer(Parser(source).parse())
-    err, _, _, _ = typer.check_types()
-    assert not err
+    typer_res = typer.check_types()
+    assert not typer_res.error_count
 
 
 def test_var_type_redef_fails():
@@ -96,8 +96,8 @@ def test_var_type_redef_fails():
     foo = 123
     """
     typer = Typer(Parser(source).parse())
-    err, _, _, _ = typer.check_types()
-    assert err > 0
+    typer_res = typer.check_types()
+    assert typer_res.error_count > 0
 
 
 def test_fail_on_generic_decl_without_type():
@@ -126,8 +126,8 @@ def test_fail_functions_that_do_not_always_return():
     println(voidFunc(15))
     """
     typer = Typer(Parser(source).parse())
-    errc, _, _, _ = typer.check_types()
-    assert errc > 0
+    typer_res = typer.check_types()
+    assert typer_res.error_count > 0
 
     source = """
     func voidFunc(n: int) => void {
@@ -140,5 +140,5 @@ def test_fail_functions_that_do_not_always_return():
     println(voidFunc(15))
     """
     typer = Typer(Parser(source).parse())
-    errc, _, _, _ = typer.check_types()
-    assert not errc
+    typer_res = typer.check_types()
+    assert not typer_res.error_count

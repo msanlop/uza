@@ -7,7 +7,7 @@ from typing import Sequence
 
 from uzac.utils import ANSIColor, in_color
 
-from uzac.typer import Typer
+from uzac.typer import Typer, TyperDiagnostic
 from uzac.bytecode import ByteCodeProgram, ByteCodeProgramSerializer
 from uzac.parser import Parser
 from uzac.interpreter import Interpreter
@@ -126,21 +126,17 @@ def main(argv: Sequence[str] = None) -> int:
         return 0
 
     if not args.notypechecking:
-        type_err, type_msg, warning_msg, substitution_str = Typer(program).check_types(
-            output_substitution=args.verbose
-        )
+        typer_res: TyperDiagnostic = Typer(program).check_types()
         if args.verbose:
             print(in_color("\n### inferred types ###", ANSIColor.YELLOW), file=stderr)
-            if len(substitution_str) == 0:
-                substitution_str = "No inferred types.\n"
-            print(substitution_str, file=stderr)
-        if warning_msg:
-            for msg in warning_msg:
-                print(msg, file=stderr)
-        if args.typecheck or type_err > 0:
-            if type_msg:
-                print(type_msg, file=stderr)
-            return type_err
+
+            print(typer_res.substitution.pretty_string(), file=stderr)
+        if typer_res.warning_msg:
+            print(typer_res.warning_msg, file=sys.stderr)
+        if typer_res.error_msg != "":
+            print(typer_res.error_msg, file=stderr)
+        if args.typecheck:
+            return typer_res.error_count
 
     if args.interpret:
         out = Interpreter(program).evaluate()
