@@ -1,7 +1,7 @@
 for var i = 0; i <= 100; i += 1 {
     var temp = ""
     if i % 3 == 0 then temp += "Fizz"
-    if i % 5 == 0 then temp += "Buzz" // no else ifs yet :(
-    if i % 5 != 0 and i % 3 != 0 then temp += toString(i)
+    else if i % 5 == 0 then temp += "Buzz"
+    else temp += toString(i)
     println(temp)
 }
