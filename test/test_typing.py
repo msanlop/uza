@@ -108,3 +108,37 @@ def test_fail_on_generic_decl_without_type():
     with pytest.raises(TypeError):
         typer = Typer(Parser(source).parse())
         typer.check_types()
+
+
+def test_fail_functions_that_do_not_always_return():
+    source = """
+    func voidFunc(n: int) => int {
+        if n > 50 {
+            return n * 2
+        }
+        else {
+            if n < 0 {
+                return 0
+            }
+        }
+    }
+
+    println(voidFunc(15))
+    """
+    typer = Typer(Parser(source).parse())
+    errc, _, _, _ = typer.check_types()
+    assert errc > 0
+
+    source = """
+    func voidFunc(n: int) => void {
+        if n > 50 {
+            return
+        }
+        else if n < 0 then return
+    }
+
+    println(voidFunc(15))
+    """
+    typer = Typer(Parser(source).parse())
+    errc, _, _, _ = typer.check_types()
+    assert not errc

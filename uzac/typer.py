@@ -319,9 +319,9 @@ class OneOf(Constraint):
             choices_options = None
 
         if choices_options:
-            assert isinstance(choices_options[0], Substitution), (
-                f"found {choices_options =}"
-            )
+            assert isinstance(
+                choices_options[0], Substitution
+            ), f"found {choices_options =}"
         return False, choices_options
 
     def fail_message(self) -> str:
@@ -346,7 +346,7 @@ class IsNotVoid(Constraint):
 
 # the return type of a tree node. If equal to type_node then either no Return nodes
 # are inside the tree, or some node returns type_void
-ReturnType = Type
+NodeAlwaysReturns = bool
 
 
 class Typer:
@@ -388,14 +388,14 @@ class Typer:
         """
         self.constaints.append(constraint)
 
-    def visit_return(self, ret: Return) -> tuple[Type, ReturnType]:
+    def visit_return(self, ret: Return) -> tuple[Type, NodeAlwaysReturns]:
         ret_type, _ = ret.value.visit(self)
         self.add_constaint(
             IsReturnType(ret_type, self._functions.get("__func_ret_type"), ret.span)
         )
-        return type_void, ret_type
+        return type_void, True
 
-    def visit_function(self, func: Function) -> tuple[Type, ReturnType]:
+    def visit_function(self, func: Function) -> tuple[Type, NodeAlwaysReturns]:
         f_signature = func.type_signature
         self._functions.define(func.identifier, func)
         self._functions.define("__func_ret_type", f_signature.return_type)
@@ -403,32 +403,20 @@ class Typer:
             for ident, type_ in zip(func.param_names, f_signature.param_types):
                 self._symbol_table.define(ident.name, (type_, False))
             _, body_ret = func.body.visit(self)
-            # if (
-            #     isinstance(body_ret, IncompleteBranchType)
-            #     and type_void not in f_signature.return_type
-            # ):
-            #     # warning only because I'm not entirely convinced of my implementation
-            #     warning = func.span.get_underlined(
-            #         in_color(
-            #             f" Warning: function branches might not always return '{f_signature.return_type}'",
-            #             ANSIColor.YELLOW,
-            #         )
-            #     )
-            #     self._warnings.append(warning)
-            #     self.add_constaint(
-            #         IsType(body_ret.path_type, f_signature.return_type, func.span)
-            #     )
-            # else:
-            #     if isinstance(body_ret, IncompleteBranchType):
-            #         body_ret = body_ret.path_type
+            if f_signature.return_type != type_void and not body_ret:
+                err = func.span.get_underlined(
+                    in_color(
+                        f" Warning: function branches might not always return '{f_signature.return_type}'",
+                        ANSIColor.RED,
+                    )
+                )
+                self._error_strings.append(err)
 
-            #     self.add_constaint(IsType(body_ret, f_signature.return_type, func.span))
-
-        return f_signature.return_type, None
+        return f_signature.return_type, False
 
     def visit_builtin(
         self, bi: BuiltIn, *arguments: Node, span: Span
-    ) -> tuple[Type, ReturnType]:
+    ) -> tuple[Type, NodeAlwaysReturns]:
         arg_types = [arg.visit(self)[0] for arg in arguments]
         signatures = bi.type_signatures
 
@@ -456,7 +444,7 @@ class Typer:
             self.add_constaint(
                 OneOf(constraints, Span.from_list(arguments, empty_case=span_zero))
             )
-            return overload_func_ret, type_void
+            return overload_func_ret, False
         else:
             func_type = signatures[0]
             self.add_constaint(
@@ -468,55 +456,40 @@ class Typer:
                     Span.from_list(arguments, empty_case=span_zero),
                 )
             )
-            return func_type.return_type, type_void
+            return func_type.return_type, False
 
-    def visit_no_op(self, _) -> tuple[Type, ReturnType]:
-        return type_void, type_void
+    def visit_no_op(self, _) -> tuple[Type, NodeAlwaysReturns]:
+        return type_void, False
 
-    def visit_infix_application(
-        self, infix: InfixApplication
-    ) -> tuple[Type, ReturnType]:
+    def visit_infix_application(self, infix: InfixApplication) -> Type:
         func_id = infix.func_id
         builtin = get_builtin(func_id)
         assert builtin
         return self.visit_builtin(builtin, infix.lhs, infix.rhs, span=infix.span)
 
-    def visit_prefix_application(
-        self, prefix: PrefixApplication
-    ) -> tuple[Type, ReturnType]:
+    def visit_prefix_application(self, prefix: PrefixApplication) -> Type:
         func_id = prefix.func_id
         builtin = get_builtin(func_id)
         assert builtin
         return self.visit_builtin(builtin, prefix.expr, span=prefix.span)
 
-    def visit_if_else(self, if_else: IfElse) -> tuple[Type, ReturnType]:
+    def visit_if_else(self, if_else: IfElse) -> tuple[Type, NodeAlwaysReturns]:
         pred, pred_ret = if_else.predicate.visit(self)
         self.add_constaint(IsType(pred, type_bool, if_else.predicate.span))
-        truthy_type, truthy_type_ret = if_else.truthy_case.visit(self)
+        truthy_type, truthy_returns = if_else.truthy_case.visit(self)
         if if_else.falsy_case is not None:
-            falsy_type, falsy_type_ret = if_else.falsy_case.visit(self)
+            falsy_type, falsy_returns = if_else.falsy_case.visit(self)
         else:
-            falsy_type, falsy_type_ret = type_void, type_void
+            falsy_returns = False
 
-        branch_returns = (truthy_type_ret, falsy_type_ret)
-        if type_void in branch_returns:
-            if truthy_type_ret != type_void:
-                ret_type = IncompleteBranchType(
-                    truthy_type_ret, if_else.truthy_case.span
-                )
-            elif falsy_type_ret != type_void:
-                ret_type = IncompleteBranchType(falsy_type_ret, if_else.falsy_case.span)
-            else:
-                ret_type = type_void
-        else:
-            ret_type = truthy_type_ret | falsy_type_ret
+        return type_void, truthy_returns and falsy_returns
 
-        return type_void, ret_type
+    def visit_identifier(
+        self, identifier: Identifier
+    ) -> tuple[Type, NodeAlwaysReturns]:
+        return self._symbol_table.get(identifier.name)[0], False
 
-    def visit_identifier(self, identifier: Identifier) -> tuple[Type, ReturnType]:
-        return self._symbol_table.get(identifier.name)[0], type_void
-
-    def visit_application(self, app: Application) -> tuple[Type, ReturnType]:
+    def visit_application(self, app: Application) -> tuple[Type, NodeAlwaysReturns]:
         func_id = app.func_id
         builtin = get_builtin(func_id)
         if builtin:
@@ -539,15 +512,15 @@ class Typer:
         for a, b, spannable in zip(app_types, func_type.param_types, app.args):
             self.add_constaint(IsType(a, b, spannable.span))
 
-        return func_type.return_type, type_void
+        return func_type.return_type, False
 
-    def visit_var_def(self, var_def: VarDef) -> tuple[Type, ReturnType]:
+    def visit_var_def(self, var_def: VarDef) -> tuple[Type, NodeAlwaysReturns]:
         t = var_def.type_ if var_def.type_ else self._create_new_symbol(var_def.span)
         self.constaints.append(IsType(t, var_def.value.visit(self)[0], var_def.span))
         self._symbol_table.define(var_def.identifier, (t, var_def.immutable))
-        return type_void, type_void
+        return type_void, False
 
-    def visit_var_redef(self, redef: VarRedef) -> tuple[Type, ReturnType]:
+    def visit_var_redef(self, redef: VarRedef) -> tuple[Type, NodeAlwaysReturns]:
         identifier = redef.identifier
         is_immutable = self._var_is_immutable(identifier)
         if is_immutable is None:
@@ -567,28 +540,28 @@ class Typer:
                 redef.span,
             )
         )
-        return type_void, type_void
+        return type_void, False
 
-    def visit_literal(self, literal: Literal) -> tuple[Type, ReturnType]:
+    def visit_literal(self, literal: Literal) -> tuple[Type, NodeAlwaysReturns]:
         if literal.value is None:
             t = type_void
         else:
             t = type(literal.value)
-        return python_type_to_uza_type(t), type_void
+        return python_type_to_uza_type(t), False
 
-    def visit_error(self, error: Error) -> tuple[Type, ReturnType]:
+    def visit_error(self, error: Error) -> tuple[Type, NodeAlwaysReturns]:
         raise RuntimeError(f"Unexpected visit to error node :{error} in typer")
 
     def visit_expression_list(
         self, expr_list: ExpressionList
-    ) -> tuple[Type, ReturnType]:
+    ) -> tuple[Type, NodeAlwaysReturns]:
         return self._check_lines(expr_list.lines)
 
-    def visit_block(self, scope: Block) -> tuple[Type, ReturnType]:
+    def visit_block(self, scope: Block) -> tuple[Type, NodeAlwaysReturns]:
         with self._symbol_table.new_frame():
             return self._check_lines(scope.lines)
 
-    def visit_while_loop(self, wl: WhileLoop) -> tuple[Type, ReturnType]:
+    def visit_while_loop(self, wl: WhileLoop) -> tuple[Type, NodeAlwaysReturns]:
         self.add_constaint(IsType(wl.cond.visit(self)[0], type_bool, wl.span))
         _, loop_ret = wl.loop.visit(self)
         return type_void, loop_ret
@@ -614,7 +587,7 @@ class Typer:
     #         return type_string, type_void
     #     return type_int | type_string, type_void
 
-    def visit_for_loop(self, fl: ForLoop) -> tuple[Type, ReturnType]:
+    def visit_for_loop(self, fl: ForLoop) -> tuple[Type, NodeAlwaysReturns]:
         with self._symbol_table.new_frame():
             if fl.init:
                 fl.init.visit(self)
@@ -622,8 +595,8 @@ class Typer:
                 self.add_constaint(IsType(fl.cond.visit(self)[0], type_bool, fl.span))
             if fl.incr:
                 fl.incr.visit(self)
-            _, interior_ret = fl.interior.visit(self)
-            return type_void, interior_ret
+            fl.interior.visit(self)
+            return type_void, False
 
     def _check_with_sub(
         self, constaints: list[Constraint], substitution: Substitution
@@ -665,32 +638,12 @@ class Typer:
         """
         Type checks a list of nodes.
         """
-        ret_type: List[Type] = []
+        node_returns = []
         for node in lines:
             _, ret = node.visit(self)
-            ret_type.append(ret)
-        ret_type = [t for t in ret_type if t != type_void]
-        lines_return_type = None
-        temp: Optional[IncompleteBranchType] = None
-        for i in range(len(ret_type)):
-            curr = ret_type[i]
-            if isinstance(curr, IncompleteBranchType):
-                if temp:
-                    IncompleteBranchType(
-                        temp.path_type | curr.path_type, temp.span + curr.span
-                    )
-                else:
-                    temp = curr
-            else:
-                if lines_return_type is not None:
-                    lines_return_type = lines_return_type | curr
-                else:
-                    lines_return_type = curr
+            node_returns.append(ret)
 
-        if lines_return_type is None:
-            lines_return_type = temp or type_void
-
-        return type_void, lines_return_type
+        return type_void, any(node_returns)
 
         # errors = len(self._error_strings)
         # if errors > 0:
@@ -702,7 +655,7 @@ class Typer:
 
         # return errors, err_str, substitution
 
-    def check_types(self, output_substitution=False) -> tuple[int, str, str]:
+    def check_types(self, output_substitution=False) -> tuple[int, str, str, str]:
         """
         Types checks the proram and returns the returns a tuple with the number
         of errors found and any error messages.
