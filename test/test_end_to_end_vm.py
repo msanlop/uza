@@ -28,8 +28,6 @@ def test_end_to_end(description, code, expected_output, capfd):
             [
                 "python",
                 os.path.join(os.path.dirname(os.path.dirname(__file__)), "uza"),
-                "--output",
-                bytecode_out,
                 "-s",
                 code,
             ],
