@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "uza"
 dynamic = ["version"]
-description = "A compiler and bytecode interpreted for the uza programming language"
+description = "A compiler and bytecode interpreter for the uza programming language"
 authors = [{ name = "M. Sanchez Lopez" }]
 readme = "README.md"
 license = { file = "LICENSE" }
