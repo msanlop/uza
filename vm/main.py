@@ -13,12 +13,11 @@ def load_shared_library(directory, lib_name):
     if sys.platform.startswith("win"):
         filename = f"{lib_name}.dll"
     elif sys.platform == "darwin":
-        directory = join("/", "usr", "local", "lib")
         filename = f"lib{lib_name}.dylib"
     else:
         filename = f"lib{lib_name}.so"
 
-    lib_path = join(dirname(__file__), "lib", filename)
+    lib_path = join(dirname(__file__), filename)
     try:
         return ctypes.CDLL(lib_path)
     except OSError as e:

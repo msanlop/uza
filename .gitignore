@@ -7,6 +7,8 @@ __pycache__/
 *.so
 
 # Distribution / packaging
+_skbuild
+wheelhouse
 .Python
 build/
 develop-eggs/

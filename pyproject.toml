@@ -1,3 +1,26 @@
 [build-system]
-requires = ["setuptools", "wheel", "scikit-build"]
+requires = ["setuptools", "wheel", "cmake>=3.1", "scikit-build"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "uza"
+dynamic = ["version"]
+description = "A compiler and bytecode interpreted for the uza programming language"
+authors = [{ name = "M. Sanchez Lopez" }]
+readme = "README.md"
+license = { file = "LICENSE" }
+dependencies = []
+requires-python = ">=3.10"
+keywords = ["compiler", "interpreter", "programming language"]
+
+[tool.setuptools_scm]
+
+[project.scripts]
+uza = "uzac.cli:main"
+
+[tool.cibuildwheel]
+test-requires = "pytest"
+test-command = "pytest {project}/test"
+
+[project.optional-dependencies]
+dev = ["pytest", "mypy", "pylint", "ruff", "pre-commit"]
