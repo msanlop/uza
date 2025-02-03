@@ -56,7 +56,8 @@ More examples are available in the `examples` directory.
 > Unless you like a challenge :^)
 
 
-There are a few ways to run uza, the easiest being through a python `venv`.
+The main way to install uza is through `pip`, Python's package manager. 
+Installing in a `venv` removes the need to edit the PATH but requires the `venv` to be active to use uza.
 
 ## `venv` install
 The `venv` environement has to be active to run uza.
