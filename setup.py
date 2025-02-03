@@ -1,9 +1,10 @@
 from skbuild import setup
-from setuptools import find_packages
+import setuptools_scm
 
 setup(
     name="uza",
-    version="0.0.1",
+    use_scm_version=True,
+    setup_requires=["setuptools_scm"],
     packages=["uzac", "vm"],
     package_data={"vm": ["*.so", "*.so", "*.dll"]},
     include_package_data=True,
