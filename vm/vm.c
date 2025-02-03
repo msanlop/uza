@@ -267,7 +267,7 @@ int interpret(void) {
     case OP_MOD: {
       Value rhs = pop();
       Value lhs = pop();
-      int res = (lhs).as.integer % (rhs).as.integer;
+      int64_t res = (lhs).as.integer % (rhs).as.integer;
       push(VAL_INT(res));
     } break;
     case OP_NEG: {
@@ -320,7 +320,7 @@ int interpret(void) {
       ObjectString *res;
       char buff[512] = {0};
       if (IS_INTEGER(val)) {
-        int char_count = sprintf(buff, "%ld", val.as.integer);
+        int char_count = sprintf(buff, "%lld", val.as.integer);
         res = object_string_allocate(&vm.strings, buff, char_count);
       } else if (IS_DOUBLE(val)) {
         int char_count = sprintf(buff, "%lf", val.as.fp);

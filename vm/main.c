@@ -10,7 +10,7 @@ bool stop_interpreting = false;
 #include <windows.h>
 
 // Handler for Ctrl+C events
-BOOL CtrlHandler(DWORD fdwCtrlType) {
+static BOOL WINAPI CtrlHandler(DWORD fdwCtrlType) {
   if (fdwCtrlType == CTRL_C_EVENT) {
     stop_interpreting = true;
     return TRUE;
