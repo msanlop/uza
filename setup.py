@@ -6,7 +6,7 @@ setup(
     use_scm_version=True,
     setup_requires=["setuptools_scm"],
     packages=["uzac", "vm"],
-    package_data={"vm": ["*.so", "*.so", "*.dll"]},
+    package_data={"vm": ["*.so", "*.dylib", "*.dll"]},
     include_package_data=True,
     cmake_args=["-DCMAKE_BUILD_TYPE=Release"],
     zip_safe=False,
