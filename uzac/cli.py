@@ -101,8 +101,19 @@ def main(argv: Sequence[str] = None) -> int:
     elif args.source:
         source = args.source
     elif args.file:
-        with open(args.file, "r", encoding="ascii") as file:
-            source = file.read()
+        try:
+            with open(args.file, "r", encoding="ascii") as file:
+                source = file.read()
+        except UnicodeDecodeError as e:
+            print(e, file=sys.stderr)
+            if "range(128)" in e.reason:
+                print(
+                    in_color(
+                        "Error: uza currently only supports ascii encoding",
+                        ANSIColor.RED,
+                    )
+                )
+            return 1
     else:
         parser.print_usage()
         print("\nerror: Provide a source file or source code")

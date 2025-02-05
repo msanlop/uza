@@ -47,7 +47,7 @@ class Literal(Node):
             self.value = True
         elif self.token.kind == token_false:
             self.value = False
-        elif kind == token_string:
+        elif kind in (token_string, token_partial_string):
             self.value = self.token.repr
         elif kind == token_nil:
             self.value = None

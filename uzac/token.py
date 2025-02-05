@@ -1,5 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass, field
+from codecs import unicode_escape_decode
 
 from .utils import Span
 
@@ -39,11 +40,17 @@ class TokenKind:
 class Token:
     kind: TokenKind
     span: Span
-    repr: str = field(default=None)
+    repr: str = field(default=None, init=False)
 
     def __post_init__(self):
-        if self.repr is None:
-            object.__setattr__(self, "repr", self.kind.repr)  # bypass frozen=True
+        if self.kind in (token_string, token_partial_string):
+            string, _ = unicode_escape_decode(self.span.get_source())
+            if self.kind == token_string:
+                string = string[1:-1]
+
+            object.__setattr__(self, "repr", string)
+        else:
+            object.__setattr__(self, "repr", self.span.get_source())
 
     def __eq__(self, value: object) -> bool:
         if not isinstance(value, Token):
@@ -91,7 +98,7 @@ token_bracket_l = TokenKind("{")
 token_bracket_r = TokenKind("}")
 token_square_bracket_l = TokenKind("[", 10)
 token_square_bracket_r = TokenKind("]")
-token_nil = TokenKind("nil")
+token_nil = TokenKind("nil", is_user_value=True)
 token_const = TokenKind("const")
 token_func = TokenKind("func")
 token_return = TokenKind("return")
@@ -108,7 +115,9 @@ token_comma = TokenKind(",")
 token_false = TokenKind("false", is_user_value=True)
 token_true = TokenKind("true", is_user_value=True)
 token_quote = TokenKind('"')
+token_f_quote = TokenKind('f"')
 token_string = TokenKind("STR", is_user_value=True)
+token_partial_string = TokenKind("F_STR_PARTIAL", is_user_value=True)  # for f strings
 token_number = TokenKind("NUM", is_user_value=True)
 token_boolean = TokenKind("BOOL", is_user_value=True)
 token_while = TokenKind("while")

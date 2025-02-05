@@ -2,6 +2,7 @@ from __future__ import annotations
 from collections import deque
 from functools import reduce
 import string
+import sys
 from typing import Callable, List, Optional, TypeVar
 
 from uzac.interpreter import get_builtin
@@ -28,7 +29,7 @@ from uzac.ast import (
 )
 
 from uzac.type import ArrowType, Type, identifier_to_uza_type
-from uzac.utils import Span, SymbolTable
+from uzac.utils import ANSIColor, Span, SymbolTable, in_color
 from uzac.token import *
 from uzac import typer
 
@@ -44,8 +45,11 @@ class Scanner:
         self._source_len = len(source)
         self._start = 0
         self._line = 0
+        self._token_buffer = []
 
-    def _char_at(self, i):
+    def _char_at(self, i) -> Optional[str]:
+        if self._overflows(i):
+            return None
         return self._source[i]
 
     def _overflows(self, i: Optional[int] = None) -> bool:
@@ -67,7 +71,7 @@ class Scanner:
 
     def _get_next_string(self) -> int:
         end = self._start + 1
-        while self._char_at(end) != '"':
+        while not self._overflows(end) and self._char_at(end) != '"':
             # TODO: multiline strings
             # if self._char_at(end) == "\n":
             #     raise SyntaxError(
@@ -75,6 +79,56 @@ class Scanner:
             #     )
             end += 1
         return end
+
+    def _get_next_f_string_tokens(self) -> list[Token]:
+        def create_string_token(end):
+            res = Token(token_partial_string, Span(self._start, end, self._source))
+            self._start = end
+            return res
+
+        tokens = []
+
+        f_quote_tok = Token(
+            token_f_quote, Span(self._start, self._start + 2, self._source)
+        )
+        tokens.append(f_quote_tok)
+        self._start += 2
+        end = self._start
+
+        char = self._char_at(end)
+        while char != '"':
+            # continue parsing string
+            if char != "{":
+                end += 1
+            # get expression
+            else:
+                if end - self._start > 0:  # commit string
+                    tokens.append(create_string_token(end))
+
+                tok = self._next_token()
+                while tok.kind != token_bracket_r:
+                    tokens.append(tok)
+                    tok = self._next_token()
+
+                tokens.append(tok)
+                end = self._start
+
+            char = self._char_at(end)
+            if char is None:
+                span = f_quote_tok.span + Span(None, end - 1, self._source)
+                raise SyntaxError(
+                    "\n"
+                    + span.get_underlined(
+                        in_color("Could not find closing '\"'", ANSIColor.RED)
+                    )
+                )
+
+        if end - self._start > 0:  # string at the end
+            tokens.append(create_string_token(end))
+
+        tokens.append(Token(token_quote, Span(self._start, end, self._source)))
+        self._start += 1
+        return tokens
 
     def _get_next_comment(self) -> int:
         end = self._start + 1
@@ -95,7 +149,7 @@ class Scanner:
             end += 1
         return end
 
-    def _next_token(self) -> Optional[Token]:
+    def _next_token(self) -> Optional[Token | list[Token]]:
         """
         Scans the next token, at self._start in Scanner source.
         Return None if there are no more tokens.
@@ -107,6 +161,12 @@ class Scanner:
         if char in string.digits:
             end = self._next_numeral()
             type_ = token_number
+        elif (
+            char == "f"
+            and not self._overflows(self._start + 1)
+            and self._char_at(self._start + 1) == '"'
+        ):
+            return self._get_next_f_string_tokens()
         elif char == '"':
             end = self._get_next_string()
             end += 1
@@ -116,7 +176,6 @@ class Scanner:
             new_string_token = Token(
                 type_,
                 Span(str_start - 1, str_end + 1, self._source),  # span includes quotes
-                self._source[str_start:str_end].replace("\\n", "\n"),  # horrible hack
             )
             self._start = end
             return new_string_token
@@ -146,23 +205,36 @@ class Scanner:
                 end = self._start + 1
 
         assert self._start <= end
-        new_token = Token(
-            type_, Span(self._start, end, self._source), self._source[self._start : end]
-        )
+        new_token = Token(type_, Span(self._start, end, self._source))
         self._start = end
         return new_token
+
+    def next_token(self):
+        """
+        Returns the next token and buffers any extra tokens in the instance _token_buffer
+        """
+        if len(self._token_buffer) > 0:
+            token = self._token_buffer[0]
+            self._token_buffer = self._token_buffer[1:]
+        else:
+            token = self._next_token()
+
+        if isinstance(token, list):
+            self._token_buffer.extend(token[1:])
+            token = token[0]
+        return token
 
     def __iter__(self):
         return self
 
     def __next__(self):
         while self._start < self._source_len:
-            token = self._next_token()
+            token = self.next_token()
             if token.kind == token_new_line:
                 self._line += 1
             if self._discard_style:
                 while token and token.kind in (token_comment, token_space, token_tab):
-                    token = self._next_token()
+                    token = self.next_token()
 
             if token is None:
                 raise StopIteration
@@ -357,7 +429,7 @@ class Parser:
             if tok.kind == token_angle_bracket_r:
                 r_brack = self._expect(token_angle_bracket_r)
                 span = type_tok.span + r_brack.span
-                type_tok = Token(token_identifier, span, repr=span.get_source())
+                type_tok = Token(token_identifier, span)
 
         type_ = typer.identifier_to_uza_type(type_tok)
 
@@ -393,14 +465,29 @@ class Parser:
 
     def _get_function_args(self) -> list[Node]:
         next_ = self._peek()
-        args = []
+        args: list[Node] = []
         while next_.kind != token_paren_r:
             arg = self._get_expr()
             next_ = self._peek()
             if next_.kind == token_comma:
                 self._expect(token_comma)
             elif next_.kind != token_paren_r:
-                raise SyntaxError(f"Expected ',' or ')' but got '{(next_.repr)}'")
+                # ERROR: expected comma or paren
+                # TODO: clean up error generation, or move it elsewhere
+                args.append(arg)
+                arg_string_list = []
+                for i, arg in enumerate(args):
+                    print(arg)
+                    arg_string_list.append(f"arg {str(i)}:> {arg.span.get_source()}")
+
+                args = "\n\t " + in_color(
+                    "\n\t ".join(arg_string_list), ANSIColor.YELLOW
+                )
+                error_msg = f"Found args [{args}]\n\n"
+                error_msg += next_.span.get_underlined(
+                    f"Expected ',' or ')' but got '{(next_.repr)}'"
+                )
+                raise SyntaxError("\n" + error_msg)
             args.append(arg)
             next_ = self._peek()
 
@@ -501,18 +588,40 @@ class Parser:
 
         return Range(node, start, end, single_item, node.span + bracket_tok.span)
 
+    def _get_f_string(self) -> Node:
+        def get_either_string_or_expr(tok_kind: TokenKind):
+            if tok_kind == token_partial_string:
+                res = Literal(self._expect(token_partial_string))
+            elif tok_kind == token_bracket_l:
+                self._expect(token_bracket_l)
+                value = self._parse_lines(end_token=token_bracket_r)
+                assert len(value) == 1
+                value = value[0]
+                self._expect(token_bracket_r)
+                res = value
+            return res
+
+        ftok = self._expect(token_f_quote)
+        fstring = None
+
+        tok = self._peek()
+        while tok and tok.kind in (token_partial_string, token_bracket_l):
+            value = get_either_string_or_expr(tok.kind)
+            if fstring is None:
+                fstring = value
+            else:
+                fstring = InfixApplication(fstring, Identifier("+", value.span), value)
+            tok = self._peek()
+
+        if tok.kind == token_quote:
+            self._expect(token_quote)
+        return fstring
+
     def _get_expr(self, parsing_infix=False) -> Node:
         tok = self._consume_white_space_and_peek()
 
         if tok.kind in (token_const, token_var):
             return self._get_var_def()
-        elif tok.kind == token_nil:
-            tok = self._expect(token_nil)
-            if parsing_infix:
-                return Literal(tok)
-            else:
-                return self._get_infix(Literal(tok))
-
         elif tok.kind == token_paren_l:
             self._expect(token_paren_l)
             node = self._get_infix(self._get_expr())
@@ -520,6 +629,11 @@ class Parser:
             if parsing_infix:
                 return node
             return self._get_infix(node)
+        elif tok.kind == token_f_quote:
+            fstring = self._get_f_string()
+            if parsing_infix:
+                return fstring
+            return self._get_infix(fstring)
         elif tok.kind == token_while:
             return self._get_while_loop()
         elif tok.kind == token_return:

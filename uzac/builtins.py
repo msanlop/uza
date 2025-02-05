@@ -171,9 +171,20 @@ bi_not = BuiltIn("not", not_, [ArrowType([type_bool], type_bool)])
 
 # TYPE CONVERSION FUNCTIONS
 
+
+def _uza_to_int(arg):
+    """
+    toInt is supposed to parse an truncate ints from strings
+    """
+    try:
+        return int(arg)
+    except ValueError:
+        return int(float(arg))
+
+
 bi_to_int = BuiltIn(
     "toInt",
-    int,
+    _uza_to_int,
     [
         ArrowType([type_float], type_int),
         ArrowType([type_string], type_int),

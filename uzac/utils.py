@@ -113,7 +113,7 @@ class Span:
             source += " " * (padding + 1)  # 1 for '
             source += " " * (self.start - start)
             source += "^" * (self.end - self.start)
-        source += error_message + "\n"
+        source += f" {error_message}\n"
         if _is_terminal:
             source += ANSIColor.END
         return source

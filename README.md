@@ -9,12 +9,12 @@ func fib(n : int) => int {
     return fib(n-1) + fib(n-2)
 }
 
-const n = 15
-println("fib(" + toString(n) + ") = " + toString(fib(n)))
+const n = 30
+println(f"fib({toString(n)}) = {toString(fib(n))}")
 ```
 
 # Overview
-Uza has x primitive types as well as x complex types:
+Uza has 5 primitive types:
 ```go
 nil      // null/None type
 42       // int, 64 bit
@@ -24,8 +24,9 @@ true     // bool
 ```
 
 There is also a `List` type and `func[_func_name_]` function type.
+
 The typechecker has partial type inference.
-Function signatures have to be defined, as well as List instantiations.
+Functions signatures must be type annotated and generic type variable declarations must be annotated too — for example `const foo = List()` => `const foo: List<int> = List()`.
 ```go
 const foo = "hello world"
 println(foo * 2)
@@ -40,9 +41,11 @@ There are no implicit conversions in uza.
 func halve(n: float) => float {
     return n / 2
 }
+const foo = 1
 
-const foo = 1        // at 'println(halve(foo))'
-println(halve(foo)) //                   ^^^^ Error: Expected type 'float' but found 'int'
+println(halve(foo))
+// at 'println(halve(foo))'
+//                   ^^^^ Error: Expected type 'float' but found 'int'
 
 println(halve(toFloat(foo))) // 0.5
 ```
@@ -56,7 +59,7 @@ More examples are available in the `examples` directory.
 > Unless you like a challenge :^)
 
 
-The main way to install uza is through `pip`, Python's package manager. 
+The main way to install uza is through `pip`, Python's package manager.
 Installing in a `venv` removes the need to edit the PATH but requires the `venv` to be active to use uza.
 
 ## `venv` install
