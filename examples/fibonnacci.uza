@@ -11,5 +11,4 @@ func fibTailRec(n : int, prev: int, curr: int) => int {
 const n = 50
 //const res = fib(n)
 const res = fibTailRec(n, 0, 1)
-println("fib(" + toString(n) + ") = " + toString(res))
 println(f"fib({toString(n)}) = {toString(res)}")
