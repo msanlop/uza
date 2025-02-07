@@ -55,21 +55,6 @@ extern bool stop_interpreting;
 VM vm = {0};
 bool enable_garbage_collection = false;
 
-inline void push(Value value) {
-  *vm.stack_top++ = value;
-#ifdef DEBUG_TRACE_EXECUTION_STACK
-  DEBUG_PRINT("stack push\n");
-#endif // #define DEBUG_TRACE_EXECUTION_STACK
-}
-
-inline Value pop(void) {
-  vm.stack_top--;
-#ifdef DEBUG_TRACE_EXECUTION_STACK
-  DEBUG_PRINT("stack pop\n");
-#endif // #define DEBUG_TRACE_EXECUTION_STACK
-  return *vm.stack_top;
-}
-
 inline void vm_stack_reset(void) { vm.stack_top = vm.stack; }
 
 void vm_init(program_bytes_t *program) {

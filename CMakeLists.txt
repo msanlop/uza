@@ -29,6 +29,13 @@ else() # GCC/Clang
     endif()
 endif()
 
+if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+  add_definitions(-DCLANG)
+elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+  add_definitions(-DGNU)
+elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+  add_definitions(-DMSVC)
+endif()
 
 
 add_subdirectory(include)

@@ -43,8 +43,32 @@ typedef struct {
 extern VM vm;
 extern bool enable_garbage_collection;
 
-extern inline void push(Value value);
-extern inline Value pop(void);
+static inline
+#if defined(MSVC)
+__forceinline
+#elif defined(CLANG) || defined(GNU)
+__attribute__((always_inline))
+#endif
+void push(Value value) {
+  *vm.stack_top++ = value;
+#ifdef DEBUG_TRACE_EXECUTION_STACK
+  DEBUG_PRINT("stack push\n");
+#endif // #define DEBUG_TRACE_EXECUTION_STACK
+}
+
+static inline
+#if defined(MSVC)
+__forceinline
+#elif defined(CLANG) || defined(GNU)
+__attribute__((always_inline))
+#endif
+Value pop(void) {
+  vm.stack_top--;
+#ifdef DEBUG_TRACE_EXECUTION_STACK
+  DEBUG_PRINT("stack pop\n");
+#endif // #define DEBUG_TRACE_EXECUTION_STACK
+  return *vm.stack_top;
+}
 
 void vm_init(program_bytes_t *program);
 void vm_stack_reset(void);
