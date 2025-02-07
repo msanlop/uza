@@ -44,7 +44,7 @@
 #define JUMP_IF(value)                                                         \
   do {                                                                         \
     if (value) {                                                               \
-      int offset = ((uint16_t)*(frame->ip)) + sizeof(uint16_t);                \
+      int offset = ((uint16_t) * (frame->ip)) + sizeof(uint16_t);              \
       frame->ip += offset;                                                     \
     } else {                                                                   \
       frame->ip += sizeof(uint16_t);                                           \
@@ -120,10 +120,12 @@ void vm_free(void) {
 
 int interpret(void) {
   enable_garbage_collection = true;
-  while (!stop_interpreting) {
 
-    Frame *frame = &vm.frame_stacks[vm.depth];
-    Chunk *chunk = frame->function->chunk;
+  // update these two when calling/returning
+  Frame *frame = &vm.frame_stacks[vm.depth];
+  Chunk *chunk = frame->function->chunk;
+
+  while (!stop_interpreting) {
 
 #ifdef DEBUG_TRACE_EXECUTION_OP
     DEBUG_PRINT(PURPLE "running op\n  " RESET);
@@ -144,6 +146,9 @@ int interpret(void) {
       Value ret_val = pop();
       vm.stack_top = GET_FRAME(0)->locals;
       vm.depth--;
+      frame = &vm.frame_stacks[vm.depth];
+      chunk = frame->function->chunk;
+
       push(ret_val);
     } break;
     case OP_CALL: {
@@ -163,6 +168,7 @@ int interpret(void) {
       curr->is_block = false;
       vm.stack_top = curr->locals + curr->locals_count;
 
+      chunk = func->chunk;
 #ifndef NDEBUG
       // set non initialized local to NIL
       for (Value *local = curr->locals + func->arity; local != vm.stack_top;
@@ -195,11 +201,11 @@ int interpret(void) {
       }
     } break;
     case OP_JUMP: {
-      int offset = ((uint16_t)*(frame->ip)) + sizeof(uint16_t);
+      int offset = ((uint16_t) * (frame->ip)) + sizeof(uint16_t);
       frame->ip += offset;
     } break;
     case OP_LOOP: {
-      int offset = ((uint16_t)*(frame->ip)) + 1;
+      int offset = ((uint16_t) * (frame->ip)) + 1;
       frame->ip -= offset;
     } break;
     case OP_POP:
