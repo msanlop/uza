@@ -317,6 +317,9 @@ int interpret(void) {
         int char_count = sprintf(buff, "%lf", val.as.fp);
         res = object_string_allocate(&vm.strings, buff, char_count);
       }
+      else {
+        PRINT_ERR_ARGS("ERROR: Invalid invalid type conversion for type %d\n", val.type);
+      }
 
       push(VAL_OBJ(res));
     } break;

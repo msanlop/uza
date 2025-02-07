@@ -68,7 +68,8 @@ void native_get(void) {
   if (IS_LIST(val)) {
     int list_count = AS_LIST(val)->list.count;
     if (i >= list_count) {
-      PRINT_ERR_ARGS("Index out of bounds: %d for list of size %d.", i, list_count);
+      PRINT_ERR_ARGS("Index out of bounds: %d for list of size %d.", i,
+                     list_count);
       exit(1);
     }
     if (i < 0) {
@@ -79,7 +80,7 @@ void native_get(void) {
     int string_len = AS_STRING(val)->length;
     if (i >= string_len) {
       PRINT_ERR_ARGS("Index out of bounds: %d for string of length %d.", i,
-                string_len);
+                     string_len);
       exit(1);
     }
     if (i < 0) {
@@ -102,7 +103,7 @@ void native_set(void) {
   if (IS_LIST(val)) {
     if (i >= AS_LIST(val)->list.count) {
       PRINT_ERR_ARGS("Index out of bounds: %d for list of size %d.", i,
-                AS_LIST(val)->list.count);
+                     AS_LIST(val)->list.count);
       exit(1);
     }
 
@@ -122,12 +123,12 @@ void native_substring(void) {
   if (IS_STRING(val)) {
     if (end > AS_STRING(val)->length) {
       PRINT_ERR_ARGS("Index out of bounds: %d for string of length %d.", end,
-                AS_STRING(val)->length);
+                     AS_STRING(val)->length);
       exit(1);
     }
     if (start < 0) {
       PRINT_ERR_ARGS("Index out of bounds: %d for string of length %d.", start,
-                AS_STRING(val)->length);
+                     AS_STRING(val)->length);
       exit(1);
     }
     ObjectString *character = object_string_allocate(
