@@ -137,11 +137,28 @@ int interpret(void) {
       push(ret_val);
     } break;
     case OP_CALL: {
-      Value func_name = PEEK(vm);
-      Value func_val = {0};
-      tableGet(&vm.globals, AS_STRING(func_name), &func_val);
+      Value *func_name = &PEEK(vm);
+      ObjectFunction *func;
+
+      if (IS_STRING(*func_name)) {
+        ObjectFunction *func_obj = AS_STRING(*func_name)->cached_function;
+        if (func_obj != NULL) {
+          func = func_obj;
+        } else {
+          Value func_val = VAL_NIL;
+          if (!tableGet(&vm.globals, AS_STRING(*func_name), &func_val)) {
+            PRINT_ERR("Could not find function: ");
+            PRINT_VALUE(*func_name, stderr);
+            fprintf(stderr, NEWLINE);
+            exit(1);
+          }
+
+          func_obj = AS_FUNCTION(func_val);
+          AS_STRING(*func_name)->cached_function = func_obj;
+          func = func_obj;
+        }
+      }
       pop();
-      ObjectFunction *func = AS_FUNCTION(func_val);
       vm.depth++;
       Frame *curr = GET_FRAME(0);
       frame = curr;
