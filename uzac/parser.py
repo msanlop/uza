@@ -4,6 +4,7 @@ from functools import reduce
 import string
 import sys
 from typing import Callable, List, Optional, TypeVar
+import typing
 
 from uzac.interpreter import get_builtin
 from uzac.ast import (
@@ -278,7 +279,7 @@ class Parser:
 
         return self._tokens.popleft()
 
-    def _consume_white_space_and_peek(self) -> TokenKind:
+    def _consume_white_space_and_peek(self) -> Token:
         temp = self._peek()
         while temp and temp.kind == token_new_line:
             self._expect(temp.kind)
@@ -617,7 +618,7 @@ class Parser:
             self._expect(token_quote)
         return fstring
 
-    def _get_expr(self, parsing_infix=False) -> Node:
+    def _get_expr(self, parsing_infix=False) -> typing.Subclass[Type]:
         tok = self._consume_white_space_and_peek()
 
         if tok.kind in (token_const, token_var):

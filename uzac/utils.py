@@ -1,11 +1,12 @@
 from __future__ import annotations
 from collections import deque
 from dataclasses import dataclass
+from enum import Enum
 import sys
 from typing import List, Optional, TypeVar
 
 
-class ANSIColor:
+class ANSIColor(Enum):
     """ANSI color codes"""
 
     BLACK = "\033[0;30m"
@@ -45,7 +46,7 @@ def in_bold(string: str) -> str:
 
 def in_color(string: str, color: ANSIColor) -> str:
     if _is_terminal:
-        return color + string + ANSIColor.END
+        return color.value + string + ANSIColor.END.value
     return string
 
 
@@ -106,7 +107,7 @@ class Span:
         source = f"'{source}'"
         source += "\n"
         if _is_terminal:
-            source += ANSIColor.RED
+            source += ANSIColor.RED.value
         if len(lines) > 1:
             source += "^" * (max((len(l) for l in lines)) + padding)
         else:
@@ -115,7 +116,7 @@ class Span:
             source += "^" * (self.end - self.start)
         source += f" {error_message}\n"
         if _is_terminal:
-            source += ANSIColor.END
+            source += ANSIColor.END.value
         return source
 
     def __add__(self, that: object) -> Span:

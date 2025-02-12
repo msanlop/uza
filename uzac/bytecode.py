@@ -359,12 +359,6 @@ class ByteCodeProgram:
         self._local_vars = ByteCodeLocals()
         self._build_chunk()
 
-    def _get_chunk_offset(self, name: str) -> Optional[int]:
-        try:
-            list(map(lambda chunk: chunk.name, self.chunks)).index(name)
-        except ValueError:
-            return None
-
     def emit_op(self, op: Op) -> int:
         self._chunk.add_op(op)
         self._written += op.size
@@ -753,7 +747,7 @@ class ByteCodeProgramSerializer:
 
         bytecode_count = struct.pack("<I", len(chunk.code))
         self._write(bytecode_count)
-        bytecode_len = struct.pack("<I", sum(map(lambda op: op.size, chunk.code)))
+        bytecode_len = struct.pack("<I", sum(op.size for op in chunk.code))
         self._write(bytecode_len)
 
         code = chunk.code
@@ -768,9 +762,9 @@ class ByteCodeProgramSerializer:
                 offset_bytes = struct.pack("<H", opcode.jump_offset)
                 written += self._write(offset_bytes)
 
-            assert written == opcode.size, (
-                f"For {opcode=}\n exepected it to be {opcode.size} in size but wrote {written} instead"
-            )
+            assert (
+                written == opcode.size
+            ), f"For {opcode=}\n exepected it to be {opcode.size} in size but wrote {written} instead"
             written = 0
 
         for opcode in code:

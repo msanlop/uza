@@ -44,7 +44,7 @@
 #define JUMP_IF(value)                                                         \
   do {                                                                         \
     if (value) {                                                               \
-      int offset = ((uint16_t) * (frame->ip)) + sizeof(uint16_t);              \
+      int offset = ((uint16_t)*(frame->ip)) + sizeof(uint16_t);                \
       frame->ip += offset;                                                     \
     } else {                                                                   \
       frame->ip += sizeof(uint16_t);                                           \
@@ -203,11 +203,11 @@ int interpret(void) {
       }
     } break;
     case OP_JUMP: {
-      int offset = ((uint16_t) * (frame->ip)) + sizeof(uint16_t);
+      int offset = ((uint16_t)*(frame->ip)) + sizeof(uint16_t);
       frame->ip += offset;
     } break;
     case OP_LOOP: {
-      int offset = ((uint16_t) * (frame->ip)) + 1;
+      int offset = ((uint16_t)*(frame->ip)) + 1;
       frame->ip -= offset;
     } break;
     case OP_POP:
@@ -333,9 +333,9 @@ int interpret(void) {
       } else if (IS_DOUBLE(val)) {
         int char_count = sprintf(buff, "%lf", val.as.fp);
         res = object_string_allocate(&vm.strings, buff, char_count);
-      }
-      else {
-        PRINT_ERR_ARGS("ERROR: Invalid invalid type conversion for type %d\n", val.type);
+      } else {
+        PRINT_ERR_ARGS("ERROR: Invalid invalid type conversion for type %d\n",
+                       val.type);
       }
 
       push(VAL_OBJ(res));
