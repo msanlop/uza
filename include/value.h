@@ -28,6 +28,7 @@ typedef struct {
 
 #define VAL_NIL ((Value){TYPE_NIL, {.integer = 0}})
 #define VAL_INT(i) ((Value){TYPE_LONG, {.integer = i}})
+#define VAL_FLOAT(f) ((Value){TYPE_DOUBLE, {.fp = f}})
 #define VAL_BOOL(val) ((Value){TYPE_BOOL, .as.boolean = val})
 #define VAL_OBJ(obj) ((Value){TYPE_OBJ, .as.object = (Obj *)obj})
 
