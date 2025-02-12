@@ -3,6 +3,17 @@
 
 #include "common.h"
 
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#else
+#include <time.h>
+#ifdef __MACH__
+#include <mach/kern_return.h>
+#include <mach/mach_time.h>
+#endif
+#endif
+
 #define TABLE_ENTRY(key_string, native_function)
 
 typedef void (*native_function)(void);

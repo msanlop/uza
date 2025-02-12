@@ -4,6 +4,10 @@
 #include "value.h"
 #include "vm.h"
 
+#ifdef _WIN32
+static LARGE_INTEGER frequency = {.QuadPart = -1LL};
+#endif
+
 void native_println(void) {
   Value val = pop();
 #ifndef NDEBUG
@@ -180,6 +184,52 @@ void native_sort(void) {
   }
 }
 
+void native_time_ns() {
+  Value ret;
+#ifdef _WIN32
+  LARGE_INTEGER ticks;
+  if (frequency.QuadPart == -1)
+    QueryPerformanceFrequency(&frequency);
+
+  QueryPerformanceCounter(&ticks);
+  ret = VAL_INT(
+      (uint64_t)((ticks.QuadPart * 1000000000ULL) / frequency.QuadPart));
+#elif defined(__MACH__)
+  ret = VAL_INT((uint64_t)clock_gettime_nsec_np(CLOCK_MONOTONIC_RAW));
+#else
+  struct timespec ts;
+  clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
+  ret = VAL_INT((uint64_t)(ts.tv_sec * 1000000000ULL + ts.tv_nsec));
+#endif
+  push(ret);
+}
+
+void native_time_ms() {
+  Value ret;
+#ifdef _WIN32
+  LARGE_INTEGER ticks;
+  if (frequency.QuadPart == -1)
+    QueryPerformanceFrequency(&frequency);
+
+  QueryPerformanceCounter(&ticks);
+  ret = VAL_INT((uint64_t)((ticks.QuadPart * 1000ULL) / frequency.QuadPart));
+#else
+  struct timespec ts;
+  clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
+  ret = VAL_INT((uint64_t)(ts.tv_sec * 1000ULL + ts.tv_nsec / 1000000ULL));
+#endif
+  push(ret);
+}
+
+void native_abs() {
+  Value a = pop();
+  if (IS_INTEGER(a)) {
+    push(VAL_INT(abs(a.as.integer)));
+  } else {
+    push(VAL_FLOAT(abs(a.as.fp)));
+  }
+}
+
 const NativeFunction native_builtins[] = {
     {"print", sizeof("print") - 1, {(native_function)native_print}, 1},
     {"println", sizeof("println") - 1, {(native_function)native_println}, 1},
@@ -193,6 +243,9 @@ const NativeFunction native_builtins[] = {
      {(native_function)native_substring},
      3},
     {"sort", sizeof("sort") - 1, {(native_function)native_sort}, 1},
+    {"timeNs", sizeof("timeNs") - 1, {(native_function)native_time_ns}, 0},
+    {"timeMs", sizeof("timeMs") - 1, {(native_function)native_time_ms}, 0},
+    {"abs", sizeof("abs") - 1, {(native_function)native_abs}, 1},
 };
 
 const NativeFunction *const native_functions_get(size_t *out_count) {

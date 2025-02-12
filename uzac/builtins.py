@@ -16,6 +16,7 @@ from operator import (
     pow,
     truediv,
 )
+import time
 from typing import Callable, List, Optional
 from uzac.type import (
     ArrowType,
@@ -87,21 +88,23 @@ def _sub_or_neg(*args):
     return args[0] - args[1]
 
 
+_identity_int_float_types = [
+    ArrowType([type_int], type_int),
+    ArrowType([type_float], type_float),
+]
+
 bi_sub = BuiltIn(
     "-",
     _sub_or_neg,
-    [
-        *_bi_arith_types,
-        ArrowType([type_int], type_int),
-        ArrowType([type_float], type_float),
-    ],
+    _bi_arith_types + _identity_int_float_types,
 )
-bi_mul = BuiltIn("*", mul, [*_bi_arith_types])
-bi_div = BuiltIn("/", truediv, [*_bi_arith_types])
+bi_mul = BuiltIn("*", mul, _bi_arith_types)
+bi_div = BuiltIn("/", truediv, _bi_arith_types)
 bi_mod = BuiltIn("%", mod, [ArrowType([type_int, type_int], type_int)])
-bi_pow = BuiltIn("**", pow, [*_bi_arith_types])
-bi_max = BuiltIn("max", max, [*_bi_arith_types])
-bi_min = BuiltIn("min", min, [*_bi_arith_types])
+bi_pow = BuiltIn("**", pow, _bi_arith_types)
+bi_max = BuiltIn("max", max, _bi_arith_types)
+bi_min = BuiltIn("min", min, _bi_arith_types)
+bi_abs = BuiltIn("abs", abs, _identity_int_float_types)
 
 
 # IO FUNCTIONS
@@ -301,3 +304,19 @@ bi_sort = BuiltIn(
 #     "removeAt", _del_item, [ArrowType([type_list, type_int], type_void)]
 # )
 # bi_append = BuiltIn("copy", list.copy, [ArrowType([type_list], type_list)])
+
+bi_time_ns = BuiltIn(
+    "timeNs",
+    time.perf_counter_ns,
+    [
+        ArrowType([], type_int),
+    ],
+)
+
+bi_time_ms = BuiltIn(
+    "timeMs",
+    lambda: time.perf_counter_ns() // 1_000_000,
+    [
+        ArrowType([], type_int),
+    ],
+)

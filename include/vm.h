@@ -45,11 +45,12 @@ extern bool enable_garbage_collection;
 
 static inline
 #if defined(MSVC)
-__forceinline
+    __forceinline
 #elif defined(CLANG) || defined(GNU)
-__attribute__((always_inline))
+    __attribute__((always_inline))
 #endif
-void push(Value value) {
+    void
+    push(Value value) {
   *vm.stack_top++ = value;
 #ifdef DEBUG_TRACE_EXECUTION_STACK
   DEBUG_PRINT("stack push\n");
@@ -58,11 +59,12 @@ void push(Value value) {
 
 static inline
 #if defined(MSVC)
-__forceinline
+    __forceinline
 #elif defined(CLANG) || defined(GNU)
-__attribute__((always_inline))
+    __attribute__((always_inline))
 #endif
-Value pop(void) {
+    Value
+    pop(void) {
   vm.stack_top--;
 #ifdef DEBUG_TRACE_EXECUTION_STACK
   DEBUG_PRINT("stack pop\n");
