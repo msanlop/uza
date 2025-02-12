@@ -5,7 +5,7 @@
 #include "vm.h"
 
 #ifdef _WIN32
-static LARGE_INTEGER frequency = -1;
+static LARGE_INTEGER frequency = {.QuadPart = -1LL};
 #endif
 
 void native_println(void) {
@@ -188,7 +188,7 @@ void native_time_ns() {
   Value ret;
 #ifdef _WIN32
   LARGE_INTEGER ticks;
-  if (frequency == -1)
+  if (frequency.QuadPart == -1)
     QueryPerformanceFrequency(&frequency);
 
   QueryPerformanceCounter(&ticks);
@@ -208,7 +208,7 @@ void native_time_ms() {
   Value ret;
 #ifdef _WIN32
   LARGE_INTEGER ticks;
-  if (frequency == -1)
+  if (frequency.QuadPart == -1)
     QueryPerformanceFrequency(&frequency);
 
   QueryPerformanceCounter(&ticks);
