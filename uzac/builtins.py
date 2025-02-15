@@ -71,46 +71,46 @@ class BuiltIn:
 
 # ARITHMETIC FUNCTIONS
 
-_bi_arith_types = [
+__bi_arith_types = [
     ArrowType([type_int, type_int], type_int),
     ArrowType([type_float, type_float], type_float),
     ArrowType([type_int, type_float], type_float),
     ArrowType([type_float, type_int], type_float),
 ]
-_bi_string_concat = ArrowType([type_string, type_string], type_string)
+__bi_string_concat = ArrowType([type_string, type_string], type_string)
 
-bi_add = BuiltIn("+", add, [*_bi_arith_types, _bi_string_concat])
+bi_add = BuiltIn("+", add, [*__bi_arith_types, __bi_string_concat])
 
 
-def _sub_or_neg(*args):
+def __sub_or_neg(*args):
     if len(args) == 1:
         return -args[0]
     return args[0] - args[1]
 
 
-_identity_int_float_types = [
+__identity_int_float_types = [
     ArrowType([type_int], type_int),
     ArrowType([type_float], type_float),
 ]
 
 bi_sub = BuiltIn(
     "-",
-    _sub_or_neg,
-    _bi_arith_types + _identity_int_float_types,
+    __sub_or_neg,
+    __bi_arith_types + __identity_int_float_types,
 )
-bi_mul = BuiltIn("*", mul, _bi_arith_types)
-bi_div = BuiltIn("/", truediv, _bi_arith_types)
+bi_mul = BuiltIn("*", mul, __bi_arith_types)
+bi_div = BuiltIn("/", truediv, __bi_arith_types)
 bi_mod = BuiltIn("%", mod, [ArrowType([type_int, type_int], type_int)])
-bi_pow = BuiltIn("**", pow, _bi_arith_types)
-bi_max = BuiltIn("max", max, _bi_arith_types)
-bi_min = BuiltIn("min", min, _bi_arith_types)
-bi_abs = BuiltIn("abs", abs, _identity_int_float_types)
+bi_pow = BuiltIn("**", pow, __bi_arith_types)
+bi_max = BuiltIn("max", max, __bi_arith_types)
+bi_min = BuiltIn("min", min, __bi_arith_types)
+bi_abs = BuiltIn("abs", abs, __identity_int_float_types)
 
 
 # IO FUNCTIONS
 
 
-def _lower_str_bool(func, **kwargs):
+def __lower_str_bool(func, **kwargs):
     """
     Hack to turn boolean strings into lower case
     """
@@ -123,7 +123,7 @@ def _lower_str_bool(func, **kwargs):
     return decorated
 
 
-_bi_print_types = [
+__bi_print_types = [
     ArrowType([type_string], type_void),
     ArrowType([type_int], type_void),
     ArrowType([type_float], type_void),
@@ -135,47 +135,47 @@ _bi_print_types = [
     ArrowType([type_list_bool], type_void),
 ]
 
-bi_print = BuiltIn("print", _lower_str_bool(print, end=""), _bi_print_types)
-bi_println = BuiltIn("println", _lower_str_bool(print), _bi_print_types)
+bi_print = BuiltIn("print", __lower_str_bool(print, end=""), __bi_print_types)
+bi_println = BuiltIn("println", __lower_str_bool(print), __bi_print_types)
 
 
-def _read_file(file_name):
+def __read_file(file_name):
     with open(file_name) as file:
         return file.read()
 
 
-bi_readAll = BuiltIn("readAll", _read_file, [ArrowType([type_string], type_string)])
+bi_readAll = BuiltIn("readAll", __read_file, [ArrowType([type_string], type_string)])
 
 # BOOLEAN STUFF
 
-_bool_func_types = [
+__bool_func_types = [
     ArrowType([type_bool, type_bool], type_bool),
     ArrowType([type_int, type_int], type_bool),
     ArrowType([type_string, type_string], type_bool),
     ArrowType([type_float, type_float], type_bool),
 ]
-_bool_cmp_overloads = [
+__bool_cmp_overloads = [
     ArrowType([type_int, type_int], type_bool),
     ArrowType([type_float, type_float], type_bool),
     ArrowType([type_int, type_float], type_bool),
     ArrowType([type_float, type_int], type_bool),
 ]
 
-bi_and = BuiltIn("and", and_, _bool_func_types)
-bi_or = BuiltIn("or", or_, _bool_func_types)
-bi_eq = BuiltIn("==", eq, _bool_func_types)
-bi_ne = BuiltIn("!=", ne, _bool_func_types)
-bi_lt = BuiltIn("<", lt, _bool_cmp_overloads)
-bi_le = BuiltIn("<=", le, _bool_cmp_overloads)
-bi_gt = BuiltIn(">", gt, _bool_cmp_overloads)
-bi_ge = BuiltIn(">=", ge, _bool_cmp_overloads)
+bi_and = BuiltIn("and", and_, __bool_func_types)
+bi_or = BuiltIn("or", or_, __bool_func_types)
+bi_eq = BuiltIn("==", eq, __bool_func_types)
+bi_ne = BuiltIn("!=", ne, __bool_func_types)
+bi_lt = BuiltIn("<", lt, __bool_cmp_overloads)
+bi_le = BuiltIn("<=", le, __bool_cmp_overloads)
+bi_gt = BuiltIn(">", gt, __bool_cmp_overloads)
+bi_ge = BuiltIn(">=", ge, __bool_cmp_overloads)
 
 bi_not = BuiltIn("not", not_, [ArrowType([type_bool], type_bool)])
 
 # TYPE CONVERSION FUNCTIONS
 
 
-def _uza_to_int(arg):
+def __uza_to_int(arg):
     """
     toInt is supposed to parse an truncate ints from strings
     """
@@ -187,7 +187,7 @@ def _uza_to_int(arg):
 
 bi_to_int = BuiltIn(
     "toInt",
-    _uza_to_int,
+    __uza_to_int,
     [
         ArrowType([type_float], type_int),
         ArrowType([type_string], type_int),
@@ -263,13 +263,13 @@ bi_get = BuiltIn(
 )
 
 
-def _interpreter_set(value, idx, val):
+def __interpreter_set(value, idx, val):
     value[idx] = val
 
 
 bi_get = BuiltIn(
     "set",
-    _interpreter_set,
+    __interpreter_set,
     [
         ArrowType([type_list_int, type_int, type_int], type_void),
         ArrowType([type_list_string, type_int, type_string], type_void),
@@ -296,12 +296,12 @@ bi_sort = BuiltIn(
 )
 
 
-# def _del_item(array, idx):
+# def __del_item(array, idx):
 #     del array[idx]
 
 
 # bi_append = BuiltIn(
-#     "removeAt", _del_item, [ArrowType([type_list, type_int], type_void)]
+#     "removeAt", __del_item, [ArrowType([type_list, type_int], type_void)]
 # )
 # bi_append = BuiltIn("copy", list.copy, [ArrowType([type_list], type_list)])
 

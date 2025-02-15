@@ -15,14 +15,14 @@ class TokenKind:
     """
 
     repr: str
-    _token_dict: dict = field(init=False, default_factory=lambda: token_types)
+    __token_dict: dict = field(init=False, default_factory=lambda: token_types)
     precedence: int = -1
     is_prefix_operator: bool = field(default=False)
     right_assoc: bool = field(default=False)
     is_user_value: bool = field(default=False)
 
     def __post_init__(self):
-        self._token_dict[self.repr] = self
+        self.__token_dict[self.repr] = self
 
     def is_op(self):
         return self.precedence >= 0

@@ -33,33 +33,32 @@ class Substitution:
     A substitution is a map from symbolic types to real types.
     """
 
-    _substitutions: dict["SymbolicType", Type]
+    __substitutions: dict["SymbolicType", Type]
 
     def get_type_of(self, t: "SymbolicType") -> Optional[Type]:
         """
         Returns the substited real type for _t_ in this substitution. None if not
         substitution found.
         """
-        return self._substitutions.get(t)
+        return self.__substitutions.get(t)
 
     def pretty_string(self) -> str:
-        if len(self._substitutions) == 0:
+        if len(self.__substitutions) == 0:
             return ""
         out = ""
-        exprs = [expr.span.get_source() for expr in self._substitutions]
-        colored = [in_color(s, ANSIColor.GREEN) for s in exprs]
-        max_expr_len = max(len(s) for s in colored)
-        for idx, k in enumerate(self._substitutions):
+        exprs = [expr.span.get_source() for expr in self.__substitutions]
+        max_expr_len = max(len(s) for s in exprs)
+        for idx, k in enumerate(self.__substitutions):
             yellow_type = in_color(str(k.resolve_type(self)), ANSIColor.YELLOW)
-            out += f"{colored[idx]:<{max_expr_len}} := {yellow_type}\n"
+            out += f"{exprs[idx]:<{max_expr_len}} := {yellow_type}\n"
         return out
 
     def __add__(self, that: object):
         if isinstance(that, tuple) and len(that) == 2:
-            new_dict = {that[0]: that[1], **self._substitutions}
+            new_dict = {that[0]: that[1], **self.__substitutions}
             return Substitution(new_dict)
         if isinstance(that, Substitution):
-            return Substitution(self._substitutions | that._substitutions)
+            return Substitution(self.__substitutions | that.__substitutions)
         raise NotImplementedError(f"Can't add {self.__class__} and {that.__class__}")
 
 
@@ -137,9 +136,9 @@ class Constraint(ABC):
 
     def fail_message(self) -> str:
         """
-        Returns the failed message for previous _solve()_ try. This method is
+        Returns the failed message for previous __solve()_ try. This method is
         stateful!
-        If called before _solve()_ it might have self.substitution = None. And some
+        If called before __solve()_ it might have self.substitution = None. And some
         implementations generate the message while solving.
         """
         raise NotImplementedError(f"<fail_message> not implemented for {self}")
@@ -233,15 +232,15 @@ class Applies(Constraint):
     b: ArrowType
     span: Span  # TODO: change args to have more precise span to the argument
     substitution: Substitution = field(default=None)
-    _args_num_incorrect: Optional[tuple[int]] = field(default=None)
-    _err_msgs: Optional[str] = field(default=None)
+    __args_num_incorrect: Optional[tuple[int]] = field(default=None)
+    __err_msgs: Optional[str] = field(default=None)
 
     def solve(self, substitution: Substitution):
-        self._err_msgs = ""
+        self.__err_msgs = ""
         num_args = len(self.args)
         num_params = len(self.b.param_types)
         if num_args != num_params:
-            self._args_num_incorrect = (num_args, num_params)
+            self.__args_num_incorrect = (num_args, num_params)
             return False, None
 
         fatal = False
@@ -254,10 +253,10 @@ class Applies(Constraint):
                 solved = False
                 if not isinstance(a, SymbolicType):
                     type_str = str(self.b)
-                    self._err_msgs += (
+                    self.__err_msgs += (
                         f"for function type: {in_color(type_str, ANSIColor.GREEN)}\nat "
                     )
-                    self._err_msgs += span.get_underlined(
+                    self.__err_msgs += span.get_underlined(
                         f"Expected {type_b} but found {type_a}", len("at ")
                     )
                     fatal = True
@@ -265,10 +264,10 @@ class Applies(Constraint):
                 sub_type = substitution.get_type_of(a)
                 if sub_type is not None and (not isinstance(sub_type, SymbolicType)):
                     type_str = str(self.b)
-                    self._err_msgs += (
+                    self.__err_msgs += (
                         f"for function type: {in_color(type_str, ANSIColor.GREEN)}\nat "
                     )
-                    self._err_msgs += span.get_underlined(
+                    self.__err_msgs += span.get_underlined(
                         f"Expected {type_b} but found {type_a}", len("at ")
                     )
                     fatal = True
@@ -284,13 +283,13 @@ class Applies(Constraint):
         return solved, []
 
     def fail_message(self) -> str:
-        if self._args_num_incorrect:
-            args, params = self._args_num_incorrect
+        if self.__args_num_incorrect:
+            args, params = self.__args_num_incorrect
             return self.span.get_underlined(
                 f"Expected {params} arguments but found {args}"
             )
 
-        return self._err_msgs
+        return self.__err_msgs
 
 
 @dataclass
@@ -302,7 +301,7 @@ class OneOf(Constraint):
     choices: List[Constraint]
     span: Span
     substitution: Substitution = field(default=None)
-    _a_solved: list[bool] = field(default=None)
+    __a_solved: list[bool] = field(default=None)
 
     def solve(
         self, substitution: Substitution
@@ -319,9 +318,9 @@ class OneOf(Constraint):
             choices_options = None
 
         if choices_options:
-            assert isinstance(choices_options[0], Substitution), (
-                f"found {choices_options =}"
-            )
+            assert isinstance(
+                choices_options[0], Substitution
+            ), f"found {choices_options =}"
         return False, choices_options
 
     def fail_message(self) -> str:
@@ -329,19 +328,6 @@ class OneOf(Constraint):
         line = "-" * 50
         msg = f"\n{line}\n{in_bold('or:')} \n".join(fails_msgs)
         return f"{in_bold('None of the following hold:')} \n{msg}"
-
-
-@dataclass
-class IsNotVoid(Constraint):
-    """probably useless TODO: update"""
-
-    span: Span
-
-    def __init__(self, *types: Type):
-        self.types = types
-
-    def solve(self, substitution: Substitution) -> bool:
-        return type_void not in self.types
 
 
 # the return type of a tree node. If equal to type_node then either no Return nodes
@@ -372,25 +358,25 @@ class Typer:
         self.constaints: List[Constraint] = []
 
         # map from identifier in frame to tuple[Type, true if const, false if var]
-        self._symbol_table = SymbolTable()
-        self._functions = SymbolTable()
+        self.__symbol_table = SymbolTable()
+        self.__functions = SymbolTable()
 
-        self._symbol_gen = count()
+        self.__symbol_gen = count()
         self.substitution = Substitution({})
-        self._error_strings: list[str] = []
-        self._warnings: list[str] = []
+        self.__error_strings: list[str] = []
+        self.__warnings: list[str] = []
 
-    def _create_new_symbol(self, span: Span):
+    def __create_new_symbol(self, span: Span):
         """
         Return a new unique SymbolicType.
         """
-        return SymbolicType("symbolic_" + str(next(self._symbol_gen)), span)
+        return SymbolicType("symbolic_" + str(next(self.__symbol_gen)), span)
 
-    def _get_type_of_identifier(self, identifier: str) -> Type:
-        return self._symbol_table.get(identifier)[0]
+    def __get_type_of_identifier(self, identifier: str) -> Type:
+        return self.__symbol_table.get(identifier)[0]
 
-    def _var_is_immutable(self, identifier: str) -> Type:
-        pair = self._symbol_table.get(identifier)
+    def __var_is_immutable(self, identifier: str) -> Type:
+        pair = self.__symbol_table.get(identifier)
         if pair is None:
             return None
         return pair[1]
@@ -404,17 +390,17 @@ class Typer:
     def visit_return(self, ret: Return) -> tuple[Type, NodeAlwaysReturns]:
         ret_type, _ = ret.value.visit(self)
         self.add_constaint(
-            IsReturnType(ret_type, self._functions.get("__func_ret_type"), ret.span)
+            IsReturnType(ret_type, self.__functions.get("__func_ret_type"), ret.span)
         )
         return type_void, True
 
     def visit_function(self, func: Function) -> tuple[Type, NodeAlwaysReturns]:
         f_signature = func.type_signature
-        self._functions.define(func.identifier, func)
-        self._functions.define("__func_ret_type", f_signature.return_type)
-        with self._symbol_table.new_frame():
+        self.__functions.define(func.identifier, func)
+        self.__functions.define("__func_ret_type", f_signature.return_type)
+        with self.__symbol_table.new_frame():
             for ident, type_ in zip(func.param_names, f_signature.param_types):
-                self._symbol_table.define(ident.name, (type_, False))
+                self.__symbol_table.define(ident.name, (type_, False))
             _, body_ret = func.body.visit(self)
             if f_signature.return_type != type_void and not body_ret:
                 err = func.span.get_underlined(
@@ -423,7 +409,7 @@ class Typer:
                         ANSIColor.RED,
                     )
                 )
-                self._error_strings.append(err)
+                self.__error_strings.append(err)
 
         return f_signature.return_type, False
 
@@ -440,7 +426,7 @@ class Typer:
             )
 
         if len(signatures) > 1:  # overloads
-            overload_func_ret = self._create_new_symbol(span)
+            overload_func_ret = self.__create_new_symbol(span)
             constraints = []
             for signature in signatures:
                 constraints.append(
@@ -500,14 +486,14 @@ class Typer:
     def visit_identifier(
         self, identifier: Identifier
     ) -> tuple[Type, NodeAlwaysReturns]:
-        return self._symbol_table.get(identifier.name)[0], False
+        return self.__symbol_table.get(identifier.name)[0], False
 
     def visit_application(self, app: Application) -> tuple[Type, NodeAlwaysReturns]:
         func_id = app.func_id
         builtin = get_builtin(func_id)
         if builtin:
             return self.visit_builtin(builtin, *app.args, span=app.span)
-        func: Function = self._functions.get(func_id)
+        func: Function = self.__functions.get(func_id)
         func_type = func.type_signature
         arg_count = len(app.args)
         param_count = len(func_type.param_types)
@@ -528,28 +514,28 @@ class Typer:
         return func_type.return_type, False
 
     def visit_var_def(self, var_def: VarDef) -> tuple[Type, NodeAlwaysReturns]:
-        t = var_def.type_ if var_def.type_ else self._create_new_symbol(var_def.span)
+        t = var_def.type_ if var_def.type_ else self.__create_new_symbol(var_def.span)
         self.constaints.append(IsType(t, var_def.value.visit(self)[0], var_def.span))
-        self._symbol_table.define(var_def.identifier, (t, var_def.immutable))
+        self.__symbol_table.define(var_def.identifier, (t, var_def.immutable))
         return type_void, False
 
     def visit_var_redef(self, redef: VarRedef) -> tuple[Type, NodeAlwaysReturns]:
         identifier = redef.identifier
-        is_immutable = self._var_is_immutable(identifier)
+        is_immutable = self.__var_is_immutable(identifier)
         if is_immutable is None:
             err = redef.span.get_underlined(
                 f"'{identifier}' must be declared before reassignement",
             )
-            self._error_strings.append(err)
+            self.__error_strings.append(err)
         if is_immutable is True:
             err = redef.span.get_underlined(
                 f"cannot reassign const variable '{identifier}'",
             )
-            self._error_strings.append(err)
+            self.__error_strings.append(err)
         self.add_constaint(
             IsType(
                 redef.value.visit(self)[0],
-                self._get_type_of_identifier(redef.identifier),
+                self.__get_type_of_identifier(redef.identifier),
                 redef.span,
             )
         )
@@ -568,11 +554,11 @@ class Typer:
     def visit_expression_list(
         self, expr_list: ExpressionList
     ) -> tuple[Type, NodeAlwaysReturns]:
-        return self._check_lines(expr_list.lines)
+        return self.__check_lines(expr_list.lines)
 
     def visit_block(self, scope: Block) -> tuple[Type, NodeAlwaysReturns]:
-        with self._symbol_table.new_frame():
-            return self._check_lines(scope.lines)
+        with self.__symbol_table.new_frame():
+            return self.__check_lines(scope.lines)
 
     def visit_while_loop(self, wl: WhileLoop) -> tuple[Type, NodeAlwaysReturns]:
         self.add_constaint(IsType(wl.cond.visit(self)[0], type_bool, wl.span))
@@ -601,7 +587,7 @@ class Typer:
     #     return type_int | type_string, type_void
 
     def visit_for_loop(self, fl: ForLoop) -> tuple[Type, NodeAlwaysReturns]:
-        with self._symbol_table.new_frame():
+        with self.__symbol_table.new_frame():
             if fl.init:
                 fl.init.visit(self)
             if not isinstance(fl.cond, NoOp):
@@ -611,7 +597,7 @@ class Typer:
             fl.interior.visit(self)
             return type_void, False
 
-    def _check_with_sub(
+    def __check_with_sub(
         self, constaints: list[Constraint], substitution: Substitution
     ) -> tuple[int, str, Substitution]:
         """
@@ -634,7 +620,7 @@ class Typer:
                     return 1, constraint.fail_message(), substitution
                 case False, options_list:
                     for option in options_list:
-                        err, err_string, new_map = self._check_with_sub(
+                        err, err_string, new_map = self.__check_with_sub(
                             constaints[idx + 1 :], option
                         )
                         if not err:
@@ -647,7 +633,7 @@ class Typer:
 
         return err, err_string, substitution
 
-    def _check_lines(self, lines: List[Node]) -> tuple[int, str, str]:
+    def __check_lines(self, lines: List[Node]) -> tuple[int, str, str]:
         """
         Type checks a list of nodes.
         """
@@ -658,17 +644,7 @@ class Typer:
 
         return type_void, any(node_returns)
 
-        # errors = len(self._error_strings)
-        # if errors > 0:
-        #     return errors, "\n".join(self._error_strings), None
-
-        # errors, err_str, substitution = self._check_with_sub(
-        #     self.constaints, self.substitution
-        # )
-
-        # return errors, err_str, substitution
-
-    def check_types(self) -> TyperDiagnostic:
+    def typecheck_program(self) -> TyperDiagnostic:
         """
         Types checks an uza program.
 
@@ -680,11 +656,11 @@ class Typer:
             A TyperDiagnostic
         """
         self.program.syntax_tree.visit(self)
-        errors, err_str, substitution = self._check_with_sub(
+        errors, err_str, substitution = self.__check_with_sub(
             self.constaints, self.substitution
         )
 
-        errors += len(self._error_strings)
-        err_str = "\n".join(self._error_strings) + err_str
-        warn_str = "\n".join(self._warnings)
+        errors += len(self.__error_strings)
+        err_str = "\n".join(self.__error_strings) + err_str
+        warn_str = "\n".join(self.__warnings)
         return TyperDiagnostic(errors, err_str, warn_str, substitution)

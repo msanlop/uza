@@ -10,7 +10,7 @@ def test_add_int_float():
     foo + bar
     """
     typer = Typer(Parser(source).parse())
-    typer_res = typer.check_types()
+    typer_res = typer.typecheck_program()
     assert not typer_res.error_count
 
 
@@ -21,7 +21,7 @@ def test_add_int_string():
     foo + bar
     """
     typer = Typer(Parser(source).parse())
-    typer_res = typer.check_types()
+    typer_res = typer.typecheck_program()
     assert typer_res.error_count > 0
 
 
@@ -32,7 +32,7 @@ def test_inference():
     foo + bar
     """
     typer = Typer(Parser(source).parse())
-    typer_res = typer.check_types()
+    typer_res = typer.typecheck_program()
     assert not typer_res.error_count
 
 
@@ -43,7 +43,7 @@ def test_inference_fail():
     foo + bar
     """
     typer = Typer(Parser(source).parse())
-    typer_res = typer.check_types()
+    typer_res = typer.typecheck_program()
     assert typer_res.error_count > 0
 
 
@@ -54,7 +54,7 @@ def test_inference_fail_nested():
     foo + bar + "hi"
     """
     typer = Typer(Parser(source).parse())
-    typer_res = typer.check_types()
+    typer_res = typer.typecheck_program()
     assert typer_res.error_count > 0
 
 
@@ -66,7 +66,7 @@ def test_inference_var_defs():
     println(test)
     """
     typer = Typer(Parser(source).parse())
-    typer_res = typer.check_types()
+    typer_res = typer.typecheck_program()
     assert not typer_res.error_count
 
 
@@ -76,7 +76,7 @@ def test_const_redef_fails():
     foo = 2.
     """
     typer = Typer(Parser(source).parse())
-    typer_res = typer.check_types()
+    typer_res = typer.typecheck_program()
     assert typer_res.error_count == 1
 
 
@@ -86,7 +86,7 @@ def test_var_redef_works():
     foo = 2.
     """
     typer = Typer(Parser(source).parse())
-    typer_res = typer.check_types()
+    typer_res = typer.typecheck_program()
     assert not typer_res.error_count
 
 
@@ -96,7 +96,7 @@ def test_var_type_redef_fails():
     foo = 123
     """
     typer = Typer(Parser(source).parse())
-    typer_res = typer.check_types()
+    typer_res = typer.typecheck_program()
     assert typer_res.error_count > 0
 
 
@@ -107,7 +107,7 @@ def test_fail_on_generic_decl_without_type():
     """
     with pytest.raises(TypeError):
         typer = Typer(Parser(source).parse())
-        typer.check_types()
+        typer.typecheck_program()
 
 
 def test_fail_functions_that_do_not_always_return():
@@ -126,7 +126,7 @@ def test_fail_functions_that_do_not_always_return():
     println(voidFunc(15))
     """
     typer = Typer(Parser(source).parse())
-    typer_res = typer.check_types()
+    typer_res = typer.typecheck_program()
     assert typer_res.error_count > 0
 
     source = """
@@ -140,5 +140,5 @@ def test_fail_functions_that_do_not_always_return():
     println(voidFunc(15))
     """
     typer = Typer(Parser(source).parse())
-    typer_res = typer.check_types()
+    typer_res = typer.typecheck_program()
     assert not typer_res.error_count

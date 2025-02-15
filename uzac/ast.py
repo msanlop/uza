@@ -311,4 +311,3 @@ class Value:
 class Program:
     syntax_tree: ExpressionList
     errors: int
-    failed_nodes: List[Error]

@@ -5,6 +5,9 @@ from functools import reduce
 from uzac.token import *
 
 
+_builtin_types: dict[str, BuiltInType] = {}
+
+
 @dataclass(frozen=True)
 class Type:
     """
@@ -116,11 +119,10 @@ class BuiltInType(Type):
     """
 
     identifier: str
-    _builtins_dict: dict[str, Type]
 
     def __post_init__(self):
         """adds itself to the dict that holds all the builtin types"""
-        self._builtins_dict[self.identifier] = self
+        _builtin_types[self.identifier] = self
 
     def __str__(self) -> str:
         return self.identifier
@@ -136,20 +138,19 @@ class NonInferableType(Type):
     """
 
 
-_builtin_types: dict[str, BuiltInType] = {}
-type_int = BuiltInType("int", _builtin_types)
-type_float = BuiltInType("float", _builtin_types)
-type_string = BuiltInType("string", _builtin_types)
-type_bool = BuiltInType("bool", _builtin_types)
-type_void = BuiltInType("nil", _builtin_types)
-type_list_int = BuiltInType("List<int>", _builtin_types)
-type_list_list_int = BuiltInType("List<List<int>>", _builtin_types)
-type_list_string = BuiltInType("List<string>", _builtin_types)
-type_list_float = BuiltInType("List<float>", _builtin_types)
-type_list_bool = BuiltInType("List<bool>", _builtin_types)
+type_int = BuiltInType("int")
+type_float = BuiltInType("float")
+type_string = BuiltInType("string")
+type_bool = BuiltInType("bool")
+type_void = BuiltInType("nil")
+type_list_int = BuiltInType("List<int>")
+type_list_list_int = BuiltInType("List<List<int>>")
+type_list_string = BuiltInType("List<string>")
+type_list_float = BuiltInType("List<float>")
+type_list_bool = BuiltInType("List<bool>")
 
 
-_python_to_uza = {
+__python_to_uza = {
     int: type_int,
     float: type_float,
     str: type_string,
@@ -158,7 +159,7 @@ _python_to_uza = {
     "nil": type_void,
 }
 
-_id_to_uza = {
+__id_to_uza = {
     "int": type_int,
     "float": type_float,
     "string": type_string,
@@ -176,16 +177,9 @@ _id_to_uza = {
 def python_type_to_uza_type(type_) -> BuiltInType:
     if type_ == type_void:
         return type_
-    return _python_to_uza.get(type_)
+    return __python_to_uza.get(type_)
 
 
 def identifier_to_uza_type(identifier: Token) -> BuiltInType:
     assert identifier.kind == token_identifier
-    return _id_to_uza[identifier.repr]
-
-
-# class UzaType:
-
-#     def to_type(type_ : Token) -> int :
-#         assert type_.kind == token_identifier
-#         return UzaType._uza_to_enum.get(type_.repr)
+    return __id_to_uza[identifier.repr]

@@ -72,7 +72,7 @@ class Span:
             return empty_case
         return spanned_object_list[0].span + spanned_object_list[-1].span
 
-    def _get_line(self) -> tuple[str, int, int]:
+    def __get_line(self) -> tuple[str, int, int]:
         """
         Return the entire line for this span.
         """
@@ -102,7 +102,7 @@ class Span:
         Returns:
             str: _description_
         """
-        source, start, _ = self._get_line()
+        source, start, _ = self.__get_line()
         lines = source.split("\n")
         source = f"'{source}'"
         source += "\n"
@@ -148,30 +148,30 @@ class SymbolTable:
     """
 
     # List of frames, each frame contains list of symbols
-    _frames: List[List[Symbol]]
+    __frames: List[List[Symbol]]
 
     def __init__(self, frames: List[List[Symbol]] | None = None) -> None:
         if not frames:
-            self._frames: List[List[Symbol]] = [[]]
+            self.__frames: List[List[Symbol]] = [[]]
         else:
-            self._frames = frames
+            self.__frames = frames
 
-    def _get_locals(self) -> List[Symbol]:
-        return self._frames[-1]
+    def __get_locals(self) -> List[Symbol]:
+        return self.__frames[-1]
 
     def new_frame(self) -> SymbolTable:
-        self._frames.append([])
+        self.__frames.append([])
         return self
 
     def pop_frame(self) -> SymbolTable:
-        self._frames = self._frames[:-1]
+        self.__frames = self.__frames[:-1]
 
     def define(self, variable_name: str, value: T) -> bool:
         """
         Tries to define the identifier with the value. Return true if succeeds,
         false if the given variable name is already been defined in this scope.
         """
-        frame_locals = self._get_locals()
+        frame_locals = self.__get_locals()
         for symbol in frame_locals:
             if symbol.key == variable_name:
                 symbol.val = value
@@ -180,9 +180,9 @@ class SymbolTable:
         return True
 
     def get(self, identifier: str) -> Optional[T]:
-        idx = len(self._frames) - 1
+        idx = len(self.__frames) - 1
         while idx >= 0:
-            frame = self._frames[idx]
+            frame = self.__frames[idx]
             for symbol in frame:
                 if symbol.key == identifier:
                     return symbol.val
@@ -191,9 +191,9 @@ class SymbolTable:
         return None
 
     def reassign(self, identifier: str, new_value: T) -> None:
-        idx = len(self._frames) - 1
+        idx = len(self.__frames) - 1
         while idx >= 0:
-            frame = self._frames[idx]
+            frame = self.__frames[idx]
             for j in range(len(frame)):
                 if frame[j].key == identifier:
                     frame[j].val = new_value

@@ -58,8 +58,8 @@ class Interpreter:
 
     def __init__(self, program: Program):
         # either [variable_name, Value] or [function_name, Function instance]
-        self._context = SymbolTable()
-        self._program = program
+        self.__context = SymbolTable()
+        self.__program = program
 
     T = TypeVar("T")
     R = TypeVar("R")
@@ -71,7 +71,7 @@ class Interpreter:
         return func_id.interpret(*params)
 
     def visit_function(self, func: Function):
-        self._context.define(func.identifier, func)
+        self.__context.define(func.identifier, func)
 
     def visit_return(self, ret: Return):
         val = ret.value.visit(self)
@@ -79,21 +79,21 @@ class Interpreter:
 
     def visit_var_def(self, definition: VarDef):
         value = definition.value.visit(self)
-        self._context.define(definition.identifier, value)
+        self.__context.define(definition.identifier, value)
 
     def visit_var_redef(self, redef: VarRedef):
         value = redef.value.visit(self)
-        self._context.reassign(redef.identifier, value)
+        self.__context.reassign(redef.identifier, value)
 
     def visit_identifier(self, identifier: Identifier) -> Value | Function:
-        return self._context.get(identifier.name)
+        return self.__context.get(identifier.name)
 
     def visit_literal(self, literal: Literal):
         if type(literal.value) is str:
             return str(literal.value)
         return literal.value
 
-    def _short_circuit_and(self, *args):
+    def __short_circuit_and(self, *args):
         for arg in args:
             if not arg.visit(self):
                 return False
@@ -104,10 +104,10 @@ class Interpreter:
         build_in_id = get_builtin(application.func_id)
         if build_in_id:
             return self.visit_built_in_application(build_in_id, *evaluated)
-        with self._context.new_frame():
-            func: Function = self._context.get(application.func_id)
+        with self.__context.new_frame():
+            func: Function = self.__context.get(application.func_id)
             for arg, param in zip(evaluated, func.param_names):
-                self._context.define(param.name, arg)
+                self.__context.define(param.name, arg)
             try:
                 func.body.visit(self)
             except FunctionReturn as fr:
@@ -122,7 +122,7 @@ class Interpreter:
 
     def visit_infix_application(self, infix_app: InfixApplication):
         if infix_app.func_id.name == "and":
-            return self._short_circuit_and(infix_app.lhs, infix_app.rhs)
+            return self.__short_circuit_and(infix_app.lhs, infix_app.rhs)
         left = infix_app.lhs.visit(self)
         right = infix_app.rhs.visit(self)
         identifier = infix_app.func_id
@@ -140,17 +140,17 @@ class Interpreter:
             return if_else.falsy_case.visit(self)
         return None
 
-    def _visit_lines(self, lines: List[Node]):
+    def __visit_lines(self, lines: List[Node]):
         for node in lines:
             last = node.visit(self)
         return None
 
     def visit_expression_list(self, expr_list: ExpressionList):
-        self._visit_lines(expr_list.lines)
+        self.__visit_lines(expr_list.lines)
 
     def visit_block(self, block: Block):
-        with self._context.new_frame():
-            return self._visit_lines(block.lines)
+        with self.__context.new_frame():
+            return self.__visit_lines(block.lines)
 
     def visit_range(self, range: Range):
         node = range.node.visit(self)
@@ -176,7 +176,7 @@ class Interpreter:
             cond = wl.cond.visit(self)
 
     def visit_for_loop(self, fl: ForLoop):
-        with self._context.new_frame():
+        with self.__context.new_frame():
             fl.init.visit(self)
             while fl.cond.visit(self):
                 fl.interior.visit(self)
@@ -184,12 +184,12 @@ class Interpreter:
 
     def evaluate(self) -> Optional[Value]:
         """
-        The main _Interpreter_ function that evaluates the top level nodes.
+        The main __Interpreter_ function that evaluates the top level nodes.
 
         Returns:
             Optional[int | float]: exit value
         """
         try:
-            self._program.syntax_tree.visit(self)
+            self.__program.syntax_tree.visit(self)
         except Exit as e:
             return e.value
