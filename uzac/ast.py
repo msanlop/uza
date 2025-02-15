@@ -1,6 +1,7 @@
 # pylint: disable=missing-docstring
+from __future__ import annotations
 
-from abc import ABC
+from abc import ABC, abstractmethod
 from typing import List, Optional
 from dataclasses import dataclass, field
 
@@ -275,13 +276,13 @@ class ForLoop(Node):
         return that.visit_for_loop(self)
 
 
-@dataclass
-class Error(Node):
-    error_message: str
-    span: Span = field(compare=False)
+# @dataclass
+# class Error(Node):
+#     error_message: str
+#     span: Span = field(compare=False)
 
-    def visit(self, that):
-        return that.visit_error(self)
+#     def visit(self, that):
+#         return that.visit_error(self)
 
 
 @dataclass
@@ -311,3 +312,82 @@ class Value:
 class Program:
     syntax_tree: ExpressionList
     errors: int
+
+
+class UzaASTVisitor(ABC):
+    """
+    A `UzaAstVisitor` is a class that implements the necessary methods following
+    a visitor pattern. When a class extends the `UzaAstVisitor` and calls `visit`
+    on an `Node`, that `Node` calls the appropriate `visit_X` on the class instance.
+    The return type depends on the inhereting class. For example, `Interpreter`
+    return `Value` while `Typer` return a tuple.
+
+    This pattern allows for implementation to be kept out of the base ast class
+    and in the respective module. An exception is made with `BuiltIn`s, which
+    defines the implementation for various steps of the compiler pipeline in the
+    module.
+    """
+
+    @abstractmethod
+    def visit_return(self, ret: Return):
+        pass
+
+    @abstractmethod
+    def visit_function(self, func: Function):
+        pass
+
+    @abstractmethod
+    def visit_no_op(self, _):
+        pass
+
+    @abstractmethod
+    def visit_infix_application(self, infix: InfixApplication):
+        pass
+
+    @abstractmethod
+    def visit_prefix_application(self, prefix: PrefixApplication):
+        pass
+
+    @abstractmethod
+    def visit_if_else(self, if_else: IfElse):
+        pass
+
+    @abstractmethod
+    def visit_identifier(self, identifier: Identifier):
+        pass
+
+    @abstractmethod
+    def visit_application(self, app: Application):
+        pass
+
+    @abstractmethod
+    def visit_var_def(self, var_def: VarDef):
+        pass
+
+    @abstractmethod
+    def visit_var_redef(self, redef: VarRedef):
+        pass
+
+    @abstractmethod
+    def visit_literal(self, literal: Literal):
+        pass
+
+    @abstractmethod
+    def visit_expression_list(self, expr_list: ExpressionList):
+        pass
+
+    @abstractmethod
+    def visit_block(self, scope: Block):
+        pass
+
+    @abstractmethod
+    def visit_while_loop(self, wl: WhileLoop):
+        pass
+
+    @abstractmethod
+    def visit_for_loop(self, fl: ForLoop):
+        pass
+
+    # optional:
+    def visit_builtin(self, bi: "BuiltIn", *arguments: Node, span: Span):
+        f"method {self.visit_builtin.__name__} is not implemented by {type(self).__name__}"

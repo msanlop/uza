@@ -18,8 +18,8 @@ from uzac.ast import (
     Program,
     Range,
     Return,
+    UzaASTVisitor,
     VarDef,
-    Error,
     VarRedef,
     WhileLoop,
 )
@@ -348,7 +348,7 @@ class TyperDiagnostic:
     substitution: Optional[Substitution]
 
 
-class Typer:
+class Typer(UzaASTVisitor):
     """
     Represents a typer than can typecheck a uza program.
     """
@@ -547,9 +547,6 @@ class Typer:
         else:
             t = type(literal.value)
         return python_type_to_uza_type(t), False
-
-    def visit_error(self, error: Error) -> tuple[Type, NodeAlwaysReturns]:
-        raise RuntimeError(f"Unexpected visit to error node :{error} in typer")
 
     def visit_expression_list(
         self, expr_list: ExpressionList

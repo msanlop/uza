@@ -24,6 +24,7 @@ from uzac.ast import (
     Node,
     PrefixApplication,
     Return,
+    UzaASTVisitor,
     VarDef,
     Program,
     VarRedef,
@@ -336,7 +337,7 @@ class ByteCodeLocals:
         self.pop_scope()
 
 
-class ByteCodeProgram:
+class ByteCodeProgram(UzaASTVisitor):
     """
     This class emits the bytecode and build the Chunks.
 

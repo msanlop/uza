@@ -22,8 +22,8 @@ from uzac.ast import (
     PrefixApplication,
     Range,
     Return,
+    UzaASTVisitor,
     VarDef,
-    Error,
     Program,
     VarRedef,
     WhileLoop,
@@ -245,7 +245,7 @@ class Scanner:
 
 class Parser:
     """
-    A parser parses it source code into a Program, i.e. a list of AST Nodes.
+    A parser parses it source code into a uza `Program`.
     """
 
     def __init__(self, source: str):

@@ -19,6 +19,7 @@ from uzac.ast import (
     Block,
     Range,
     Return,
+    UzaASTVisitor,
     Value,
     VarDef,
     Program,
@@ -47,7 +48,7 @@ class Exit(Exception):
     value: int
 
 
-class Interpreter:
+class Interpreter(UzaASTVisitor):
     """
     A class that takes in a program and interprets it by walking the AST.
 
