@@ -146,7 +146,7 @@ def main(argv: Sequence[str] = None) -> int:
             print(typer_res.warning_msg, file=sys.stderr)
         if typer_res.error_msg != "":
             print(typer_res.error_msg, file=stderr)
-        if args.typecheck:
+        if args.typecheck or typer_res.error_count > 0:
             return typer_res.error_count
 
     if args.interpret:
