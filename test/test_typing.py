@@ -142,3 +142,14 @@ def test_fail_functions_that_do_not_always_return():
     typer = Typer(Parser(source).parse())
     typer_res = typer.typecheck_program()
     assert not typer_res.error_count
+
+
+def test_fail_generic_methods():
+    source = """
+    const a: List<List<float>> = List()
+    const b: List<int> = List()
+    append(a, b)
+    """
+    typer = Typer(Parser(source).parse())
+    typer_res = typer.typecheck_program()
+    assert typer_res.error_count > 0

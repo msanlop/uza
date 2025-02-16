@@ -23,13 +23,12 @@ from uzac.type import (
     NonInferableType,
     type_bool,
     type_int,
+    type_list,
+    type_generic_meta,
     type_float,
     type_string,
     type_list_int,
-    type_list_bool,
     type_list_float,
-    type_list_string,
-    type_list_list_int,
     type_void,
 )
 
@@ -127,12 +126,9 @@ __bi_print_types = [
     ArrowType([type_string], type_void),
     ArrowType([type_int], type_void),
     ArrowType([type_float], type_void),
-    ArrowType([type_list_int], type_void),
-    ArrowType([type_list_string], type_void),
-    ArrowType([type_list_float], type_void),
+    ArrowType([type_list], type_void),
     ArrowType([type_bool], type_void),
     ArrowType([type_void], type_void),
-    ArrowType([type_list_bool], type_void),
 ]
 
 bi_print = BuiltIn("print", __lower_str_bool(print, end=""), __bi_print_types)
@@ -223,41 +219,29 @@ bi_new_list = BuiltIn(
     "List",
     list,
     [
-        ArrowType([], NonInferableType()),
+        ArrowType([], type_list.with_argument(NonInferableType())),
     ],
 )
 bi_len = BuiltIn(
     "len",
     len,
     [
-        ArrowType([type_list_int], type_int),
-        ArrowType([type_list_string], type_int),
-        ArrowType([type_list_float], type_int),
-        ArrowType([type_list_bool], type_int),
         ArrowType([type_string], type_int),
-        ArrowType([type_list_list_int], type_int),
+        ArrowType([type_list], type_int),
     ],
 )
 bi_append = BuiltIn(
     "append",
     list.append,
     [
-        ArrowType([type_list_int, type_int], type_void),
-        ArrowType([type_list_string, type_string], type_void),
-        ArrowType([type_list_float, type_float], type_void),
-        ArrowType([type_list_bool, type_bool], type_void),
-        ArrowType([type_list_list_int, type_list_int], type_void),
+        ArrowType([type_list, type_generic_meta], type_void),
     ],
 )
 bi_get = BuiltIn(
     "get",
     lambda l, i: l[i],
     [
-        ArrowType([type_list_int, type_int], type_int),
-        ArrowType([type_list_string, type_int], type_string),
-        ArrowType([type_list_float, type_int], type_float),
-        ArrowType([type_list_list_int, type_int], type_list_int),
-        ArrowType([type_list_bool, type_int], type_bool),
+        ArrowType([type_list, type_int], type_generic_meta),
         ArrowType([type_string, type_int], type_string),
     ],
 )
@@ -271,10 +255,7 @@ bi_get = BuiltIn(
     "set",
     __interpreter_set,
     [
-        ArrowType([type_list_int, type_int, type_int], type_void),
-        ArrowType([type_list_string, type_int, type_string], type_void),
-        ArrowType([type_list_float, type_int, type_float], type_void),
-        ArrowType([type_list_bool, type_int, type_bool], type_void),
+        ArrowType([type_list, type_int, type_generic_meta], type_void),
     ],
 )
 

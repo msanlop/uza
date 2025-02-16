@@ -138,16 +138,56 @@ class NonInferableType(Type):
     """
 
 
+@dataclass(frozen=True)
+class GenericType(Type):
+    """
+    A generic type with a single typeparam.
+    """
+
+    base_type: Type
+    param_type: Type
+
+    def resolve_type(self, substitution):
+        return self
+
+    def with_argument(self, t: Type):
+        return GenericType(self.base_type, t)
+
+    def __str__(self):
+        return f"{str(self.base_type)}<{str(self.param_type)}>"
+
+
+@dataclass(frozen=True)
+class GenericArgument(Type):
+    """
+    A meta class for generic arugments.
+
+    This type is used to solve methods with generic types.
+
+    Example:
+        func(List, type_generic_meta) => type_generic_meta
+    can become
+        func(List<int>, int) => int
+        func(List<string>, string) => string
+
+    In essence, this is a way to allow for method overloading for arbitrary types.
+    """
+
+    pass
+
+
 type_int = BuiltInType("int")
 type_float = BuiltInType("float")
 type_string = BuiltInType("string")
 type_bool = BuiltInType("bool")
 type_void = BuiltInType("nil")
-type_list_int = BuiltInType("List<int>")
-type_list_list_int = BuiltInType("List<List<int>>")
-type_list_string = BuiltInType("List<string>")
-type_list_float = BuiltInType("List<float>")
-type_list_bool = BuiltInType("List<bool>")
+
+# See GenericArgument docstring
+type_generic_meta = GenericArgument()
+
+type_list = GenericType(BuiltInType("List"), GenericArgument())
+type_list_int = GenericType(BuiltInType("List"), type_int)
+type_list_float = GenericType(BuiltInType("List"), type_float)
 
 
 __python_to_uza = {
@@ -166,10 +206,8 @@ __id_to_uza = {
     "bool": type_bool,
     "void": type_void,
     "nil": type_void,
+    "List": type_list,
     "List<int>": type_list_int,
-    "List<List<int>>": type_list_list_int,
-    "List<bool>": type_list_bool,
-    "List<string>": type_list_string,
     "List<float>": type_list_float,
 }
 
@@ -180,6 +218,6 @@ def python_type_to_uza_type(type_) -> BuiltInType:
     return __python_to_uza.get(type_)
 
 
-def identifier_to_uza_type(identifier: Token) -> BuiltInType:
+def identifier_to_uza_type(identifier: Token) -> BuiltInType | GenericType:
     assert identifier.kind == token_identifier
     return __id_to_uza[identifier.repr]

@@ -540,3 +540,35 @@ const elapsedNsToMs = elapsedNs / 1000000
 println(abs(elapsedNsToMs - elapsedMs) <= 1)
 #expected
 true
+
+#test generic_list
+const a : List<List<int>> = List()
+func test() => List<int> {
+    const foo :List<int> = List()
+    append(foo, 42)
+    return foo
+}
+append(a, test())
+println(a)
+const bar = get(a, 0)
+append(bar, 55)
+println(bar)
+println(a)
+#expected
+[[42]]
+[42, 55]
+[[42, 55]]
+
+//#test string_lists (VM only)
+//const lang: List<List<string>> = List()
+//const fr: List<string> = List()
+//append(fr, "Bonjour")
+//append(fr, "Salut")
+//const en: List<string> = List()
+//append(en, "Hello")
+//append(en, "Hi")
+//append(lang, fr)
+//append(lang, en)
+//println(lang)
+//#expected
+//[[Bonjour, Salut], [Hello, Hi]]
