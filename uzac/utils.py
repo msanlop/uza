@@ -40,7 +40,7 @@ _is_terminal = sys.stderr.isatty()
 
 def in_bold(string: str) -> str:
     if _is_terminal:
-        return ANSIColor.BOLD + string + ANSIColor.END
+        return ANSIColor.BOLD.value + string + ANSIColor.END.value
     return string
 
 
