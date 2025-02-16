@@ -417,20 +417,20 @@ class Parser:
 
         return VarRedef(identifier.name, value, identifier.span + value.span)
 
-    def __get_type(self, recurse=True) -> Type:
+    def __get_type(self) -> Type:
         type_tok = self.__expect(token_identifier)
         tok = self.__peek()
-        generic = None
         if tok.kind == token_angle_bracket_l:
             self.__expect(token_angle_bracket_l)
-            generic = self.__get_type(recurse=False)
+            generic = typer.identifier_to_uza_type(type_tok)
+            type_ = generic.with_argument(self.__get_type())
             tok = self.__peek()
             if tok.kind == token_angle_bracket_r:
                 r_brack = self.__expect(token_angle_bracket_r)
                 span = type_tok.span + r_brack.span
                 type_tok = Token(token_identifier, span)
-
-        type_ = typer.identifier_to_uza_type(type_tok)
+        else:
+            type_ = typer.identifier_to_uza_type(type_tok)
 
         return type_
 
@@ -476,7 +476,6 @@ class Parser:
                 args.append(arg)
                 arg_string_list = []
                 for i, arg in enumerate(args):
-                    print(arg)
                     arg_string_list.append(f"arg {str(i)}:> {arg.span.get_source()}")
 
                 args = "\n\t " + in_color(

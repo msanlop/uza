@@ -54,6 +54,10 @@ class Substitution:
         return out
 
     def __add__(self, that: object):
+        """
+        Takes in either a tuple pair or a Substitution and return a new
+        Subsitution.
+        """
         if isinstance(that, tuple) and len(that) == 2:
             new_dict = {that[0]: that[1], **self.__substitutions}
             return Substitution(new_dict)
@@ -74,11 +78,14 @@ class SymbolicType(Type):
     identifier: str
     span: Span  # used for printing typer substitution
 
+    def is_symbolic(self):
+        return True
+
     def resolve_type(self, substitution: Substitution) -> Type:
         t = substitution.get_type_of(self)
         if t is None:
             return self
-        if isinstance(t, SymbolicType):
+        if t.is_symbolic():
             return t.resolve_type(substitution)
         return t
 
@@ -110,6 +117,9 @@ class IncompleteBranchType(Type):
 class Constraint(ABC):
     span: Span
     substitution: Substitution
+    SOLVE_FAIL = (False, None)
+    SOLVE_SUCCEED = (True, None)
+    SOLVE_OPTIONS = lambda o: (False, o)
 
     def solve(
         self, substitution: Substitution
@@ -155,19 +165,36 @@ class IsType(Constraint):
     span: Span
     substitution: Substitution = field(default=None)
 
-    def solve(self, substitution: Substitution):
+    def __solve_generic(
+        self, a: Type, b: GenericType, sub: Substitution
+    ) -> tuple[Type, Optional[Substitution]]:
+        match (a, b.param_type):
+            case (SymbolicType(), NonInferableType()):
+                raise TypeError("\n" + self.span.get_underlined(f"Cannot infer type"))
+            case (_, NonInferableType()):
+                return Constraint.SOLVE_SUCCEED
+
+        match a:
+            case GenericType(base, param):
+                if not Type.matches(base, b.base_type):
+                    return Constraint.SOLVE_FAIL
+                return IsType(param, b.param_type, self.span).solve(sub)
+            case SymbolicType():
+                return False, [Substitution({a: b})]
+            case _:
+                return Constraint.SOLVE_FAIL
+
+    def solve(self, substitution: Substitution) -> tuple[Type, Substitution]:
         self.substitution = substitution
         type_a = self.a.resolve_type(substitution)
         type_b = self.b.resolve_type(substitution)
-        if isinstance(type_a, NonInferableType) or isinstance(type_b, NonInferableType):
-            if isinstance(type_a, SymbolicType) or isinstance(type_b, SymbolicType):
-                raise TypeError("\n" + self.span.get_underlined(f"Cannot infer type"))
-            return True, None
+        if type_b.is_generic_type():
+            return self.__solve_generic(type_a, type_b, substitution)
         if type_a == type_b:
-            return True, None
-        elif isinstance(type_a, SymbolicType) or isinstance(type_b, SymbolicType):
+            return Constraint.SOLVE_SUCCEED
+        if type_a.is_symbolic() or type_b.is_symbolic():
             return False, [substitution + (self.a, self.b)]
-        return False, None
+        return Constraint.SOLVE_FAIL
 
     def fail_message(self) -> str:
         type_b = self.b.resolve_type(self.substitution)
@@ -207,7 +234,7 @@ class IsSubType(Constraint):
             types_b = (self.b.resolve_type(substitution),)
         for possible_type in types_b:
             if type_a == possible_type:
-                return True, None
+                return Constraint.SOLVE_SUCCEED
         return False, (substitution + (self.a, t) for t in types_b)
 
     def fail_message(self) -> str:
@@ -231,9 +258,42 @@ class Applies(Constraint):
     args_span: list[Span]
     b: ArrowType
     span: Span  # TODO: change args to have more precise span to the argument
+    generic_typevar: Optional[SymbolicType] = field(default=None)
     substitution: Substitution = field(default=None)
     __args_num_incorrect: Optional[tuple[int]] = field(default=None)
     __err_msgs: Optional[str] = field(default=None)
+
+    def __solve_generic_args(
+        self, generics_set: dict[Type, bool], sub: Substitution
+    ) -> tuple[bool, Optional[Substitution]]:
+        """
+        This method checks that all the generic arguments match. Returns the same
+        as other `solve` methods.
+        It fails without substitution if there are more than two types. Or two
+        non-Symbolic types (e.g. int and float).
+        """
+        if len(generics_set) == 0:
+            return True, sub
+
+        if len(generics_set) > 2:
+            return Constraint.SOLVE_FAIL
+
+        if len(generics_set) == 2:
+            # check if symbolic
+            a, b = generics_set.keys()
+            t1, t2 = a, b
+
+            if a.is_generic_type():
+                t1 = a.param_type
+
+            if not Type.matches(t1, t2) and not (t1.is_symbolic() or t2.is_symbolic()):
+                self.__err_msgs += self.span.get_underlined(
+                    f"Argument type does not match for generic function: '{a}' and '{b}'"
+                )
+                return Constraint.SOLVE_FAIL
+            sub += (a, b)
+
+        return True, sub
 
     def solve(self, substitution: Substitution):
         self.__err_msgs = ""
@@ -246,12 +306,23 @@ class Applies(Constraint):
         fatal = False
         solved = True
         option = substitution
+        generic_args: dict[Type, bool] = {}
+
+        # check that each argument type matches the parameter type
         for a, b, span in zip(self.args, self.b.param_types, self.args_span):
             type_a = a.resolve_type(substitution)
             type_b = b.resolve_type(substitution)
-            if not Type.matches(type_a, type_b):
+
+            # do generics params after loop
+            if type_a.is_generic_type():
+                generic_args[type_a] = True
+            elif type_b.is_generic_arg():
+                generic_args[type_a] = True
+            elif not Type.matches(type_a, type_b):
+                # if does not match, try updating subsitution if possible (type_a
+                # is Symbolic) or fail fatally
                 solved = False
-                if not isinstance(a, SymbolicType):
+                if not a.is_symbolic():
                     type_str = str(self.b)
                     self.__err_msgs += (
                         f"for function type: {in_color(type_str, ANSIColor.GREEN)}\nat "
@@ -262,7 +333,7 @@ class Applies(Constraint):
                     fatal = True
                     continue
                 sub_type = substitution.get_type_of(a)
-                if sub_type is not None and (not isinstance(sub_type, SymbolicType)):
+                if sub_type is not None and (not sub_type.is_symbolic()):
                     type_str = str(self.b)
                     self.__err_msgs += (
                         f"for function type: {in_color(type_str, ANSIColor.GREEN)}\nat "
@@ -271,16 +342,23 @@ class Applies(Constraint):
                         f"Expected {type_b} but found {type_a}", len("at ")
                     )
                     fatal = True
-                    continue
                 option = option + (a, b)
 
-        if fatal:
-            return False, None
+        if self.b.return_type.is_generic_arg():
+            generic_args[self.ret_type] = True
+        elif self.ret_type.is_symbolic():
+            option += (self.ret_type, self.b.return_type)
 
-        if isinstance(self.ret_type, SymbolicType):
-            return solved, option + (self.ret_type, self.b.return_type)
+        generic_ok, generic_sub = self.__solve_generic_args(generic_args, option)
 
-        return solved, []
+        if fatal or (not generic_ok and generic_sub is None):
+            return Constraint.SOLVE_FAIL
+
+        option = generic_sub
+
+        if solved and generic_ok:
+            return True, option
+        return False, [option]
 
     def fail_message(self) -> str:
         if self.__args_num_incorrect:
@@ -313,14 +391,14 @@ class OneOf(Constraint):
             if works:
                 return works, options
             if options:
-                choices_options.append(options)
+                choices_options.append(*options)
         if len(choices_options) == 0:
             choices_options = None
 
         if choices_options:
-            assert isinstance(choices_options[0], Substitution), (
-                f"found {choices_options =}"
-            )
+            assert isinstance(
+                choices_options[0], Substitution
+            ), f"found {choices_options =}"
         return False, choices_options
 
     def fail_message(self) -> str:
@@ -625,7 +703,9 @@ class Typer(UzaASTVisitor):
                     break
                 case True, sub:
                     if sub:
-                        assert isinstance(sub, Substitution)
+                        assert isinstance(
+                            sub, Substitution
+                        ), f"is not {Substitution.__name__}: {sub}"
                         substitution = sub
 
         return err, err_string, substitution

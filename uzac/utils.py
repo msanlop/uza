@@ -121,7 +121,7 @@ class Span:
 
     def __add__(self, that: object) -> Span:
         if not isinstance(that, Span):
-            return NotImplemented
+            raise NotImplementedError(f"Can't add {that} to Span {self}")
         # assert self.source == that.source
         return Span(self.start, that.end, self.source)
 
