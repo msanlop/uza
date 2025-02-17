@@ -2,6 +2,7 @@ import pytest
 
 from uzac.interpreter import Interpreter
 from uzac.parser import Parser
+from uzac.typer import Typer
 from .helper import parse_test_file, TESTS_PATH, MAGENTA, RESET, remove_new_lines
 import os
 
@@ -12,6 +13,8 @@ import os
 def test_end_to_end(description, code, expected_output, capsys):
     try:
         program = Parser(code).parse()
+        diag = Typer(program).typecheck_program()
+        assert diag.error_count == 0
         Interpreter(program).evaluate()
     except Exception as e:
         pytest.fail(
