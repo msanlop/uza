@@ -70,12 +70,14 @@ class Literal(Node):
 
 @dataclass
 class Identifier(Node):
+    token: Optional[Token]
     name: str
     span: Span = field(compare=False)
 
     def __init__(self, identifier: Token | str, span: Span) -> None:
         if isinstance(identifier, Token):
             self.name = identifier.repr
+            self.token = identifier
         else:
             self.name = identifier
         self.span = span
@@ -106,14 +108,16 @@ class Application(Node):
     func_id: Identifier
     args: list[Node]
     span: Span = field(compare=False)
+    generic_arg: Type
 
-    def __init__(self, func_id: Identifier, *args) -> None:
+    def __init__(self, func_id: Identifier, *args, generic_arg: Type = None) -> None:
         self.func_id = func_id
         self.args = list(args)
         if args:
             self.span = func_id.span + self.args[-1].span
         else:
             self.span = func_id.span
+        self.generic_arg = generic_arg
 
     def visit(self, that):
         return that.visit_application(self)

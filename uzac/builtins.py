@@ -20,10 +20,12 @@ import time
 from typing import Callable, List, Optional
 from uzac.type import (
     ArrowType,
+    GenericType,
     NonInferableType,
     type_bool,
     type_int,
     type_list,
+    type_list_class,
     type_generic_meta,
     type_float,
     type_string,
@@ -58,6 +60,7 @@ class BuiltIn:
     is_op_code: bool = field(
         default=False
     )  # if true, emits specific opcode instead of CALL_NATIVE
+    type_not_inferrable: bool = field(default=False)
 
     def __post_init__(self):
         # adds itself to the dict that holds all the builtins
@@ -219,8 +222,9 @@ bi_new_list = BuiltIn(
     "List",
     list,
     [
-        ArrowType([], type_list.with_argument(NonInferableType())),
+        ArrowType([], GenericType(type_list_class, NonInferableType())),
     ],
+    type_not_inferrable=True,
 )
 bi_len = BuiltIn(
     "len",

@@ -146,8 +146,8 @@ def test_fail_functions_that_do_not_always_return():
 
 def test_fail_generic_methods():
     source = """
-    const a: List<List<float>> = List()
-    const b: List<int> = List()
+    const a: List<List<float>> = List<List<float>>()
+    const b: List<int> = List<int>()
     append(a, b)
     """
     typer = Typer(Parser(source).parse())

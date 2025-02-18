@@ -6,7 +6,7 @@ import sys
 from typing import Callable, List, Optional, TypeVar
 import typing
 
-from uzac.interpreter import get_builtin
+from uzac.builtins import get_builtin
 from uzac.ast import (
     Application,
     Block,
@@ -29,7 +29,7 @@ from uzac.ast import (
     WhileLoop,
 )
 
-from uzac.type import ArrowType, Type, identifier_to_uza_type
+from uzac.type import ArrowType, GenericType, Type, identifier_to_uza_type
 from uzac.utils import ANSIColor, Span, SymbolTable, in_color
 from uzac.token import *
 from uzac import typer
@@ -256,6 +256,17 @@ class Parser:
         # map of (Identifier -> bool) for mutability
         self.__symbol_table = SymbolTable()
 
+    def __snapshot(self):
+        """
+        Does NOT SAVE symbol table state. Add if necessary.
+        """
+        p = Parser(self.__source)
+        p.__tokens = self.__tokens.copy()
+        return p
+
+    def __restore(self, snapshot: Parser):
+        self.__tokens = snapshot.__tokens
+
     def __log_error(self, error: Error):
         self.__errors += 1
 
@@ -370,25 +381,29 @@ class Parser:
             f_case = self.__get_expr()
         return IfElse(pred, t_case, f_case)
 
+    def __check_for_identifier_func(self, identifier: Identifier) -> None:
+        identifier_tok = identifier.token
+        if (
+            get_builtin(identifier) == None
+            and self.__symbol_table.get(identifier) is None
+        ):
+            raise NameError(
+                "\n" + identifier_tok.span.get_underlined("function is undefined")
+            )
+
+    def __check_for_identifier_var(self, identifier: Identifier) -> None:
+        identifier_tok = identifier.token
+        if self.__symbol_table.get(identifier_tok.repr) is None:
+            raise NameError(
+                "\n"
+                + identifier_tok.span.get_underlined(
+                    "variable not defined in this scope"
+                )
+            )
+
     def __get_identifier(self) -> Identifier:
         identifier_tok = self.__expect(token_identifier)
         identifier = Identifier(identifier_tok, identifier_tok.span)
-        if self.__peek().kind == token_paren_l:
-            if (
-                get_builtin(identifier) == None
-                and self.__symbol_table.get(identifier) is None
-            ):
-                raise NameError(
-                    "\n" + identifier_tok.span.get_underlined("function is undefined")
-                )
-        else:
-            if self.__symbol_table.get(identifier_tok.repr) is None:
-                raise NameError(
-                    "\n"
-                    + identifier_tok.span.get_underlined(
-                        "variable not defined in this scope"
-                    )
-                )
         return identifier
 
     def __get_var_redef(self, identifier: Identifier) -> Node:
@@ -417,8 +432,15 @@ class Parser:
 
         return VarRedef(identifier.name, value, identifier.span + value.span)
 
+    def __get_generic_param(self) -> Type:
+        self.__expect(token_angle_bracket_l)
+        type_ = self.__get_type()
+        self.__expect(token_angle_bracket_r)
+        return type_
+
     def __get_type(self) -> Type:
         type_tok = self.__expect(token_identifier)
+        type_ = typer.identifier_to_uza_type(type_tok)
         tok = self.__peek()
         if tok.kind == token_angle_bracket_l:
             self.__expect(token_angle_bracket_l)
@@ -446,6 +468,7 @@ class Parser:
         self.__expect(token_eq)
         value = self.__get_expr()
         if not self.__symbol_table.define(identifier.repr, immutable):
+            # FIXME: no Error node
             err = Error(
                 identifier.span.get_underlined(
                     f"'{identifier.repr}' has already been defined in this scope",
@@ -651,19 +674,36 @@ class Parser:
         elif tok.kind == token_identifier:
             identifier = self.__get_identifier()
             tok = self.__peek()
+            generic_param = None
             if not tok:
+                self.__check_for_identifier_var(identifier)
                 return identifier
             elif tok.kind in (token_eq, token_plus_eq):
                 return self.__get_var_redef(identifier)
-            elif tok.kind == token_paren_l:
+            elif tok.kind == token_angle_bracket_l:
+                # try to parse generic function call
+                # identifier :: < :: type :: > :: ( :: expr :: )
+                snapshot = self.__snapshot()
+                try:
+                    generic_param = self.__get_generic_param()
+                    tok = self.__peek()
+                    assert tok.kind == token_paren_l
+                except Exception:  # TODO: change to UzaParserException
+                    self.__restore(snapshot)
+
+            if tok.kind == token_paren_l:
+                self.__check_for_identifier_func(identifier)
                 self.__expect(token_paren_l)
                 arguments = self.__get_function_args()
                 paren_l_span = self.__expect(token_paren_r).span
                 if len(arguments) > 0:
                     arguments[-1].span += paren_l_span
-                func_call = Application(identifier, *arguments)
+                func_call = Application(
+                    identifier, *arguments, generic_arg=generic_param
+                )
                 return self.__get_infix(func_call)
 
+            self.__check_for_identifier_var(identifier)
             return self.__get_infix(identifier)
 
         elif tok.kind.is_op():

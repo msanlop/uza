@@ -424,7 +424,7 @@ println(bar + "foo")
 
 #test lists functions
 func test() => List<int> {
-    const temp : List<int> = List()
+    const temp : List<int> = List<int>()
     append(temp, 123)
     return temp
 }
@@ -437,7 +437,7 @@ println(b)
 [123, 42]
 
 #test list get
-const foo : List<int> = List()
+const foo : List<int> = List<int>()
 append(foo, 1)
 append(foo, 2)
 append(foo, 3)
@@ -476,7 +476,7 @@ const foo = "foobar"
 const last = get(foo, len(foo) - 1)
 println(last == get(foo, -1))
 println(last)
-const bar: List<int> = List()
+const bar: List<int> = List<int>()
 append(bar, 1)
 append(bar, 2)
 append(bar, 3)
@@ -490,7 +490,7 @@ true
 3
 
 #test sort func
-const foo : List<int> = List()
+const foo : List<int> = List<int>()
 append(foo, 97)
 append(foo, 0)
 append(foo, 1337)
@@ -542,9 +542,9 @@ println(abs(elapsedNsToMs - elapsedMs) <= 1)
 true
 
 #test generic_list
-const a : List<List<int>> = List()
+const a : List<List<int>> = List<List<int>>()
 func test() => List<int> {
-    const foo :List<int> = List()
+    const foo :List<int> = List<int>()
     append(foo, 42)
     return foo
 }
@@ -560,11 +560,11 @@ println(a)
 [[42, 55]]
 
 //#test string_lists (VM only)
-//const lang: List<List<string>> = List()
-//const fr: List<string> = List()
+//const lang: List<List<string>> = List<string>()
+//const fr: List<string> = List<string>()
 //append(fr, "Bonjour")
 //append(fr, "Salut")
-//const en: List<string> = List()
+//const en: List<string> = List<string>()
 //append(en, "Hello")
 //append(en, "Hi")
 //append(lang, fr)

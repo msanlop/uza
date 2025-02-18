@@ -25,6 +25,7 @@ from uzac.ast import (
 )
 from uzac.interpreter import *
 from uzac.utils import in_bold, in_color, ANSIColor
+from uzac.builtins import get_builtin
 
 
 @dataclass
@@ -566,10 +567,33 @@ class Typer(UzaASTVisitor):
     ) -> tuple[Type, NodeAlwaysReturns]:
         return self.__symbol_table.get(identifier.name)[0], False
 
+    def __set_generic_arg(self, bi: BuiltIn, arg: Type) -> BuiltIn:
+        arrow_types = bi.type_signatures
+        if arg == NonInferableType():
+            return bi
+
+        types: List[Type] = []
+        for t in arrow_types:
+            types.append(t.with_generic_argument(arg))
+        return BuiltIn(
+            bi.identifier,
+            bi.interpret,
+            types,
+            bi.is_op_code,
+            type_not_inferrable=bi.type_not_inferrable,
+        )
+
     def visit_application(self, app: Application) -> tuple[Type, NodeAlwaysReturns]:
         func_id = app.func_id
         builtin = get_builtin(func_id)
-        if builtin:
+        if builtin is not None:
+            if builtin.type_not_inferrable:
+                if app.generic_arg is not None:
+                    builtin = self.__set_generic_arg(builtin, app.generic_arg)
+                else:
+                    raise TypeError(
+                        "\n" + app.span.get_underlined("Cannot infer generic type")
+                    )
             return self.visit_builtin(builtin, *app.args, span=app.span)
         func: Function = self.__functions.get(func_id)
         func_type = func.type_signature
@@ -579,7 +603,7 @@ class Typer(UzaASTVisitor):
             raise TypeError(
                 in_color(
                     "\n"
-                    + Span.from_list(app.args).get_underlined(
+                    + Span.from_list(app.args, app.span).get_underlined(
                         f"Expected {param_count} arguments but found {arg_count}"
                     ),
                     ANSIColor.RED,

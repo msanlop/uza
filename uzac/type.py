@@ -133,6 +133,27 @@ class ArrowType(Type):
     param_types: list[Type]
     return_type: Type
 
+    has_generic_param: bool = field(init=False, default=False)
+    """only supports first param as generic, for 'class' instance methods"""
+
+    def __post_init__(self):
+        b = len(self.param_types) and self.param_types[0].is_generic_type()
+        if b:
+            object.__setattr__(self, "has_generic_param", True)
+
+    def with_generic_argument(self, arg: Type):
+        """
+        Returns the type with the generic type with a parameter of type `arg`.
+        """
+        params = [*self.param_types]
+        new_params = []
+        if len(params) > 0:
+            new_params = [params[0].with_argument(arg)] + params[1:]
+        ret = self.return_type
+        if ret.is_generic_type():
+            ret = ret.with_argument(arg)
+        return ArrowType(new_params, ret)
+
     def __str__(self) -> str:
         return f"({', '.join((str(p) for p in self.param_types))}) -> {str(self.return_type)}"
 
@@ -175,6 +196,9 @@ class GenericType(Type):
     base_type: Type
     param_type: Type
 
+    def __post_init__(self):
+        assert not isinstance(self.base_type, self.__class__)
+
     def is_generic_type(self):
         return True
 
@@ -182,7 +206,8 @@ class GenericType(Type):
         return self
 
     def with_argument(self, t: Type):
-        return GenericType(self.base_type, t)
+        base = self.base_type
+        return GenericType(base, t)
 
     def __str__(self):
         return f"{str(self.base_type)}<{str(self.param_type)}>"
@@ -217,9 +242,10 @@ type_void = BuiltInType("nil")
 # See GenericArgument docstring
 type_generic_meta = GenericArgument()
 
-type_list = GenericType(BuiltInType("List"), GenericArgument())
-type_list_int = GenericType(BuiltInType("List"), type_int)
-type_list_float = GenericType(BuiltInType("List"), type_float)
+type_list_class = BuiltInType("List")
+type_list = GenericType(type_list_class, GenericArgument())
+type_list_int = GenericType(type_list_class, type_int)
+type_list_float = GenericType(type_list_class, type_float)
 
 
 __python_to_uza = {
