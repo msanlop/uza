@@ -7,45 +7,57 @@ from uzac.interpreter import Interpreter
 from uzac.parser import Parser
 from uzac.typer import Typer, TyperDiagnostic
 from uzac.utils import ANSIColor, in_color
-from vm.main import run_vm
-
-
-class DriverConfiguration(Enum):
-    PARSE = auto()
-    TYPECHECK = auto()
-    INTERPRET = auto()
-    INTERPRET_BYTECODE = auto()
-    COMPILE = auto()
+from vm.main import run_vm, run_vm_code
 
 
 class Driver:
+    class Configuration(Enum):
+        PARSE = auto()
+        TYPECHECK = auto()
+        INTERPRET = auto()
+        INTERPRET_BYTECODE = auto()
+        COMPILE = auto()
+
     @staticmethod
     def run_with_config(
-        source: str,
-        config: DriverConfiguration,
+        config: Configuration,
+        source: str = "",
+        byte_code: bytes | None = None,
+        output_file: str | None = None,
         verbose=False,
         omit_typechecking=False,
         err=sys.stderr,
     ) -> int:
+        if byte_code != None:
+            return run_vm_code(byte_code)
+
         prog = Driver.__parse(source=source, verbose=verbose, err=err)
-        if config == DriverConfiguration.PARSE or prog.errors > 0:
+        if config == Driver.Configuration.PARSE or prog.errors > 0:
             return prog.errors
 
         if not omit_typechecking:
-            assert config != DriverConfiguration.TYPECHECK
+            assert config != Driver.Configuration.TYPECHECK
             diag = Driver.__typecheck(prog, verbose=verbose, err=err)
 
-        if config == DriverConfiguration.TYPECHECK or diag.error_count > 0:
+        if config == Driver.Configuration.TYPECHECK or diag.error_count > 0:
             return diag.error_count
 
-        if config == DriverConfiguration.INTERPRET:
+        if config == Driver.Configuration.INTERPRET:
             return Driver.__interpret(prog, verbose=verbose, err=err)
 
         byte_code_serializer = Driver.__compile(prog, verbose=verbose, err=err)
-        if config == DriverConfiguration.COMPILE:
-            return 1
+        if config == Driver.Configuration.COMPILE:
+            try:
+                assert output_file
+                with open(output_file, "wb") as file:
+                    wc = file.write(byte_code_serializer.get_bytes())
+                    print(f"Wrote {wc} bytes to {output_file}", file=err)
+            except OSError as e:
+                print(f"Error: {e.strerror}", file=err)
+                return 1
+            return 0
 
-        if config == DriverConfiguration.INTERPRET_BYTECODE:
+        if config == Driver.Configuration.INTERPRET_BYTECODE:
             return Driver.__interpret_bytecode(byte_code_serializer)
 
         return 1

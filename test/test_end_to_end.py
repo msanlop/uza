@@ -1,6 +1,6 @@
 import pytest
 
-from uzac.driver import Driver, DriverConfiguration
+from uzac.driver import Driver
 from uzac.interpreter import Interpreter
 from uzac.parser import Parser
 from uzac.typer import Typer
@@ -13,7 +13,7 @@ import os
 )
 def test_end_to_end(description, code, expected_output, capsys):
     try:
-        res = Driver.run_with_config(code, DriverConfiguration.INTERPRET)
+        res = Driver.run_with_config(Driver.Configuration.INTERPRET, source=code)
         assert res == 0
     except Exception as e:
         pytest.fail(

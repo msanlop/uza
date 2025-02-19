@@ -5,7 +5,7 @@ from sys import stderr, stdin
 import sys  # sys.exit conflict with exit?
 from typing import Sequence
 
-from uzac.driver import Driver, DriverConfiguration
+from uzac.driver import Driver
 from uzac.utils import ANSIColor, in_color
 
 from uzac.typer import Typer, TyperDiagnostic
@@ -14,6 +14,8 @@ from uzac.parser import Parser
 from uzac.interpreter import Interpreter
 
 from vm.main import run_vm
+
+FILE_SUFFIX = ".uzb"
 
 
 def main(argv: Sequence[str] = None) -> int:
@@ -58,7 +60,7 @@ def main(argv: Sequence[str] = None) -> int:
         type=str,
         metavar="OUTPUT",
         nargs="?",
-        const="output_file",
+        const="",
         help="Compile the source file with optional output file location and name",
     )
     action_group.add_argument(
@@ -98,15 +100,22 @@ def main(argv: Sequence[str] = None) -> int:
     if args.source and args.file:
         print("Cannot use -i and pass a source file at the same time", file=stderr)
         return 1
-    source = ""
+
+    source: str = ""
+    code: bytes | None = None
     if piped_input:
         source = piped_input
     elif args.source:
         source = args.source
     elif args.file:
+        mode = "r"
         try:
-            with open(args.file, "r", encoding="ascii") as file:
-                source = file.read()
+            if args.file.endswith(".uzb"):
+                with open(args.file, "rb") as file:
+                    code = file.read()
+            else:
+                with open(args.file, "r", encoding="ascii") as file:
+                    source = file.read()
         except UnicodeDecodeError as e:
             print(e, file=sys.stderr)
             if "range(128)" in e.reason:
@@ -117,26 +126,47 @@ def main(argv: Sequence[str] = None) -> int:
                     )
                 )
             return 1
+        except FileNotFoundError as e:
+            print(
+                in_color(f"Error: {e.strerror} : '{args.file}'", ANSIColor.RED),
+                file=sys.stderr,
+            )
     else:
         parser.print_usage()
         print("\nerror: Provide a source file or source code")
         return 1
 
+    out = None
     if args.parse:
-        config = DriverConfiguration.PARSE
+        config = Driver.Configuration.PARSE
     elif args.typecheck:
-        config = DriverConfiguration.TYPECHECK
+        config = Driver.Configuration.TYPECHECK
     elif args.interpret:
-        config = DriverConfiguration.INTERPRET
-    elif args.compile:
-        config = DriverConfiguration.COMPILE
+        config = Driver.Configuration.INTERPRET
+    elif args.compile is not None:
+        config = Driver.Configuration.COMPILE
+        out = args.compile
+        if out == "":
+            f = args.file
+            out = pathlib.Path(f).stem + FILE_SUFFIX
+        else:
+            if pathlib.Path(out).suffix == "":
+                out += FILE_SUFFIX
+            else:
+                out = pathlib.Path(out).stem + FILE_SUFFIX
+                print(in_color(f"using {out}", ANSIColor.PURPLE))
     else:
-        config = DriverConfiguration.INTERPRET_BYTECODE
+        config = Driver.Configuration.INTERPRET_BYTECODE
 
     skip_tc = True if args.notypechecking else False
 
     return Driver.run_with_config(
-        source, config, verbose=verbose, omit_typechecking=skip_tc
+        config,
+        source,
+        code,
+        output_file=out,
+        verbose=verbose,
+        omit_typechecking=skip_tc,
     )
 
 
