@@ -763,9 +763,9 @@ class ByteCodeProgramSerializer:
                 offset_bytes = struct.pack("<H", opcode.jump_offset)
                 written += self.__write(offset_bytes)
 
-            assert (
-                written == opcode.size
-            ), f"For {opcode=}\n exepected it to be {opcode.size} in size but wrote {written} instead"
+            assert written == opcode.size, (
+                f"For {opcode=}\n exepected it to be {opcode.size} in size but wrote {written} instead"
+            )
             written = 0
 
         for opcode in code:
