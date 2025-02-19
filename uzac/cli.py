@@ -5,6 +5,7 @@ from sys import stderr, stdin
 import sys  # sys.exit conflict with exit?
 from typing import Sequence
 
+from uzac.driver import Driver
 from uzac.utils import ANSIColor, in_color
 
 from uzac.typer import Typer, TyperDiagnostic
@@ -13,6 +14,8 @@ from uzac.parser import Parser
 from uzac.interpreter import Interpreter
 
 from vm.main import run_vm
+
+FILE_SUFFIX = ".uzb"
 
 
 def main(argv: Sequence[str] = None) -> int:
@@ -51,18 +54,18 @@ def main(argv: Sequence[str] = None) -> int:
         action="store_true",
         help="Typecheck the program",
     )
-    # action_group.add_argument(
-    #     "-c",
-    #     "--compile",
-    #     type=str,
-    #     metavar="OUTPUT",
-    #     nargs="?",
-    #     const="output_file",
-    #     help="Compile the source file with optional output file location and name",
-    # )
-    # action_group.add_argument(
-    #     "-o", "--output", type=str, help="Choose bytecode path target and run"
-    # )
+    action_group.add_argument(
+        "-c",
+        "--compile",
+        type=str,
+        metavar="OUTPUT",
+        nargs="?",
+        const="",
+        help="Compile the source file with optional output file location and name",
+    )
+    action_group.add_argument(
+        "-o", "--output", type=str, help="Choose bytecode path target and run"
+    )
 
     # If no options are provided, it should default to running the file
     parser.add_argument(
@@ -77,6 +80,8 @@ def main(argv: Sequence[str] = None) -> int:
         args = parser.parse_args(args=argv)
     else:
         args = parser.parse_args()
+
+    verbose = args.verbose
 
     piped_input = None
     # argv is used for testing, do not read stdin then
@@ -95,15 +100,22 @@ def main(argv: Sequence[str] = None) -> int:
     if args.source and args.file:
         print("Cannot use -i and pass a source file at the same time", file=stderr)
         return 1
-    source = ""
+
+    source: str = ""
+    code: bytes | None = None
     if piped_input:
         source = piped_input
     elif args.source:
         source = args.source
     elif args.file:
+        mode = "r"
         try:
-            with open(args.file, "r", encoding="ascii") as file:
-                source = file.read()
+            if args.file.endswith(".uzb"):
+                with open(args.file, "rb") as file:
+                    code = file.read()
+            else:
+                with open(args.file, "r", encoding="ascii") as file:
+                    source = file.read()
         except UnicodeDecodeError as e:
             print(e, file=sys.stderr)
             if "range(128)" in e.reason:
@@ -114,76 +126,48 @@ def main(argv: Sequence[str] = None) -> int:
                     )
                 )
             return 1
+        except FileNotFoundError as e:
+            print(
+                in_color(f"Error: {e.strerror} : '{args.file}'", ANSIColor.RED),
+                file=sys.stderr,
+            )
     else:
         parser.print_usage()
         print("\nerror: Provide a source file or source code")
         return 1
 
-    program = Parser(source).parse()
-    if args.verbose:
-        print(in_color("\n### ast ###\n", ANSIColor.YELLOW), file=stderr)
-        for _, node in enumerate(program.syntax_tree.lines):
-            print(
-                node.span.start, end=": ", file=stderr
-            )  # TODO: use line instead of codepoint
-            pprint(node, stream=stderr, underscore_numbers=True, compact=False)
-
-    if program.errors > 0:
-        for node in program.failed_nodes:
-            print(node.error_message, file=stderr)
-        return program.errors
-
+    out = None
     if args.parse:
-        return 0
+        config = Driver.Configuration.PARSE
+    elif args.typecheck:
+        config = Driver.Configuration.TYPECHECK
+    elif args.interpret:
+        config = Driver.Configuration.INTERPRET
+    elif args.compile is not None:
+        config = Driver.Configuration.COMPILE
+        out = args.compile
+        if out == "":
+            f = args.file
+            out = pathlib.Path(f).stem + FILE_SUFFIX
+        else:
+            if pathlib.Path(out).suffix == "":
+                out += FILE_SUFFIX
+            else:
+                out = pathlib.Path(out).stem + FILE_SUFFIX
+                print(in_color(f"using {out}", ANSIColor.PURPLE))
+    else:
+        config = Driver.Configuration.INTERPRET_BYTECODE
 
-    if not args.notypechecking:
-        typer_res: TyperDiagnostic = Typer(program).typecheck_program()
-        if args.verbose:
-            print(in_color("\n### inferred types ###", ANSIColor.YELLOW), file=stderr)
+    skip_tc = True if args.notypechecking else False
 
-            print(typer_res.substitution.pretty_string(), file=stderr)
-        if typer_res.warning_msg:
-            print(typer_res.warning_msg, file=sys.stderr)
-        if typer_res.error_msg != "":
-            print(typer_res.error_msg, file=stderr)
-        if args.typecheck or typer_res.error_count > 0:
-            return typer_res.error_count
-
-    if args.interpret:
-        out = Interpreter(program).evaluate()
-        if out and isinstance(out, int):
-            return out
-        return 0
-
-    # path = pathlib.Path("./")
-    # if args.compile:
-    #     path = pathlib.Path(args.compile)
-    # elif args.output:
-    #     path = pathlib.Path(args.output)
-    # else:
-    #     path = pathlib.Path("./target/out.uzo")
-
-    # path.parent.mkdir(parents=True, exist_ok=True)
-    serializer = ByteCodeProgramSerializer(ByteCodeProgram(program))
-    bytes_ = serializer.get_bytes()
-    if args.verbose:
-        print(in_color("### generated constants ###)", ANSIColor.YELLOW), file=stderr)
-        for chunk in serializer.program.chunks:
-            for constant in chunk.constants:
-                pprint(constant, stream=stderr)
-        print(in_color("### generated bytecode ###)", ANSIColor.YELLOW), file=stderr)
-        for chunk in serializer.program.chunks:
-            print(f"Chunk: {chunk.name}", file=sys.stderr)
-            pprint(chunk.code, stream=stderr)
-    written = 0
-    # with open(path, "w+b") as file:
-    #     written = file.write(bytes_)
-
-    # if args.compile:
-    #     print(f"Wrote {written} bytes to {path}")
-    #     return 0
-
-    return run_vm(serializer)
+    return Driver.run_with_config(
+        config,
+        source,
+        code,
+        output_file=out,
+        verbose=verbose,
+        omit_typechecking=skip_tc,
+    )
 
 
 if __name__ == "__main__":

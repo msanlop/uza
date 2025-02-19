@@ -31,15 +31,30 @@ vm_.run_vm.argtypes = (ctypes.c_int, ctypes.c_char_p)
 
 def run_vm(program: ByteCodeProgramSerializer):
     """
+    Runs the vm with the given bytecode program.
+
+    Args:
+        num_bytes (int): size of bytes
+        program (ByteCodeProgramSerializer): bytecode program
+
+    Returns:
+        int: vm return code
+    """
+    code = program.get_bytes()
+    byte_buff = ctypes.create_string_buffer(code)
+    return vm_.run_vm(ctypes.c_int(len(code)), byte_buff)
+
+
+def run_vm_code(code: bytes):
+    """
     Runs the vm with the given bytecode.
 
     Args:
         num_bytes (int): size of bytes
-        code (bytes): _description_
+        code (bytes): bytecode
 
     Returns:
-        _type_: _description_
+        int: vm return code
     """
-    code = program.get_bytes()
     byte_buff = ctypes.create_string_buffer(code)
     return vm_.run_vm(ctypes.c_int(len(code)), byte_buff)
