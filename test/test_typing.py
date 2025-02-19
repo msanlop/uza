@@ -1,6 +1,7 @@
 import pytest
 from uzac.typer import Typer
 from uzac.parser import Parser
+from uzac.utils import UzaTypeError
 
 
 def test_add_int_float():
@@ -105,7 +106,7 @@ def test_fail_on_generic_decl_without_type():
     const foo = List()
     println(foo)
     """
-    with pytest.raises(TypeError):
+    with pytest.raises(UzaTypeError):
         typer = Typer(Parser(source).parse())
         typer.typecheck_program()
 

@@ -210,3 +210,27 @@ class SymbolTable:
 
     def __exit__(self, type, value, traceback):
         self.pop_frame()
+
+
+@dataclass
+class UzaException(Exception):
+    span: Span
+    message_underline: str
+
+    def get_error_message(self):
+        prefix = in_color(in_bold(self.__class__.__name__), ANSIColor.RED)
+        return self.span.get_underlined(
+            prefix + in_color(f": {self.message_underline}", ANSIColor.RED)
+        )
+
+
+class UzaSyntaxError(UzaException):
+    pass
+
+
+class UzaNameError(UzaException):
+    pass
+
+
+class UzaTypeError(UzaException):
+    pass

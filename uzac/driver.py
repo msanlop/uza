@@ -6,7 +6,7 @@ from uzac.bytecode import ByteCodeProgram, ByteCodeProgramSerializer
 from uzac.interpreter import Interpreter
 from uzac.parser import Parser
 from uzac.typer import Typer, TyperDiagnostic
-from uzac.utils import ANSIColor, in_color
+from uzac.utils import ANSIColor, UzaException, in_color
 from vm.main import run_vm, run_vm_code
 
 
@@ -28,37 +28,41 @@ class Driver:
         omit_typechecking=False,
         err=sys.stderr,
     ) -> int:
-        if byte_code != None:
-            return run_vm_code(byte_code)
+        try:
+            if byte_code != None:
+                return run_vm_code(byte_code)
 
-        prog = Driver.__parse(source=source, verbose=verbose, err=err)
-        if config == Driver.Configuration.PARSE or prog.errors > 0:
-            return prog.errors
+            prog = Driver.__parse(source=source, verbose=verbose, err=err)
+            if config == Driver.Configuration.PARSE or prog.errors > 0:
+                return prog.errors
 
-        if not omit_typechecking:
-            assert config != Driver.Configuration.TYPECHECK
-            diag = Driver.__typecheck(prog, verbose=verbose, err=err)
+            if not omit_typechecking:
+                assert config != Driver.Configuration.TYPECHECK
+                diag = Driver.__typecheck(prog, verbose=verbose, err=err)
 
-        if config == Driver.Configuration.TYPECHECK or diag.error_count > 0:
-            return diag.error_count
+            if config == Driver.Configuration.TYPECHECK or diag.error_count > 0:
+                return diag.error_count
 
-        if config == Driver.Configuration.INTERPRET:
-            return Driver.__interpret(prog, verbose=verbose, err=err)
+            if config == Driver.Configuration.INTERPRET:
+                return Driver.__interpret(prog, verbose=verbose, err=err)
 
-        byte_code_serializer = Driver.__compile(prog, verbose=verbose, err=err)
-        if config == Driver.Configuration.COMPILE:
-            try:
-                assert output_file
-                with open(output_file, "wb") as file:
-                    wc = file.write(byte_code_serializer.get_bytes())
-                    print(f"Wrote {wc} bytes to {output_file}", file=err)
-            except OSError as e:
-                print(f"Error: {e.strerror}", file=err)
-                return 1
-            return 0
+            byte_code_serializer = Driver.__compile(prog, verbose=verbose, err=err)
+            if config == Driver.Configuration.COMPILE:
+                try:
+                    assert output_file
+                    with open(output_file, "wb") as file:
+                        wc = file.write(byte_code_serializer.get_bytes())
+                        print(f"Wrote {wc} bytes to {output_file}", file=err)
+                except OSError as e:
+                    print(f"Error: {e.strerror}", file=err)
+                    return 1
+                return 0
 
-        if config == Driver.Configuration.INTERPRET_BYTECODE:
-            return Driver.__interpret_bytecode(byte_code_serializer)
+            if config == Driver.Configuration.INTERPRET_BYTECODE:
+                return Driver.__interpret_bytecode(byte_code_serializer)
+
+        except UzaException as e:
+            print(e.get_error_message(), file=err)
 
         return 1
 
@@ -87,8 +91,8 @@ class Driver:
             print(typer_res.substitution.pretty_string(), file=err)
         if typer_res.warning_msg:
             print(typer_res.warning_msg, file=sys.stderr)
-        if typer_res.error_msg != "":
-            print(typer_res.error_msg, file=err)
+        for e in typer_res.errors:
+            print(e.get_error_message(), file=err)
 
         return typer_res
 
