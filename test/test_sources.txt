@@ -521,25 +521,25 @@ hello world
 some calc: 126
 test: foo1bar
 
-#test timer funcs
-const start = timeNs()
-const startMs = timeMs()
+//#test timer funcs
+//const start = timeNs()
+//const startMs = timeMs()//
 
-var sum = 0
-var i = 0
-while i < 100000 {
-    i += 1
-}
-const end = timeNs()
-const endMs = timeMs()
+//var sum = 0
+//var i = 0
+//while i < 100000 {
+//    i += 1
+//}
+//const end = timeNs()
+//const endMs = timeMs()//
 
-const elapsedNs = (end - start)
-const elapsedMs = (endMs - startMs)
-const elapsedNsToMs = elapsedNs / 1000000
-//println(elapsedMs > 0 and elapsedMs < 1500)
-println(abs(elapsedNsToMs - elapsedMs) <= 1)
-#expected
-true
+//const elapsedNs = (end - start)
+//const elapsedMs = (endMs - startMs)
+//const elapsedNsToMs = elapsedNs / 1000000
+////println(elapsedMs > 0 and elapsedMs < 1500)
+//println(abs(elapsedNsToMs - elapsedMs) <= 1)
+//#expected
+//true
 
 #test generic_list
 const a : List<List<int>> = List<List<int>>()

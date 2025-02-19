@@ -47,28 +47,34 @@ void native_list_construct(void) {
 }
 
 void native_list_append(void) {
-  Value val = pop();
-  Value list = PEEK(vm);
+  Value val = PEEK_AT(0);
+  Value list = PEEK_AT(1);
   value_array_write(&AS_LIST(list)->list, val);
-  pop();
+  POP_COUNT(2);
 }
 
 void native_len(void) {
-  Value val = pop();
+  Value res = VAL_NIL;
+
+  Value val = PEEK(vm);
   if (IS_LIST(val)) {
-    push(VAL_INT(AS_LIST(val)->list.count));
+    res = (VAL_INT(AS_LIST(val)->list.count));
   } else if (IS_STRING(val)) {
-    push(VAL_INT(AS_STRING(val)->length));
+    res = (VAL_INT(AS_STRING(val)->length));
   } else {
     PRINT_ERR("Called len on invalid value.");
     exit(1);
   }
+  POP_COUNT(1);
+  push(res);
 }
 
 void native_get(void) {
-  Value index = pop();
+  Value res = VAL_NIL;
+
+  Value index = PEEK_AT(0);
   int i = index.as.integer;
-  Value val = pop();
+  Value val = PEEK_AT(1);
   if (IS_LIST(val)) {
     int list_count = AS_LIST(val)->list.count;
     if (i >= list_count) {
@@ -79,7 +85,7 @@ void native_get(void) {
     if (i < 0) {
       i = (i % list_count + list_count) % list_count;
     }
-    push((AS_LIST(val)->list.values[i]));
+    res = ((AS_LIST(val)->list.values[i]));
   } else if (IS_STRING(val)) {
     int string_len = AS_STRING(val)->length;
     if (i >= string_len) {
@@ -92,18 +98,22 @@ void native_get(void) {
     }
     ObjectString *character =
         object_string_allocate(&vm.strings, &AS_STRING(val)->chars[i], 1);
-    push(VAL_OBJ(character));
+    res = (VAL_OBJ(character));
   } else {
     PRINT_ERR("Called get on invalid value.");
     exit(1);
   }
+  POP_COUNT(2);
+  push(res);
 }
 
 void native_set(void) {
-  Value new_val = pop();
-  Value index = pop();
+  Value res = VAL_NIL;
+
+  Value new_val = PEEK_AT(0);
+  Value index = PEEK_AT(1);
   int i = index.as.integer;
-  Value val = pop();
+  Value val = PEEK_AT(2);
   if (IS_LIST(val)) {
     if (i >= AS_LIST(val)->list.count) {
       PRINT_ERR_ARGS("Index out of bounds: %d for list of size %d.", i,
@@ -116,12 +126,15 @@ void native_set(void) {
     PRINT_ERR("Called get on invalid value.");
     exit(1);
   }
+  POP_COUNT(3);
 }
 
 void native_substring(void) {
-  Value end_val = pop();
-  Value start_val = pop();
-  Value val = pop();
+  Value res = VAL_NIL;
+
+  Value end_val = PEEK_AT(0);
+  Value start_val = PEEK_AT(1);
+  Value val = PEEK_AT(2);
   int start = start_val.as.integer;
   int end = end_val.as.integer;
   if (IS_STRING(val)) {
@@ -137,11 +150,13 @@ void native_substring(void) {
     }
     ObjectString *character = object_string_allocate(
         &vm.strings, &AS_STRING(val)->chars[start], end - start);
-    push(VAL_OBJ(character));
+    res = (VAL_OBJ(character));
   } else {
     PRINT_ERR("Called do substring on invalid value.");
     exit(1);
   }
+  POP_COUNT(3);
+  push(res);
 }
 
 static int asc_cmp(const void *a, const void *b) {

@@ -39,6 +39,13 @@ typedef struct {
 } VM;
 
 #define PEEK(vm) (*(vm.stack_top - 1))
+#define PEEK_AT(spot) (*(vm.stack_top - 1 - spot))
+#define POP_COUNT(n)                                                           \
+  do {                                                                         \
+    for (size_t i = 0; i < n; i++) {                                           \
+      pop();                                                                   \
+    }                                                                          \
+  } while (0);
 
 extern VM vm;
 extern bool enable_garbage_collection;
