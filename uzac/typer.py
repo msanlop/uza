@@ -24,7 +24,7 @@ from uzac.ast import (
     WhileLoop,
 )
 from uzac.interpreter import *
-from uzac.utils import in_bold, in_color, ANSIColor
+from uzac.utils import UzaException, UzaTypeError, in_bold, in_color, ANSIColor
 from uzac.builtins import get_builtin
 
 
@@ -115,9 +115,11 @@ class IncompleteBranchType(Type):
         return self.complete(that)
 
 
+@dataclass
 class Constraint(ABC):
     span: Span
-    substitution: Substitution
+    substitution: Substitution = field(init=False, default=None)
+    _errs: List[UzaException] = field(init=False, default_factory=lambda: list())
     SOLVE_FAIL = (False, None)
     SOLVE_SUCCEED = (True, None)
     SOLVE_OPTIONS = lambda o: (False, o)
@@ -145,14 +147,13 @@ class Constraint(ABC):
         """
         raise NotImplementedError(f"<solve> not implemented for {self}")
 
-    def fail_message(self) -> str:
+    def errors(self) -> List[UzaException]:
         """
-        Returns the failed message for previous __solve()_ try. This method is
-        stateful!
-        If called before __solve()_ it might have self.substitution = None. And some
-        implementations generate the message while solving.
+        Returns the list of errors for previous __solve()_ attempt.
         """
-        raise NotImplementedError(f"<fail_message> not implemented for {self}")
+        raise NotImplementedError(
+            f"<{self.errors.__name__}> not implemented for {self}"
+        )
 
 
 @dataclass
@@ -163,15 +164,13 @@ class IsType(Constraint):
 
     a: Type
     b: Type
-    span: Span
-    substitution: Substitution = field(default=None)
 
     def __solve_generic(
         self, a: Type, b: GenericType, sub: Substitution
     ) -> tuple[Type, Optional[Substitution]]:
         match (a, b.param_type):
             case (SymbolicType(), NonInferableType()):
-                raise TypeError("\n" + self.span.get_underlined(f"Cannot infer type"))
+                raise UzaTypeError(self.span, f"Cannot infer type")
             case (_, NonInferableType()):
                 return Constraint.SOLVE_SUCCEED
 
@@ -179,7 +178,7 @@ class IsType(Constraint):
             case GenericType(base, param):
                 if not Type.matches(base, b.base_type):
                     return Constraint.SOLVE_FAIL
-                return IsType(param, b.param_type, self.span).solve(sub)
+                return IsType(self.span, param, b.param_type).solve(sub)
             case SymbolicType():
                 return False, [Substitution({a: b})]
             case _:
@@ -197,14 +196,16 @@ class IsType(Constraint):
             return False, [substitution + (self.a, self.b)]
         return Constraint.SOLVE_FAIL
 
-    def fail_message(self) -> str:
+    def errors(self) -> List[UzaException]:
         type_b = self.b.resolve_type(self.substitution)
         type_a = self.a.resolve_type(self.substitution)
-        source = self.span.get_underlined(
-            error_message=f" Error: Expected type '{type_b}' but found '{type_a}'",
-            padding=len("at "),
-        )
-        return f"at {source}\n"
+        self._errs = [
+            UzaTypeError(
+                self.span,
+                f"Expected type '{type_b}' but found '{type_a}'",
+            )
+        ]
+        return self._errs
 
 
 @dataclass
@@ -223,8 +224,6 @@ class IsSubType(Constraint):
 
     a: Type
     b: UnionType
-    span: Span
-    substitution: Substitution = field(default=None)
 
     def solve(self, substitution: Substitution):
         self.substitution = substitution
@@ -238,14 +237,16 @@ class IsSubType(Constraint):
                 return Constraint.SOLVE_SUCCEED
         return False, (substitution + (self.a, t) for t in types_b)
 
-    def fail_message(self) -> str:
+    def errors(self) -> List[UzaException]:
         type_a = self.a.resolve_type(self.substitution)
         type_b = UnionType(t.resolve_type(self.substitution) for t in self.b.types)
-        source = self.span.get_underlined(
-            error_message=f" Error: Expected type '{type_b}' but found '{type_a}'",
-            padding=len("at "),
-        )
-        return f"at {source}\n"
+        self._errs = [
+            UzaTypeError(
+                self.span,
+                f"Expected type '{type_b}' but found '{type_a}'",
+            )
+        ]
+        return self._errs
 
 
 @dataclass
@@ -258,11 +259,8 @@ class Applies(Constraint):
     ret_type: Type
     args_span: list[Span]
     b: ArrowType
-    span: Span  # TODO: change args to have more precise span to the argument
     generic_typevar: Optional[SymbolicType] = field(default=None)
-    substitution: Substitution = field(default=None)
     __args_num_incorrect: Optional[tuple[int]] = field(default=None)
-    __err_msgs: Optional[str] = field(default=None)
 
     def __solve_generic_args(
         self, generics_set: dict[Type, bool], sub: Substitution
@@ -288,8 +286,11 @@ class Applies(Constraint):
                 t1 = a.param_type
 
             if not Type.matches(t1, t2) and not (t1.is_symbolic() or t2.is_symbolic()):
-                self.__err_msgs += self.span.get_underlined(
-                    f"Argument type does not match for generic function: '{a}' and '{b}'"
+                self._errs.append(
+                    UzaTypeError(
+                        self.span,
+                        f"Argument type `{b}` does not match for generic function of type `{a}`",
+                    )
                 )
                 return Constraint.SOLVE_FAIL
             sub += (a, b)
@@ -325,23 +326,23 @@ class Applies(Constraint):
                 solved = False
                 if not a.is_symbolic():
                     type_str = str(self.b)
-                    self.__err_msgs += (
-                        f"for function type: {in_color(type_str, ANSIColor.GREEN)}\nat "
+                    err = UzaTypeError(
+                        span,
+                        f"""Expected {type_b} but found {type_a}
+                        for function type: {in_color(type_str, ANSIColor.GREEN)}""",
                     )
-                    self.__err_msgs += span.get_underlined(
-                        f"Expected {type_b} but found {type_a}", len("at ")
-                    )
+                    self._errs.append(err)
                     fatal = True
                     continue
                 sub_type = substitution.get_type_of(a)
                 if sub_type is not None and (not sub_type.is_symbolic()):
                     type_str = str(self.b)
-                    self.__err_msgs += (
-                        f"for function type: {in_color(type_str, ANSIColor.GREEN)}\nat "
+                    err = UzaTypeError(
+                        span,
+                        f"""Expected {type_b} but found {type_a}
+                            for function type: {in_color(type_str, ANSIColor.GREEN)}""",
                     )
-                    self.__err_msgs += span.get_underlined(
-                        f"Expected {type_b} but found {type_a}", len("at ")
-                    )
+                    self._errs.append(err)
                     fatal = True
                 option = option + (a, b)
 
@@ -361,14 +362,14 @@ class Applies(Constraint):
             return True, option
         return False, [option]
 
-    def fail_message(self) -> str:
+    def errors(self) -> List[UzaException]:
         if self.__args_num_incorrect:
             args, params = self.__args_num_incorrect
-            return self.span.get_underlined(
-                f"Expected {params} arguments but found {args}"
+            self._errs.append(
+                UzaTypeError(self.span, f"Expected {params} arguments but found {args}")
             )
 
-        return self.__err_msgs
+        return self._errs
 
 
 @dataclass
@@ -378,9 +379,6 @@ class OneOf(Constraint):
     """
 
     choices: List[Constraint]
-    span: Span
-    substitution: Substitution = field(default=None)
-    __a_solved: list[bool] = field(default=None)
 
     def solve(
         self, substitution: Substitution
@@ -402,11 +400,17 @@ class OneOf(Constraint):
             )
         return False, choices_options
 
-    def fail_message(self) -> str:
-        fails_msgs = (c.fail_message() for c in self.choices)
-        line = "-" * 50
-        msg = f"\n{line}\n{in_bold('or:')} \n".join(fails_msgs)
-        return f"{in_bold('None of the following hold:')} \n{msg}"
+    def errors(self) -> List[UzaException]:
+        self._errs = []
+        for c in self.choices:
+            self._errs += c.errors()
+        err = UzaTypeError(
+            self.span,
+            in_bold("No function overeload found")
+            + "\n (possible function signatures are shown in green)",
+        )
+        self._errs.append(err)
+        return self._errs
 
 
 # the return type of a tree node. If equal to type_node then either no Return nodes
@@ -422,7 +426,7 @@ class TyperDiagnostic:
     """
 
     error_count: int
-    error_msg: str
+    errors: List[UzaTypeError]
     warning_msg: str
     substitution: Optional[Substitution]
 
@@ -442,7 +446,7 @@ class Typer(UzaASTVisitor):
 
         self.__symbol_gen = count()
         self.substitution = Substitution({})
-        self.__error_strings: list[str] = []
+        self.__errors: list[UzaTypeError] = []
         self.__warnings: list[str] = []
 
     def __create_new_symbol(self, span: Span):
@@ -469,7 +473,7 @@ class Typer(UzaASTVisitor):
     def visit_return(self, ret: Return) -> tuple[Type, NodeAlwaysReturns]:
         ret_type, _ = ret.value.visit(self)
         self.add_constaint(
-            IsReturnType(ret_type, self.__functions.get("__func_ret_type"), ret.span)
+            IsReturnType(ret.span, ret_type, self.__functions.get("__func_ret_type"))
         )
         return type_void, True
 
@@ -482,13 +486,11 @@ class Typer(UzaASTVisitor):
                 self.__symbol_table.define(ident.name, (type_, False))
             _, body_ret = func.body.visit(self)
             if f_signature.return_type != type_void and not body_ret:
-                err = func.span.get_underlined(
-                    in_color(
-                        f" Warning: function branches might not always return '{f_signature.return_type}'",
-                        ANSIColor.RED,
-                    )
+                err = UzaTypeError(
+                    func.span,
+                    f" Warning: function branches might not always return '{f_signature.return_type}'",
                 )
-                self.__error_strings.append(err)
+                self.__errors.append(err)
 
         return f_signature.return_type, False
 
@@ -510,28 +512,28 @@ class Typer(UzaASTVisitor):
             for signature in signatures:
                 constraints.append(
                     Applies(
+                        Span.from_list(
+                            arguments,
+                        ),
                         list(arg_types),
                         overload_func_ret,
                         [arg.span for arg in arguments],
                         signature,
-                        Span.from_list(
-                            arguments,
-                        ),
                     )
                 )
             self.add_constaint(
-                OneOf(constraints, Span.from_list(arguments, empty_case=span_zero))
+                OneOf(Span.from_list(arguments, empty_case=span_zero), constraints)
             )
             return overload_func_ret, False
         else:
             func_type = signatures[0]
             self.add_constaint(
                 Applies(
+                    Span.from_list(arguments, empty_case=span_zero),
                     list(arg_types),
                     func_type.return_type,
                     [arg.span for arg in arguments],
                     func_type,
-                    Span.from_list(arguments, empty_case=span_zero),
                 )
             )
             return func_type.return_type, False
@@ -553,7 +555,7 @@ class Typer(UzaASTVisitor):
 
     def visit_if_else(self, if_else: IfElse) -> tuple[Type, NodeAlwaysReturns]:
         pred, pred_ret = if_else.predicate.visit(self)
-        self.add_constaint(IsType(pred, type_bool, if_else.predicate.span))
+        self.add_constaint(IsType(if_else.predicate.span, pred, type_bool))
         truthy_type, truthy_returns = if_else.truthy_case.visit(self)
         if if_else.falsy_case is not None:
             falsy_type, falsy_returns = if_else.falsy_case.visit(self)
@@ -591,33 +593,26 @@ class Typer(UzaASTVisitor):
                 if app.generic_arg is not None:
                     builtin = self.__set_generic_arg(builtin, app.generic_arg)
                 else:
-                    raise TypeError(
-                        "\n" + app.span.get_underlined("Cannot infer generic type")
-                    )
+                    raise UzaTypeError(app.span, "Cannot infer generic type")
             return self.visit_builtin(builtin, *app.args, span=app.span)
         func: Function = self.__functions.get(func_id)
         func_type = func.type_signature
         arg_count = len(app.args)
         param_count = len(func_type.param_types)
         if arg_count != param_count:
-            raise TypeError(
-                in_color(
-                    "\n"
-                    + Span.from_list(app.args, app.span).get_underlined(
-                        f"Expected {param_count} arguments but found {arg_count}"
-                    ),
-                    ANSIColor.RED,
-                )
+            raise UzaTypeError(
+                Span.from_list(app.args, empty_case=app.span),
+                f"Expected {param_count} arguments but found {arg_count}",
             )
         app_types = (arg.visit(self)[0] for arg in app.args)
         for a, b, spannable in zip(app_types, func_type.param_types, app.args):
-            self.add_constaint(IsType(a, b, spannable.span))
+            self.add_constaint(IsType(spannable.span, a, b))
 
         return func_type.return_type, False
 
     def visit_var_def(self, var_def: VarDef) -> tuple[Type, NodeAlwaysReturns]:
         t = var_def.type_ if var_def.type_ else self.__create_new_symbol(var_def.span)
-        self.constaints.append(IsType(t, var_def.value.visit(self)[0], var_def.span))
+        self.constaints.append(IsType(var_def.span, t, var_def.value.visit(self)[0]))
         self.__symbol_table.define(var_def.identifier, (t, var_def.immutable))
         return type_void, False
 
@@ -625,20 +620,22 @@ class Typer(UzaASTVisitor):
         identifier = redef.identifier
         is_immutable = self.__var_is_immutable(identifier)
         if is_immutable is None:
-            err = redef.span.get_underlined(
+            err = UzaTypeError(
+                redef.span,
                 f"'{identifier}' must be declared before reassignement",
             )
-            self.__error_strings.append(err)
+            self.__errors.append(err)
         if is_immutable is True:
-            err = redef.span.get_underlined(
+            err = UzaTypeError(
+                redef.span,
                 f"cannot reassign const variable '{identifier}'",
             )
-            self.__error_strings.append(err)
+            self.__errors.append(err)
         self.add_constaint(
             IsType(
+                redef.span,
                 redef.value.visit(self)[0],
                 self.__get_type_of_identifier(redef.identifier),
-                redef.span,
             )
         )
         return type_void, False
@@ -660,7 +657,7 @@ class Typer(UzaASTVisitor):
             return self.__check_lines(scope.lines)
 
     def visit_while_loop(self, wl: WhileLoop) -> tuple[Type, NodeAlwaysReturns]:
-        self.add_constaint(IsType(wl.cond.visit(self)[0], type_bool, wl.span))
+        self.add_constaint(IsType(wl.span, wl.cond.visit(self)[0], type_bool))
         _, loop_ret = wl.loop.visit(self)
         return type_void, loop_ret
 
@@ -690,7 +687,7 @@ class Typer(UzaASTVisitor):
             if fl.init:
                 fl.init.visit(self)
             if not isinstance(fl.cond, NoOp):
-                self.add_constaint(IsType(fl.cond.visit(self)[0], type_bool, fl.span))
+                self.add_constaint(IsType(fl.span, fl.cond.visit(self)[0], type_bool))
             if fl.incr:
                 fl.incr.visit(self)
             fl.interior.visit(self)
@@ -698,7 +695,7 @@ class Typer(UzaASTVisitor):
 
     def __check_with_sub(
         self, constaints: list[Constraint], substitution: Substitution
-    ) -> tuple[int, str, Substitution]:
+    ) -> tuple[int, List[UzaTypeError], Substitution]:
         """
         Recursively try to unify the constraints with the given substitution for
         symbolic types.
@@ -709,21 +706,21 @@ class Typer(UzaASTVisitor):
         the constraints.
         """
         err = 0
-        err_string = ""  # TODO: pass lambda function instead of creating string
+        errors = []
         options = []
         idx = 0
         for idx, constraint in enumerate(constaints):
             solved, options = constraint.solve(substitution)
             match solved, options:
                 case False, None:
-                    return 1, constraint.fail_message(), substitution
+                    return 1, constraint.errors(), substitution
                 case False, options_list:
                     for option in options_list:
-                        err, err_string, new_map = self.__check_with_sub(
+                        err, errors, new_map = self.__check_with_sub(
                             constaints[idx + 1 :], option
                         )
                         if not err:
-                            return 0, "", new_map
+                            return 0, [], new_map
                     break
                 case True, sub:
                     if sub:
@@ -732,7 +729,7 @@ class Typer(UzaASTVisitor):
                         )
                         substitution = sub
 
-        return err, err_string, substitution
+        return err, errors, substitution
 
     def __check_lines(self, lines: List[Node]) -> tuple[int, str, str]:
         """
@@ -757,11 +754,11 @@ class Typer(UzaASTVisitor):
             A TyperDiagnostic
         """
         self.program.syntax_tree.visit(self)
-        errors, err_str, substitution = self.__check_with_sub(
+        error_count, errors, substitution = self.__check_with_sub(
             self.constaints, self.substitution
         )
 
-        errors += len(self.__error_strings)
-        err_str = "\n".join(self.__error_strings) + err_str
+        error_count += len(self.__errors)
+        errors += self.__errors
         warn_str = "\n".join(self.__warnings)
-        return TyperDiagnostic(errors, err_str, warn_str, substitution)
+        return TyperDiagnostic(error_count, errors, warn_str, substitution)

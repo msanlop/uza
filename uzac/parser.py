@@ -30,7 +30,14 @@ from uzac.ast import (
 )
 
 from uzac.type import ArrowType, GenericType, Type, identifier_to_uza_type
-from uzac.utils import ANSIColor, Span, SymbolTable, in_color
+from uzac.utils import (
+    ANSIColor,
+    Span,
+    SymbolTable,
+    UzaNameError,
+    UzaSyntaxError,
+    in_color,
+)
 from uzac.token import *
 from uzac import typer
 
@@ -79,6 +86,9 @@ class Scanner:
             #         rf"found \n in string literal at {self.__source[self.__start : end]}"
             #     )
             end += 1
+        if self.__overflows(end):
+            span = Span(self.__start, end, self.__source)
+            raise UzaSyntaxError(span, "Could not find closing '\"'")
         return end
 
     def __get_next_f_string_tokens(self) -> list[Token]:
@@ -117,12 +127,7 @@ class Scanner:
             char = self.__char_at(end)
             if char is None:
                 span = f_quote_tok.span + Span(None, end - 1, self.__source)
-                raise SyntaxError(
-                    "\n"
-                    + span.get_underlined(
-                        in_color("Could not find closing '\"'", ANSIColor.RED)
-                    )
-                )
+                raise UzaSyntaxError(span, "Could not find closing '\"'")
 
         if end - self.__start > 0:  # string at the end
             tokens.append(create_string_token(end))
@@ -194,14 +199,19 @@ class Scanner:
                 maybe_double_token = token_types.get(self.__source[self.__start : end])
 
             if maybe_double_token:
+                # TokenKind with 2 chars
                 type_ = maybe_double_token
                 if type_ == token_slash_slash:
                     type_ = token_comment
                     end = self.__get_next_comment()
             else:
+                # single char TokenKind
                 type_maybe = token_types.get(char)
                 if type_maybe is None:
-                    raise RuntimeError(f"could not tokenize {char} at {self.__start}")
+                    raise UzaSyntaxError(
+                        Span(self.__start, self.__start + 1, self.__source),
+                        f"Invalid syntax '{char}'",
+                    )
                 type_ = type_maybe
                 end = self.__start + 1
 
@@ -270,20 +280,29 @@ class Parser:
     def __log_error(self, error: Error):
         self.__errors += 1
 
-    def __peek(self):
+    def __peek(self, error_on_none=False):
         if len(self.__tokens) == 0:
+            if error_on_none:
+                raise UzaSyntaxError(
+                    Span(len(self.__source) - 1, len(self.__source), self.__source),
+                    "unexpected end of file",
+                )
             return None
+
+        assert self.__tokens[0] is not None
         return self.__tokens[0]
 
     def __expect(self, *type_: TokenKind, op=False) -> Token:
-        if self.__peek() is None:
-            raise RuntimeError(f"expected {type_} \n   but no more tokens left")
-
-        if op and not self.__peek().kind.is_op():
-            raise RuntimeError(f"expected operator\n    but got {self.__peek()}")
-        elif self.__peek().kind not in type_ and not op:
-            raise RuntimeError(
-                f"expected {type_}\n    but got {self.__peek()}: {self.__peek().span.get_source()}"
+        tok = self.__peek(error_on_none=True)
+        if op and not tok.kind.is_op():
+            raise UzaSyntaxError(
+                tok.span, f"Expected operator but found {tok.span.get_source()}"
+            )
+        elif tok.kind not in type_ and not op:
+            tkinds = " ".join(f"`{k.repr}`" for k in type_)
+            raise UzaSyntaxError(
+                tok.span,
+                f"Found `{tok.span.get_source()}` but expected one of: {tkinds}",
             )
 
         return self.__tokens.popleft()
@@ -387,18 +406,16 @@ class Parser:
             get_builtin(identifier) == None
             and self.__symbol_table.get(identifier) is None
         ):
-            raise NameError(
-                "\n" + identifier_tok.span.get_underlined("function is undefined")
+            raise UzaNameError(
+                identifier_tok.span, f"function `{identifier_tok.repr}` is undefined"
             )
 
     def __check_for_identifier_var(self, identifier: Identifier) -> None:
         identifier_tok = identifier.token
         if self.__symbol_table.get(identifier_tok.repr) is None:
-            raise NameError(
-                "\n"
-                + identifier_tok.span.get_underlined(
-                    "variable not defined in this scope"
-                )
+            raise UzaNameError(
+                identifier_tok.span,
+                f"variable `{identifier_tok.repr}` not defined in this scope",
             )
 
     def __get_identifier(self) -> Identifier:
@@ -488,29 +505,17 @@ class Parser:
     def __get_function_args(self) -> list[Node]:
         next_ = self.__peek()
         args: list[Node] = []
-        while next_.kind != token_paren_r:
+        while next_ is not None and next_.kind != token_paren_r:
             arg = self.__get_expr()
-            next_ = self.__peek()
+            next_ = self.__peek(error_on_none=True)
             if next_.kind == token_comma:
                 self.__expect(token_comma)
             elif next_.kind != token_paren_r:
-                # ERROR: expected comma or paren
-                # TODO: clean up error generation, or move it elsewhere
-                args.append(arg)
-                arg_string_list = []
-                for i, arg in enumerate(args):
-                    arg_string_list.append(f"arg {str(i)}:> {arg.span.get_source()}")
-
-                args = "\n\t " + in_color(
-                    "\n\t ".join(arg_string_list), ANSIColor.YELLOW
+                raise UzaSyntaxError(
+                    next_.span, f"Unexpected token while parsing function args"
                 )
-                error_msg = f"Found args [{args}]\n\n"
-                error_msg += next_.span.get_underlined(
-                    f"Expected ',' or ')' but got '{(next_.repr)}'"
-                )
-                raise SyntaxError("\n" + error_msg)
             args.append(arg)
-            next_ = self.__peek()
+            next_ = self.__peek(error_on_none=True)
 
         return args
 
@@ -640,6 +645,8 @@ class Parser:
 
     def __get_expr(self, parsing_infix=False) -> typing.Subclass[Type]:
         tok = self.__consume_white_space_and_peek()
+        if tok is None:
+            return None
 
         if tok.kind in (token_const, token_var):
             return self.__get_var_def()
@@ -695,9 +702,9 @@ class Parser:
                 self.__check_for_identifier_func(identifier)
                 self.__expect(token_paren_l)
                 arguments = self.__get_function_args()
-                paren_l_span = self.__expect(token_paren_r).span
+                paren_r_span = self.__expect(token_paren_r).span
                 if len(arguments) > 0:
-                    arguments[-1].span += paren_l_span
+                    arguments[-1].span += paren_r_span
                 func_call = Application(
                     identifier, *arguments, generic_arg=generic_param
                 )
@@ -725,10 +732,9 @@ class Parser:
             else:
                 return self.__get_infix(val)
         else:
-            source_excerp = self.__source[
-                max(tok.span.start - 2, 0) : min(tok.span.end + 2, len(self.__source))
-            ]
-            raise RuntimeError(f"did not expect '{tok.repr}' at '{source_excerp}'")
+            raise UzaSyntaxError(
+                tok.span, f"Unexpected token: `{tok.span.get_source()}`"
+            )
 
     def __peek_valid_op(self, precedence: int):
         next_tok = self.__peek()
