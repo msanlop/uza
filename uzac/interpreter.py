@@ -14,6 +14,7 @@ from uzac.ast import (
     IfElse,
     InfixApplication,
     Literal,
+    MethodApplication,
     Node,
     PrefixApplication,
     Block,
@@ -113,6 +114,9 @@ class Interpreter(UzaASTVisitor):
                 func.body.visit(self)
             except FunctionReturn as fr:
                 return fr.value
+
+    def visit_method_app(self, method: MethodApplication):
+        return method.method.visit(self)
 
     def visit_prefix_application(self, prefix_app: PrefixApplication):
         evaluated = prefix_app.expr.visit(self)

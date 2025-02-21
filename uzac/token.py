@@ -64,6 +64,8 @@ class Token:
 
 
 # OPERATORS
+token_dot = TokenKind(".", 15)
+
 token_star_double = TokenKind("**", 14, right_assoc=True)
 
 token_star = TokenKind("*", 13)

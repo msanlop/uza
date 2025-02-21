@@ -21,6 +21,7 @@ from uzac.ast import (
     IfElse,
     InfixApplication,
     Literal,
+    MethodApplication,
     Node,
     PrefixApplication,
     Return,
@@ -534,6 +535,9 @@ class ByteCodeProgram(UzaASTVisitor):
         op = Op(opcode, constant=application.func_id.name, span=application.span)
         self.emit_op(op)
         return self.emit_op(Op(OPCODE.CALL, span=application.span))
+
+    def visit_method_app(self, method: MethodApplication):
+        return method.method.visit(self)
 
     def visit_return(self, ret: Return) -> int:
         ret.value.visit(self)

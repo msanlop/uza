@@ -572,3 +572,51 @@ println(a)
 //println(lang)
 //#expected
 //[[Bonjour, Salut], [Hello, Hi]]
+
+#test simple_conversions_methods
+const a = 1.5
+const b = a.toInt()
+println(b)
+println((a * 6).toInt())
+const c = b.toFloat()
+println(a * c)
+#expected
+1
+9
+1.500
+
+#test string_get_char_with_method
+const foo = "foo bar"
+for var i = 0; i < foo.len(); i += 1 {
+    println(foo.get(i))
+}
+#expected (new lines ignored)
+foo bar
+
+#test string substring
+const foo = "foobar"
+for var i = 0; i <= foo.len(); i += 1 {
+    println(foo.substring(0, i))
+}
+#expected
+f
+fo
+foo
+foob
+fooba
+foobar
+
+#test fstrings_method
+const b = "world"
+const a = f"hello {b}"
+println(a)
+println(f"some calc: {(42 * 3).toString()}")
+
+func test() => string {
+    return f"foo{(0.5 * 2).toString().toInt().toString()}bar"
+}
+println(f"test: {test()}")
+#expected
+hello world
+some calc: 126
+test: foo1bar

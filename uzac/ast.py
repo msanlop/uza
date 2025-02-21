@@ -166,6 +166,22 @@ class PrefixApplication(Node):
 
 
 @dataclass
+class MethodApplication(Node):
+    accessed: Node
+    method: Application
+    """This field hold the first argument, this Node type is for ease of use and
+    clearer ast"""
+
+    span: Span = field(compare=False, init=False)
+
+    def __post_init__(self) -> None:
+        self.span = self.accessed.span + self.method.span
+
+    def visit(self, that):
+        return that.visit_method_app(self)
+
+
+@dataclass
 class VarDef(Node):
     identifier: str
     type_: Optional[Type]
@@ -362,6 +378,10 @@ class UzaASTVisitor(ABC):
 
     @abstractmethod
     def visit_application(self, app: Application):
+        pass
+
+    @abstractmethod
+    def visit_method_app(self, method: MethodApplication):
         pass
 
     @abstractmethod

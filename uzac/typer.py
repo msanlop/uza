@@ -14,6 +14,7 @@ from uzac.ast import (
     IfElse,
     InfixApplication,
     Literal,
+    MethodApplication,
     NoOp,
     Program,
     Range,
@@ -293,7 +294,8 @@ class Applies(Constraint):
                     )
                 )
                 return Constraint.SOLVE_FAIL
-            sub += (a, b)
+            if t1.is_symbolic():
+                sub += (a, b)
 
         return True, sub
 
@@ -552,6 +554,10 @@ class Typer(UzaASTVisitor):
         builtin = get_builtin(func_id)
         assert builtin
         return self.visit_builtin(builtin, prefix.expr, span=prefix.span)
+
+    def visit_method_app(self, method: MethodApplication):
+        app_type, ret = method.method.visit(self)
+        return app_type, ret
 
     def visit_if_else(self, if_else: IfElse) -> tuple[Type, NodeAlwaysReturns]:
         pred, pred_ret = if_else.predicate.visit(self)

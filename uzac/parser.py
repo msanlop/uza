@@ -17,6 +17,7 @@ from uzac.ast import (
     IfElse,
     InfixApplication,
     Literal,
+    MethodApplication,
     NoOp,
     Node,
     PrefixApplication,
@@ -708,6 +709,8 @@ class Parser:
                 func_call = Application(
                     identifier, *arguments, generic_arg=generic_param
                 )
+                if parsing_infix:
+                    return func_call
                 return self.__get_infix(func_call)
 
             self.__check_for_identifier_var(identifier)
@@ -765,7 +768,12 @@ class Parser:
                 )
             if op.kind.is_prefix_operator:
                 rhs = PrefixApplication(rhs, Identifier(op, op.span))
-            lhs = InfixApplication(lhs, Identifier(op, op.span), rhs)
+            elif op.kind == token_dot:
+                assert issubclass(rhs.__class__, Application)
+                rhs.args.insert(0, lhs)
+                lhs = MethodApplication(lhs, rhs)
+            else:
+                lhs = InfixApplication(lhs, Identifier(op, op.span), rhs)
             valid_op, curr_op_precedence = self.__peek_valid_op(precedence)
 
         return lhs
