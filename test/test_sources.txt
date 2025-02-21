@@ -620,3 +620,41 @@ println(f"test: {test()}")
 hello world
 some calc: 126
 test: foo1bar
+
+#test break_and_continue
+var i = 0
+const ITERS = 11
+const BREAK_AT = (ITERS / 2).toInt()
+while i < ITERS {
+    i+=1
+    if i % 2 == 0 {
+        continue
+    }
+    else if i == BREAK_AT  {
+        println("BREAKING")
+        break
+    }
+    println(i)
+}
+println("out of whileloop")
+for i = 0; i < ITERS; i += 1{
+    i+=1
+    if i % 2 == 0 {
+        continue
+    }
+    else if i == BREAK_AT  {
+        println("BREAKING")
+        break
+    }
+    println(i)
+}
+println("out of forloop")
+#expected
+1
+3
+BREAKING
+out of whileloop
+1
+3
+BREAKING
+out of forloop

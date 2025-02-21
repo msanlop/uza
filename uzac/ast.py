@@ -78,9 +78,14 @@ class Identifier(Node):
         if isinstance(identifier, Token):
             self.name = identifier.repr
             self.token = identifier
+        elif isinstance(identifier, TokenKind):
+            self.token = Token(identifier, span)
+            self.name = identifier.repr
         else:
             self.name = identifier
         self.span = span
+
+        assert hasattr(self, "token")
 
     def visit(self, that):
         return that.visit_identifier(self)
@@ -195,7 +200,7 @@ class VarDef(Node):
 
 @dataclass
 class VarRedef(Node):
-    identifier: str
+    identifier: Identifier
     value: Node
     span: Span = field(compare=False)
 
@@ -244,6 +249,30 @@ class Return(Node):
 
     def visit(self, that):
         return that.visit_return(self)
+
+
+@dataclass
+class Break(Node):
+    """
+    A break statement. Exits current loop.
+    """
+
+    span: Span
+
+    def visit(self, that):
+        return that.visit_break(self)
+
+
+@dataclass
+class Continue(Node):
+    """
+    A continue statement. Skips current loop iteration.
+    """
+
+    span: Span
+
+    def visit(self, that):
+        return that.visit_continue(self)
 
 
 @dataclass
@@ -350,6 +379,14 @@ class UzaASTVisitor(ABC):
 
     @abstractmethod
     def visit_return(self, ret: Return):
+        pass
+
+    @abstractmethod
+    def visit_break(self, that):
+        pass
+
+    @abstractmethod
+    def visit_continue(self, that):
         pass
 
     @abstractmethod

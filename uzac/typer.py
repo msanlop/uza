@@ -318,7 +318,7 @@ class Applies(Constraint):
             type_b = b.resolve_type(substitution)
 
             # do generics params after loop
-            if type_a.is_generic_type():
+            if type_b.is_generic_type() and type_a.is_generic_type():
                 generic_args[type_a] = True
             elif type_b.is_generic_arg():
                 generic_args[type_a] = True
@@ -479,6 +479,12 @@ class Typer(UzaASTVisitor):
         )
         return type_void, True
 
+    def visit_break(self, that):
+        return type_void, False
+
+    def visit_continue(self, that):
+        return type_void, False
+
     def visit_function(self, func: Function) -> tuple[Type, NodeAlwaysReturns]:
         f_signature = func.type_signature
         self.__functions.define(func.identifier, func)
@@ -623,25 +629,25 @@ class Typer(UzaASTVisitor):
         return type_void, False
 
     def visit_var_redef(self, redef: VarRedef) -> tuple[Type, NodeAlwaysReturns]:
-        identifier = redef.identifier
-        is_immutable = self.__var_is_immutable(identifier)
+        identifier_str = redef.identifier.name
+        is_immutable = self.__var_is_immutable(identifier_str)
         if is_immutable is None:
             err = UzaTypeError(
                 redef.span,
-                f"'{identifier}' must be declared before reassignement",
+                f"'{identifier_str}' must be declared before reassignement",
             )
             self.__errors.append(err)
         if is_immutable is True:
             err = UzaTypeError(
                 redef.span,
-                f"cannot reassign const variable '{identifier}'",
+                f"cannot reassign const variable '{identifier_str}'",
             )
             self.__errors.append(err)
         self.add_constaint(
             IsType(
                 redef.span,
                 redef.value.visit(self)[0],
-                self.__get_type_of_identifier(redef.identifier),
+                self.__get_type_of_identifier(identifier_str),
             )
         )
         return type_void, False

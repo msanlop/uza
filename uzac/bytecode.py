@@ -14,6 +14,8 @@ from uzac import __version_tuple__
 from uzac.ast import (
     Application,
     Block,
+    Break,
+    Continue,
     ExpressionList,
     ForLoop,
     Function,
@@ -214,10 +216,49 @@ T = TypeVar("T")
 
 
 @dataclass
+class Loop:
+    __break_ops: List[Op] = field(default_factory=lambda: list())
+    continue_point: int = field(default=0)
+
+    def register_break(self, brk: Op) -> None:
+        """
+        Regiset a break op that will need it's offset updated.
+        """
+        self.__break_ops.append(brk)
+
+    def set_break_offset(self, end_point: int) -> None:
+        """
+        Set all break in loop to jump to current point.
+        """
+        for b in self.__break_ops:
+            b.jump_offset = end_point - b.jump_offset
+
+
+@dataclass
 class Frame:
     name: str
     locals: List[str]
     block_depth: int = field(default=0)
+    loops: List[Loop] = field(default_factory=lambda: list())
+    __pop_loop: List[bool] = field(default_factory=lambda: list(), init=False)
+
+    def current_loop(self) -> Loop:
+        return self.loops[-1]
+
+    def new_block(self) -> None:
+        self.block_depth += 1
+        self.__pop_loop.append(False)
+
+    def new_loop(self) -> None:
+        self.block_depth += 1
+        self.loops.append(Loop())
+        self.__pop_loop.append(True)
+
+    def pop_block_or_loop(self) -> None:
+        self.block_depth -= 1
+        pop_loop = self.__pop_loop.pop(-1)
+        if pop_loop:
+            self.loops.pop(-1)
 
 
 class ByteCodeLocals:
@@ -242,11 +283,11 @@ class ByteCodeLocals:
             assert len(frames) >= 1
             self.depth = len(frames) - 1
 
-    def __get_current_frame(self) -> Frame:
+    def _get_current_frame(self) -> Frame:
         return self.frames[self.depth]
 
     def get_num_locals(self) -> int:
-        return len(self.__get_current_frame().locals)
+        return len(self._get_current_frame().locals)
 
     def define(self, variable_name: str) -> Optional[int]:
         """
@@ -254,7 +295,7 @@ class ByteCodeLocals:
         current frame. If the current frame is global and not in a block scope
         return None, variable must be declared with DEF_GLOBAL.
         """
-        frame = self.__get_current_frame()
+        frame = self._get_current_frame()
         if frame.block_depth > 0:
             # TODO: closures will break if block reuse locals, i.e. share same index
             variable_name = f"__blk{frame.block_depth}__{variable_name}"
@@ -280,14 +321,18 @@ class ByteCodeLocals:
         self.depth += 1
         return self
 
-    def new_block(self) -> ByteCodeLocals:
+    def new_block(self, is_loop=True) -> ByteCodeLocals:
         """
         Create a new block scope and return self.
 
         Returns:
             ByteCodeLocals: self
         """
-        self.__get_current_frame().block_depth += 1
+        frame = self._get_current_frame()
+        if is_loop:
+            frame.new_loop()
+        else:
+            frame.new_block()
         return self
 
     def pop_scope(self) -> None:
@@ -295,8 +340,9 @@ class ByteCodeLocals:
         Pops the current scope. This could either be a simple block scope or
         the current call frame.
         """
-        if self.__get_current_frame().block_depth > 0:
-            self.__get_current_frame().block_depth -= 1
+        frame = self._get_current_frame()
+        if frame.block_depth > 0:
+            frame.pop_block_or_loop()
         else:
             self.depth -= 1
             self.frames.pop()
@@ -499,12 +545,12 @@ class ByteCodeProgram(UzaASTVisitor):
 
     def visit_var_redef(self, var_redef: VarRedef) -> int:
         var_redef.value.visit(self)
-        name = var_redef.identifier
+        name = var_redef.identifier.name
 
         local_maybe = self.__local_vars.get(name)
         if local_maybe is None:
             return self.emit_op(
-                Op(OPCODE.SETGLOBAL, var_redef.span, constant=var_redef.identifier),
+                Op(OPCODE.SETGLOBAL, var_redef.span, constant=name),
             )
 
         frame_idx, idx = local_maybe
@@ -542,6 +588,19 @@ class ByteCodeProgram(UzaASTVisitor):
     def visit_return(self, ret: Return) -> int:
         ret.value.visit(self)
         return self.emit_op(Op(OPCODE.RETURN, span=ret.span))
+
+    def visit_break(self, that: Break):
+        brk = Op(OPCODE.JUMP, that.span, jump_offset=-1)
+        self.emit_op(brk)
+        brk.jump_offset = self.__written
+        self.__local_vars._get_current_frame().current_loop().register_break(brk)
+
+    def visit_continue(self, that: Continue):
+        # loop to condition/increment of while/for loop
+        cp = self.__local_vars._get_current_frame().current_loop().continue_point
+        cnt = Op(OPCODE.LOOP, that.span, jump_offset=-1)
+        cnt.jump_offset = self.__written - cp
+        self.emit_op(cnt)
 
     def __and(self, and_app: InfixApplication) -> int:
         and_app.lhs.visit(self)
@@ -620,17 +679,34 @@ class ByteCodeProgram(UzaASTVisitor):
         return self.__build_lines(expr_list.lines)
 
     def visit_block(self, block: Block) -> int:
-        with self.__local_vars.new_block():
+        with self.__local_vars.new_block(is_loop=False):
             self.__build_lines(block.lines)
         return self.__written
 
+    def __make_loop_breaks_jump_here(self, loop: Loop) -> None:
+        """
+        Update all loop break statement to jump to current point
+        """
+        break_point = self.__written
+        # ajust all loop break to jump here
+        loop.set_break_offset(break_point)
+
+    def __mark_continue_point_here(self, loop: Loop) -> None:
+        """
+        Set jump point for continue statement to jump to
+        """
+        loop.continue_point = self.__written
+
     def visit_for_loop(self, fl: ForLoop) -> int:
         with self.__local_vars.new_block():
+            cur_loop = self.__local_vars._get_current_frame().current_loop()
+
             fl.init.visit(self)
             jump_first_increment = Op(OPCODE.JUMP, fl.span, jump_offset=0)
             self.emit_op(jump_first_increment)
             jump_first_incr_point = self.__written
 
+            self.__mark_continue_point_here(cur_loop)
             fl.incr.visit(self)
             jump_first_increment.jump_offset = self.__written - jump_first_incr_point
 
@@ -651,27 +727,36 @@ class ByteCodeProgram(UzaASTVisitor):
             end_loop.jump_offset = self.__written - end_loop_point
             self.emit_op(pop)
 
+            self.__make_loop_breaks_jump_here(cur_loop)
+
         return self.__written
 
     def visit_while_loop(self, wl: WhileLoop) -> int:
-        cond_point = self.__written
-        wl.cond.visit(self)
-        end_loop = Op(OPCODE.JUMP_IF_FALSE, wl.cond.span, jump_offset=0)
-        self.emit_op(end_loop)
-        end_loop_point = self.__written
-        pop = Op(OPCODE.POP, wl.cond.span)
-        self.emit_op(pop)
+        with self.__local_vars.new_block():
+            cur_loop = self.__local_vars._get_current_frame().current_loop()
 
-        wl.loop.visit(self)
-        loop = Op(
-            OPCODE.LOOP,
-            wl.loop.span,
-            jump_offset=self.__written - cond_point,
-        )
-        self.emit_op(loop)
-        end_loop.jump_offset = self.__written - end_loop_point
+            cond_point = self.__written
+            self.__mark_continue_point_here(cur_loop)
+            wl.cond.visit(self)
+            end_loop = Op(OPCODE.JUMP_IF_FALSE, wl.cond.span, jump_offset=0)
+            self.emit_op(end_loop)
+            end_loop_point = self.__written
+            pop = Op(OPCODE.POP, wl.cond.span)
+            self.emit_op(pop)
 
-        self.emit_op(pop)
+            wl.loop.visit(self)
+            loop = Op(
+                OPCODE.LOOP,
+                wl.loop.span,
+                jump_offset=self.__written - cond_point,
+            )
+            self.emit_op(loop)
+            end_loop.jump_offset = self.__written - end_loop_point
+
+            self.emit_op(pop)
+
+            self.__make_loop_breaks_jump_here(cur_loop)
+
         return self.__written
 
     def __build_chunk(self):
@@ -764,6 +849,7 @@ class ByteCodeProgramSerializer:
             elif opcode.local_index is not None:
                 written += self.__write(opcode.local_index.to_bytes(1, BYTE_ORDER))
             elif opcode.jump_offset is not None:
+                assert opcode.jump_offset >= 0
                 offset_bytes = struct.pack("<H", opcode.jump_offset)
                 written += self.__write(offset_bytes)
 

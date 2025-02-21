@@ -32,12 +32,33 @@ from uzac.builtins import *
 
 
 @dataclass
-class FunctionReturn(Exception):
+class UzaPythonInterpreterControlFlow(BaseException):
+    """
+    Simple (yet unoptimized) way to handle control flow in the tree-walk interpreter
+    """
+
+
+@dataclass
+class FunctionReturn(UzaPythonInterpreterControlFlow):
     """
     Exception to bubble up function returns to the application.
     """
 
     value: Optional[Return]
+
+
+@dataclass
+class LoopBreak(UzaPythonInterpreterControlFlow):
+    """
+    Break out of current loop
+    """
+
+
+@dataclass
+class LoopContinue(UzaPythonInterpreterControlFlow):
+    """
+    Skip current loop iteration
+    """
 
 
 @dataclass
@@ -79,13 +100,19 @@ class Interpreter(UzaASTVisitor):
         val = ret.value.visit(self)
         raise FunctionReturn(val)
 
+    def visit_break(self, that):
+        raise LoopBreak()
+
+    def visit_continue(self, that):
+        raise LoopContinue()
+
     def visit_var_def(self, definition: VarDef):
         value = definition.value.visit(self)
         self.__context.define(definition.identifier, value)
 
     def visit_var_redef(self, redef: VarRedef):
         value = redef.value.visit(self)
-        self.__context.reassign(redef.identifier, value)
+        self.__context.reassign(redef.identifier.name, value)
 
     def visit_identifier(self, identifier: Identifier) -> Value | Function:
         return self.__context.get(identifier.name)
@@ -177,15 +204,25 @@ class Interpreter(UzaASTVisitor):
     def visit_while_loop(self, wl: WhileLoop):
         cond = wl.cond.visit(self)
         while cond:
-            wl.loop.visit(self)
-            cond = wl.cond.visit(self)
+            try:
+                wl.loop.visit(self)
+                cond = wl.cond.visit(self)
+            except LoopBreak:
+                break
+            except LoopContinue:
+                continue
 
     def visit_for_loop(self, fl: ForLoop):
         with self.__context.new_frame():
             fl.init.visit(self)
             while fl.cond.visit(self):
-                fl.interior.visit(self)
-                fl.incr.visit(self)
+                try:
+                    fl.interior.visit(self)
+                    fl.incr.visit(self)
+                except LoopBreak:
+                    break
+                except LoopContinue:
+                    continue
 
     def evaluate(self) -> Optional[Value]:
         """

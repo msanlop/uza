@@ -10,6 +10,8 @@ from uzac.builtins import get_builtin
 from uzac.ast import (
     Application,
     Block,
+    Break,
+    Continue,
     ExpressionList,
     ForLoop,
     Function,
@@ -438,17 +440,19 @@ class Parser:
             # syntactic sugar for +=, -= #TODO: different node for optimized VM op
             rhs = None
             if tok.kind == token_plus_eq:
-                op = "+"
+                op = token_plus
             else:
-                op = "-"
+                op = token_minus
             if tok.kind in (token_plus_eq, token_minus_eq):
                 rhs = self.__get_expr()
-            else:
-                rhs = Literal(Token(token_number, tok.span, "1"))
 
-            value = InfixApplication(identifier, Identifier(op, tok.span), rhs)
+            tok_span = tok.span
+            op_tok_span = Span(tok_span.start, tok_span.start + 1, tok_span.source)
+            op_tok = Token(op, op_tok_span)
+            op_ident = Identifier(op_tok, op_tok_span)
+            value = InfixApplication(identifier, op_ident, rhs)
 
-        return VarRedef(identifier.name, value, identifier.span + value.span)
+        return VarRedef(identifier, value, identifier.span + value.span)
 
     def __get_generic_param(self) -> Type:
         self.__expect(token_angle_bracket_l)
@@ -637,7 +641,9 @@ class Parser:
             if fstring is None:
                 fstring = value
             else:
-                fstring = InfixApplication(fstring, Identifier("+", value.span), value)
+                fstring = InfixApplication(
+                    fstring, Identifier(token_plus, value.span), value
+                )
             tok = self.__peek()
 
         if tok.kind == token_quote:
@@ -651,6 +657,10 @@ class Parser:
 
         if tok.kind in (token_const, token_var):
             return self.__get_var_def()
+        elif tok.kind == token_break:
+            return Break(self.__expect(token_break).span)
+        elif tok.kind == token_continue:
+            return Continue(self.__expect(token_continue).span)
         elif tok.kind == token_paren_l:
             self.__expect(token_paren_l)
             node = self.__get_infix(self.__get_expr())
