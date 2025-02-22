@@ -148,14 +148,16 @@ class Scanner:
     def __next_numeral(self):
         end = self.__start
         already_has_dot = False
-        while self.__char_at(end) in string.digits or (
-            self.__char_at(end) == "." and not already_has_dot
+        char = self.__char_at(end)
+        while char in string.digits or (
+            char == "." and not already_has_dot or char == "_"
         ):
-            if self.__char_at(end) == ".":
+            if char == ".":
                 already_has_dot = True
             if end + 1 == self.__source_len:
                 return end + 1
             end += 1
+            char = self.__char_at(end)
         return end
 
     def __next_token(self) -> Optional[Token | list[Token]]:
