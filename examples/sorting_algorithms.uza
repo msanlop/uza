@@ -1,0 +1,179 @@
+const QUICKSORT_INSERTION_BOUND = 12
+
+
+// UTILS
+
+func printSubArray(list: List<int>, from: int, until: int) => void {
+    print("[")
+    for ; from < until - 1; from += 1 {
+        print(list.get(from))
+        print(", ")
+    }
+    print(list.get(from))
+    println("]")
+}
+
+func getRandomIntList(maxInt: int, size: int) => List<int> {
+    const res = List<int>()
+    for var i = 0; i < size; i += 1 {
+        res.append(randInt(maxInt))
+    }
+    return res
+}
+
+func copyList(src: List<int>) => List<int> {
+    const res = List<int>()
+    for var i = 0; i < src.len(); i += 1 {
+        res.append(src.get(i))
+    }
+    return res
+}
+
+
+// SORTING ALGORITHMS
+
+func insertionSortRange(list: List<int>, from: int, until: int) => void {
+    const listLen = until - 1
+    for var i = from; i < listLen; i += 1 {
+        for var j = i + 1; j > from; j = j - 1 {
+            const prevIdx = j - 1
+            const prev = list.get(prevIdx)
+            if list.get(j) < list.get(prevIdx) {
+                const temp = list.get(prevIdx)
+                list.set(prevIdx, list.get(j))
+                list.set(j, temp)
+            } else {
+                break
+            }
+        }
+    }
+}
+
+func insertionSort(list: List<int>) => void {
+    const length = list.len()
+    insertionSortRange(list, 0, length)
+}
+
+func quickSortRange(list: List<int>, from: int, until: int) => void {
+    if (until - from) < QUICKSORT_INSERTION_BOUND {
+        insertionSortRange(list, from, until)
+        return
+    }
+
+    const pivot = list.get(from)
+    var pivotIdx = from
+    for var i = from + 1; i < until; i += 1 {
+        var cur = list.get(i)
+        if cur < pivot {
+            pivotIdx += 1
+            list.set(i, list.get(pivotIdx))
+            list.set(pivotIdx, cur)
+        }
+    }
+
+    // put pivot in between sorted lists
+    list.set(from, list.get(pivotIdx))
+    list.set(pivotIdx, pivot)
+
+    //println(f"WITH PIVOT: {pivot.toString()}: ")
+    //printSubArray(list, from, pivotIdx)
+    //println("")
+    //printSubArray(list, pivotIdx, until)
+
+    quickSortRange(list, from, pivotIdx)
+    quickSortRange(list, pivotIdx + 1, until)
+}
+
+func quickSort(list: List<int>) => void {
+    const length = list.len()
+    quickSortRange(list, 0, length)
+}
+
+///////////
+
+func main() => void {
+    const MAX_INT = 100_000_000
+    const LIST_LEN = 10_000
+    const REPETITIONS = 5
+
+    const lists: List<List<int>> = List<List<int>>()
+    for var i = 0; i < REPETITIONS; i += 1 {
+        lists.append(getRandomIntList(MAX_INT, LIST_LEN))
+    }
+
+    // INSERTION SORT
+    var insertionTime = 0
+    for var i = 0; i < REPETITIONS; i += 1 {
+        const cpy = copyList(lists.get(i))
+        const start = timeMs()
+        insertionSort(cpy)
+        const delta = timeMs() - start
+        println(f"insertionSort took {delta.toString()}ms")
+        insertionTime += delta
+    }
+    insertionTime = insertionTime / REPETITIONS
+    println(f"insertionSort average of {REPETITIONS.toString()}: {insertionTime.toString()}ms\n\n")
+
+    // QUICK SORT
+    var quickSortTime = 0
+    for var i = 0; i < REPETITIONS; i += 1 {
+        const cpy = copyList(lists.get(i))
+        const start = timeMs()
+        quickSort(cpy)
+        const delta = timeMs() - start
+        println(f"quickSort took {delta.toString()}ms")
+        quickSortTime += delta
+    }
+    quickSortTime = quickSortTime / REPETITIONS
+    println(f"quickSort average of {REPETITIONS.toString()}: {quickSortTime.toString()}ms\n\n")
+
+    // QSORT from C runtime
+    var qsortTime = 0
+    for var i = 0; i < REPETITIONS; i += 1 {
+        const cpy = copyList(lists.get(i))
+        const start = timeNs()
+        sort(cpy, false)
+        const delta = timeNs() - start
+        println(f"sort took {toString(delta/1_000_000.0)}ms")
+        qsortTime += delta
+    }
+    qsortTime = qsortTime / REPETITIONS
+    println(f"sort average of {REPETITIONS.toString()}: {toString(qsortTime/1_000_000.0)}ms\n\n")
+
+    const msg = f"With benchmark config:
+        \tint range: [0, {MAX_INT.toString()})
+        \tlist size: {LIST_LEN.toString()}"
+    println(msg)
+}
+
+main()
+
+// Results on Apple M4 CPU:
+
+// insertionSort took 1423ms
+// insertionSort took 1423ms
+// insertionSort took 1501ms
+// insertionSort took 1471ms
+// insertionSort took 1436ms
+// insertionSort average of 5: 1450ms
+//
+//
+// quickSort took 7ms
+// quickSort took 8ms
+// quickSort took 7ms
+// quickSort took 6ms
+// quickSort took 6ms
+// quickSort average of 5: 6ms
+//
+//
+// sort took 0.459375ms
+// sort took 0.476417ms
+// sort took 0.430084ms
+// sort took 0.433875ms
+// sort took 0.510583ms
+// sort average of 5: 0.462066ms
+//
+//
+// With benchmark config:
+//                 int range: [0, 100000000)
+//                 list size: 10000
