@@ -37,7 +37,6 @@ class Driver:
                 return prog.errors
 
             if not omit_typechecking:
-                assert config != Driver.Configuration.TYPECHECK
                 diag = Driver.__typecheck(prog, verbose=verbose, err=err)
 
             if config == Driver.Configuration.TYPECHECK or diag.error_count > 0:
