@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "native.h"
 #include "value.h"
@@ -7,6 +8,8 @@
 #ifdef _WIN32
 static LARGE_INTEGER frequency = {.QuadPart = -1LL};
 #endif
+
+static bool rand_seed_set = false;
 
 void native_println(void) {
   Value val = pop();
@@ -245,6 +248,17 @@ void native_abs() {
   }
 }
 
+void native_rand_int() {
+  Value a = pop();
+  if (!rand_seed_set) {
+    srand(time(NULL));
+    rand_seed_set = true;
+  }
+  int val = rand();
+  val = (val * AS_INTEGER(a)) / RAND_MAX;
+  push(VAL_INT(val));
+}
+
 const NativeFunction native_builtins[] = {
     {"print", sizeof("print") - 1, {(native_function)native_print}, 1},
     {"println", sizeof("println") - 1, {(native_function)native_println}, 1},
@@ -261,6 +275,7 @@ const NativeFunction native_builtins[] = {
     {"timeNs", sizeof("timeNs") - 1, {(native_function)native_time_ns}, 0},
     {"timeMs", sizeof("timeMs") - 1, {(native_function)native_time_ms}, 0},
     {"abs", sizeof("abs") - 1, {(native_function)native_abs}, 1},
+    {"randInt", sizeof("randInt") - 1, {(native_function)native_rand_int}, 1},
 };
 
 const NativeFunction *const native_functions_get(size_t *out_count) {

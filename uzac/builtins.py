@@ -16,6 +16,7 @@ from operator import (
     pow,
     truediv,
 )
+import random
 import time
 from typing import Callable, List, Optional
 from uzac.type import (
@@ -303,5 +304,13 @@ bi_time_ms = BuiltIn(
     lambda: time.perf_counter_ns() // 1_000_000,
     [
         ArrowType([], type_int),
+    ],
+)
+
+bi_rand_int = BuiltIn(
+    "randInt",
+    lambda n: random.randint(0, n),
+    [
+        ArrowType([type_int], type_int),
     ],
 )
