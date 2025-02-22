@@ -1,7 +1,8 @@
 import pytest
+from uzac.driver import Driver
 from uzac.typer import Typer
 from uzac.parser import Parser
-from uzac.utils import UzaTypeError
+from uzac.utils import UzaSyntaxError, UzaTypeError
 
 
 def test_add_int_float():
@@ -154,3 +155,28 @@ def test_fail_generic_methods():
     typer = Typer(Parser(source).parse())
     typer_res = typer.typecheck_program()
     assert typer_res.error_count > 0
+
+
+def test_redef():
+    source = """
+    const foo = 123
+    const foo = "hi"
+    """
+
+    with pytest.raises(UzaSyntaxError):
+        Parser(source).parse()
+
+    source = """
+    var foo = 123
+    const foo = "hi"
+    """
+
+    with pytest.raises(UzaSyntaxError):
+        Parser(source).parse()
+
+    source = """
+    const foo = 123
+    foo = 1
+    """
+    diag = Driver.run_with_config(Driver.Configuration.TYPECHECK, source)
+    assert diag > 0

@@ -166,15 +166,14 @@ class SymbolTable:
     def pop_frame(self) -> SymbolTable:
         self.__frames = self.__frames[:-1]
 
-    def define(self, variable_name: str, value: T) -> bool:
-        """
-        Tries to define the identifier with the value. Return true if succeeds,
-        false if the given variable name is already been defined in this scope.
-        """
+    def define(self, variable_name: str, value: T, false_if_defined=False) -> bool:
         frame_locals = self.__get_locals()
         for symbol in frame_locals:
             if symbol.key == variable_name:
+                if false_if_defined:
+                    return False
                 symbol.val = value
+                return True
 
         frame_locals.append(Symbol(variable_name, value))
         return True

@@ -489,16 +489,14 @@ class Parser:
             type_ = None
         self.__expect(token_eq)
         value = self.__get_expr()
-        if not self.__symbol_table.define(identifier.repr, immutable):
+        if not self.__symbol_table.define(
+            identifier.repr, immutable, false_if_defined=True
+        ):
             # FIXME: no Error node
-            err = Error(
-                identifier.span.get_underlined(
-                    f"'{identifier.repr}' has already been defined in this scope",
-                ),
-                decl_token.span + identifier.span,
+            raise UzaSyntaxError(
+                identifier.span,
+                f"'{identifier.repr}' has already been defined in this scope",
             )
-            self.__log_error(err)
-            return err
         return VarDef(
             identifier.repr,
             type_,
