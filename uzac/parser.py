@@ -585,11 +585,11 @@ class Parser:
                 incr = self.__get_expr()
             tok = self.__peek()
             if tok and tok.kind == token_bracket_l:
-                self.__expect(token_bracket_l)
+                tok_bl = self.__expect(token_bracket_l)
                 interior_lines = self.__parse_lines(end_token=token_bracket_r)
                 self.__expect(token_bracket_r)
                 interior = ExpressionList(
-                    interior_lines, Span.from_list(interior_lines)
+                    interior_lines, Span.from_list(interior_lines, tok_bl.span)
                 )
                 return ForLoop(init, cond, incr, interior, for_tok.span + interior.span)
             self.__consume_white_space_and_peek()
