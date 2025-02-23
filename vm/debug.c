@@ -1,11 +1,15 @@
 #include "debug.h"
 #include "common.h"
+#include <assert.h>
 
 #ifndef NDEBUG
 
 void debug_stack_print(char *str) {
   DEBUG_PRINT("%s\n" CYAN, str);
   Frame *frame = &vm.frame_stacks[vm.depth];
+  if (vm.depth > 0)
+    assert(frame->locals <= vm.stack_top);
+  assert(&frame->locals[frame->locals_count] <= vm.stack_top);
   for (Value *slot = &frame->locals[frame->locals_count]; slot < vm.stack_top;
        slot++) {
     PRINT_VALUE((*slot), stderr);
@@ -236,7 +240,7 @@ void debug_vm_dump(void) {
   DEBUG_PRINT("ip: %p\n", vm.frame_stacks[vm.depth].ip);
   DEBUG_PRINT("/// stack ///\n");
   DEBUG_PRINT("count: %d\n", (int)(vm.stack_top - vm.stack));
-  debug_stack_print("values:");
+  // debug_stack_print("values:");
   for (size_t i = 0; i < vm.chunk_count; i++) {
     DEBUG_PRINT("/// Chunk %ld ///\n", i);
     debug_chunk_print(vm.chunks[i]);

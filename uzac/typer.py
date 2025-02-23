@@ -7,6 +7,7 @@ from itertools import count, permutations
 from uzac.type import *
 from uzac.token import *
 from uzac.ast import (
+    App,
     Block,
     ExpressionList,
     ForLoop,
@@ -466,6 +467,23 @@ class Typer(UzaASTVisitor):
             return None
         return pair[1]
 
+    def __mark_unused_expression(self, that: Node):
+        """
+        Mark the Node to be popped in the bytecode if it returns a value. Does
+        not affect other Node types.
+
+        For example:
+        if true then func()
+        The return value of `func` should be popped.
+
+        if true then x += 1
+        Reassignement statement does not push to the stack so nothing needs to be
+        popped.
+
+        """
+        if issubclass(that.__class__, App):
+            that.pop_value = True
+
     def add_constaint(self, constraint: Constraint) -> None:
         """
         Adds a constraint to the typed program.
@@ -562,19 +580,22 @@ class Typer(UzaASTVisitor):
         return self.visit_builtin(builtin, prefix.expr, span=prefix.span)
 
     def visit_method_app(self, method: MethodApplication):
+        method.method.pop_value = method.pop_value
         app_type, ret = method.method.visit(self)
         return app_type, ret
 
     def visit_if_else(self, if_else: IfElse) -> tuple[Type, NodeAlwaysReturns]:
         pred, pred_ret = if_else.predicate.visit(self)
         self.add_constaint(IsType(if_else.predicate.span, pred, type_bool))
-        truthy_type, truthy_returns = if_else.truthy_case.visit(self)
+        self.__mark_unused_expression(if_else.truthy_case)
+        _, truthy_returns = if_else.truthy_case.visit(self)
         if if_else.falsy_case is not None:
-            falsy_type, falsy_returns = if_else.falsy_case.visit(self)
+            self.__mark_unused_expression(if_else.falsy_case)
+            _, falsy_returns = if_else.falsy_case.visit(self)
         else:
             falsy_returns = False
 
-        return type_void, truthy_returns and falsy_returns
+        return type_void, (truthy_returns and falsy_returns)
 
     def visit_identifier(
         self, identifier: Identifier
@@ -669,6 +690,7 @@ class Typer(UzaASTVisitor):
             return self.__check_lines(scope.lines)
 
     def visit_while_loop(self, wl: WhileLoop) -> tuple[Type, NodeAlwaysReturns]:
+        self.__mark_unused_expression(wl.cond)
         self.add_constaint(IsType(wl.span, wl.cond.visit(self)[0], type_bool))
         _, loop_ret = wl.loop.visit(self)
         return type_void, loop_ret
@@ -697,10 +719,12 @@ class Typer(UzaASTVisitor):
     def visit_for_loop(self, fl: ForLoop) -> tuple[Type, NodeAlwaysReturns]:
         with self.__symbol_table.new_frame():
             if fl.init:
+                self.__mark_unused_expression(fl.init)
                 fl.init.visit(self)
             if not isinstance(fl.cond, NoOp):
                 self.add_constaint(IsType(fl.span, fl.cond.visit(self)[0], type_bool))
             if fl.incr:
+                self.__mark_unused_expression(fl.incr)
                 fl.incr.visit(self)
             fl.interior.visit(self)
             return type_void, False
@@ -749,6 +773,7 @@ class Typer(UzaASTVisitor):
         """
         node_returns = []
         for node in lines:
+            self.__mark_unused_expression(node)
             _, ret = node.visit(self)
             node_returns.append(ret)
 

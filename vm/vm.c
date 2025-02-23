@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -55,7 +56,7 @@ extern bool stop_interpreting;
 VM vm = {0};
 bool enable_garbage_collection = false;
 
-inline void vm_stack_reset(void) { vm.stack_top = vm.stack; }
+inline void vm_stack_reset(void) { stack_top_set(vm.stack); }
 
 void vm_init(program_bytes_t *program) {
   vm = (VM){0};
@@ -92,7 +93,7 @@ void vm_init(program_bytes_t *program) {
   global_frame->locals = vm.stack;
 
   vm_stack_reset();
-  vm.stack_top += global_frame->locals_count;
+  stack_top_set(vm.stack_top + global_frame->locals_count);
 }
 
 void vm_free(void) {
@@ -120,20 +121,24 @@ int interpret(void) {
 
 #endif // #define DEBUG_TRACE_EXECUTION_OP
 #ifdef DEBUG_TRACE_EXECUTION_STACK
-    debug_stack_print("before");
     debug_locals_print("locals");
+    debug_stack_print("before");
 #endif // #define DEBUG_TRACE_EXECUTION_STACK
 
     OpCode instruction = IP_FETCH_INCR;
 
     switch (instruction) {
     case OP_RETURN: {
-      Value ret_val = pop();
-      vm.stack_top = GET_FRAME(0)->locals;
+      Value ret_val = PEEK_AT(0);
+      Value *old_stack_top = vm.stack_top;
+      Value *old_locals = GET_FRAME(0)->locals;
+      stack_top_set(GET_FRAME(0)->locals);
+      assert(old_stack_top >= vm.stack_top);
       vm.depth--;
-      frame = &vm.frame_stacks[vm.depth];
+      frame = GET_FRAME(0);
       chunk = frame->function->chunk;
 
+      assert(vm.stack_top >= &frame->locals[frame->locals_count]);
       push(ret_val);
     } break;
     case OP_CALL: {
@@ -168,9 +173,10 @@ int interpret(void) {
       curr->locals = vm.stack_top - func->arity; // args are in the stack
       curr->ip = func->chunk->code;
       curr->is_block = false;
-      vm.stack_top = curr->locals + curr->locals_count;
+      stack_top_set(&curr->locals[curr->locals_count]);
 
       chunk = func->chunk;
+
 #ifndef NDEBUG
       // set non initialized local to NIL
       for (Value *local = curr->locals + func->arity; local != vm.stack_top;
@@ -178,6 +184,7 @@ int interpret(void) {
         *local = VAL_NIL;
       }
 #endif
+      assert(vm.stack_top >= &curr->locals[curr->locals_count]);
     }; break;
     case OP_CALL_NATIVE: {
       uint8_t offset = IP_FETCH_INCR;

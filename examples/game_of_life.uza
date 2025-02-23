@@ -1,0 +1,130 @@
+// CONWAY'S GAME OF LIFE //
+
+///////// SETTINGS /////////
+const TARGET_FRAME_TIME = 40
+const LIMIT_FRAME = true // unset if using -i flag, or big canvas dimension
+
+// STARTING SPAWN ODDS
+const SPAWN_ODDS = 20 // (SPAWN_ODDS / 100) %
+
+// DIMENSIONS
+const MAX_X = 80
+const MAX_Y = 20
+////////////////////////////
+
+
+const TERMINAL_CLEAR = "\033[2J"
+const TERMINAL_MOVE_HOME = "\033[H"
+
+func initCells(cells: List<bool>) => void {
+    for var c = 0; c < (MAX_X * MAX_Y); c += 1 {
+        const v = randInt(SPAWN_ODDS)
+        if v <= 3 then cells.append(true)
+        else cells.append(false)
+    }
+}
+
+
+func isInside(x: int, y: int) => bool {
+    return (x >= 0) and (x < MAX_X) and (y >= 0) and (y < MAX_Y)
+}
+
+func transformCoords(x: int, y: int) => int {
+    return (x % MAX_X) + (y * MAX_X)
+}
+
+func tryUpdate(cells: List<bool>, counts: List<int>, x: int, y: int, idx: int) => void {
+   if isInside(x, y) and cells.get(transformCoords(x, y)) {
+        counts.set(idx, counts.get(idx) + 1)
+    }
+}
+
+func countNeighbours(cells: List<bool>, counts: List<int>) => void {
+    for var y = 0; y < MAX_Y; y += 1 {
+        for var x = 0; x < MAX_X; x += 1 {
+            const cellIdx = transformCoords(x, y)
+            counts.set(cellIdx, 0)
+
+            // TOP
+            tryUpdate(cells, counts, x - 1, y - 1, cellIdx)
+            tryUpdate(cells, counts, x, y - 1, cellIdx)
+            tryUpdate(cells, counts, x + 1, y - 1, cellIdx)
+
+            // LEFT / RIGHT
+            tryUpdate(cells, counts, x - 1, y, cellIdx)
+            tryUpdate(cells, counts, x + 1, y, cellIdx)
+
+            // BOTTOM
+            tryUpdate(cells, counts, x - 1, y + 1, cellIdx)
+            tryUpdate(cells, counts, x, y + 1, cellIdx)
+            tryUpdate(cells, counts, x + 1, y + 1, cellIdx)
+        }
+    }
+}
+
+func updateCells(cells: List<bool>, counts: List<int>) => void {
+    // Any live cell with fewer than two live neighbours dies, as if by underpopulation.
+    // Any live cell with two or three live neighbours lives on to the next generation.
+    // Any live cell with more than three live neighbours dies, as if by overpopulation.
+    // Any dead cell with exactly three live neighbours becomes a live cell, as if by reproduction.
+
+    for var c = 0; c < (MAX_X * MAX_Y); c += 1 {
+        if cells.get(c) and counts.get(c) < 2 then {
+            cells.set(c, false)
+        }
+        else if cells.get(c) and counts.get(c) > 3 then {
+            cells.set(c, false)
+        }
+        else if (not cells.get(c)) and (counts.get(c) == 3) then {
+            cells.set(c, true)
+        }
+    }
+}
+
+func drawCells(cells: List<bool>) => void {
+    print(TERMINAL_CLEAR + TERMINAL_MOVE_HOME)
+    var alive = 0
+    for var c = 0; c < (MAX_X * MAX_Y); c += 1 {
+        if (c % MAX_X) == 0 then print("\n")
+        if cells.get(c) then {
+            alive += 1
+            print("#")
+        }
+        else print(" ")
+    }
+    println("\n" + alive.toString() + " cells alive")
+}
+
+
+func main() => void {
+    var cells = List<bool>()
+    initCells(cells)
+    const NEIGHBOURS = List<int>()
+    for var c = 0; c < (MAX_X * MAX_Y); c += 1 {
+        NEIGHBOURS.append(0)
+    }
+    drawCells(cells)
+
+    var iter = 0
+    const MAX_ITER = 10_000
+    var prevFrame = 0
+    while iter < MAX_ITER {
+        const frameStart = timeMs()
+
+        countNeighbours(cells, NEIGHBOURS)
+        updateCells(cells, NEIGHBOURS)
+
+        drawCells(cells)
+        println("frametime: " + prevFrame.toString() + "ms")
+        iter += 1
+        print(f"tick #{iter.toString()}")
+        flush()
+
+        if (LIMIT_FRAME) then
+            while (timeMs() - frameStart) - 1 <= TARGET_FRAME_TIME do sleep(3)
+
+        prevFrame = timeMs() - frameStart
+    }
+}
+
+main()

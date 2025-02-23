@@ -129,9 +129,12 @@ void sweep() {
       previous = object;
       object = object->next;
     } else {
+#ifdef DEBUG_LOG_GC
       DEBUG_PRINT("freeing object: ");
       PRINT_VALUE(VAL_OBJ(object), stderr);
       DEBUG_PRINT(NEWLINE);
+#endif DEBUG_LOG_GC
+
       Obj *unreached = object;
       object = object->next;
       if (previous != NULL) {

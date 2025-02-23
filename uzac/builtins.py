@@ -17,6 +17,7 @@ from operator import (
     truediv,
 )
 import random
+import sys
 import time
 from typing import Callable, List, Optional
 from uzac.type import (
@@ -137,6 +138,7 @@ __bi_print_types = [
 
 bi_print = BuiltIn("print", __lower_str_bool(print, end=""), __bi_print_types)
 bi_println = BuiltIn("println", __lower_str_bool(print), __bi_print_types)
+bi_flush = BuiltIn("flush", lambda: sys.stdout.flush(), [ArrowType([], type_void)])
 
 
 def __read_file(file_name):
@@ -312,5 +314,13 @@ bi_rand_int = BuiltIn(
     lambda n: random.randint(0, n),
     [
         ArrowType([type_int], type_int),
+    ],
+)
+
+bi_sleep = BuiltIn(
+    "sleep",
+    lambda m: time.sleep(m),
+    [
+        ArrowType([type_int], type_void),
     ],
 )
