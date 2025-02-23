@@ -57,7 +57,7 @@ ObjectString *object_string_concat(Table *strings, const ObjectString *lhs,
   char static_buff[STRING_STACK_BUFF_LEN];
   int new_len = lhs->length + rhs->length;
   char *buff = static_buff;
-  if (new_len > STRING_STACK_BUFF_LEN) {
+  if (new_len + 1 > STRING_STACK_BUFF_LEN) {
     buff = calloc(new_len + 1, sizeof(char));
     if (buff == NULL) {
       fprintf(stderr, "error: couldn't allocate to concat string\n");
