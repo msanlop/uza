@@ -12,6 +12,7 @@ from typing import List, Optional, TypeVar
 import struct
 from uzac import __version_tuple__
 from uzac.ast import (
+    App,
     Application,
     Block,
     Break,
@@ -412,10 +413,13 @@ class ByteCodeProgram(UzaASTVisitor):
         self.__written += op.size
         return self.__written
 
+    def emit_pop(self, span: Span):
+        self.emit_op(Op(OPCODE.POP, span))
+
     def visit_no_op(self, _):
         pass
 
-    def visit_literal(self, literal: Literal) -> int:
+    def visit_literal(self, literal: Literal):
         type_ = type(literal.value)
         opc = None
         if type_ == bool:
@@ -423,7 +427,9 @@ class ByteCodeProgram(UzaASTVisitor):
                 opc = OPCODE.BOOLTRUE
             else:
                 opc = OPCODE.BOOLFALSE
-            return self.emit_op(Op(opc, literal.span))
+            self.emit_op(Op(opc, literal.span))
+            return
+
         if type_ == int:
             opc = OPCODE.LCONST
         elif type_ == float:
@@ -434,9 +440,9 @@ class ByteCodeProgram(UzaASTVisitor):
             opc = OPCODE.LNIL
         else:
             raise NotImplementedError(f"can't do opcode for literal '{literal}'")
-        return self.emit_op(Op(opc, literal.span, constant=literal.value))
+        self.emit_op(Op(opc, literal.span, constant=literal.value))
 
-    def visit_if_else(self, if_else: IfElse) -> int:
+    def visit_if_else(self, if_else: IfElse):
         if_else.predicate.visit(self)
         skip_truthy = Op(OPCODE.JUMP_IF_FALSE, if_else.predicate.span, jump_offset=0)
         self.emit_op(skip_truthy)
@@ -469,20 +475,20 @@ class ByteCodeProgram(UzaASTVisitor):
             )  # jump over the uint16 offset too
             self.emit_op(pop_pred)
 
-        return self.__written
-
-    def visit_identifier(self, identifier: Identifier) -> int:
+    def visit_identifier(self, identifier: Identifier):
         name = identifier.name
         local_maybe = self.__local_vars.get(name)
         if local_maybe is None:
-            return self.emit_op(Op(OPCODE.GETGLOBAL, identifier.span, constant=name))
+            self.emit_op(Op(OPCODE.GETGLOBAL, identifier.span, constant=name))
+        else:
+            frame_idx, idx = local_maybe
+            if frame_idx != 0:
+                raise NotImplementedError(
+                    "variables from outer frames not yet implemented"
+                )
+            self.emit_op(Op(OPCODE.GETLOCAL, identifier.span, local_index=idx))
 
-        frame_idx, idx = local_maybe
-        if frame_idx != 0:
-            raise NotImplementedError("variables from outer frames not yet implemented")
-        return self.emit_op(Op(OPCODE.GETLOCAL, identifier.span, local_index=idx))
-
-    def visit_function(self, func: Function) -> int:
+    def visit_function(self, func: Function):
         with self.__local_vars.new_frame(Frame(func.identifier.name, [])):
             chunk_save = self.__chunk
             chunk_new = Chunk(func.identifier.name)
@@ -532,33 +538,33 @@ class ByteCodeProgram(UzaASTVisitor):
             self.emit_op(Op(OPCODE.LFUNC, constant=chunk_idx, span=func.span))
             chunk_new.locals_count = self.__local_vars.get_num_locals()
 
-    def visit_var_def(self, var_def: VarDef) -> int:
+    def visit_var_def(self, var_def: VarDef):
         var_def.value.visit(self)
         name = var_def.identifier
         idx = self.__local_vars.define(name)
         if idx is None:
-            return self.emit_op(
+            self.emit_op(
                 Op(OPCODE.DEFGLOBAL, var_def.span, constant=var_def.identifier)
             )
+        else:
+            self.emit_op(Op(OPCODE.DEFLOCAL, var_def.span, local_index=idx))
 
-        return self.emit_op(Op(OPCODE.DEFLOCAL, var_def.span, local_index=idx))
-
-    def visit_var_redef(self, var_redef: VarRedef) -> int:
+    def visit_var_redef(self, var_redef: VarRedef):
         var_redef.value.visit(self)
         name = var_redef.identifier.name
 
         local_maybe = self.__local_vars.get(name)
         if local_maybe is None:
-            return self.emit_op(
+            self.emit_op(
                 Op(OPCODE.SETGLOBAL, var_redef.span, constant=name),
             )
+        else:
+            frame_idx, idx = local_maybe
+            if frame_idx != 0:
+                raise NotImplementedError("only current frame locals are implemented")
+            self.emit_op(Op(OPCODE.SETLOCAL, var_redef.span, local_index=idx))
 
-        frame_idx, idx = local_maybe
-        if frame_idx != 0:
-            raise NotImplementedError("only current frame locals are implemented")
-        return self.emit_op(Op(OPCODE.SETLOCAL, var_redef.span, local_index=idx))
-
-    def visit_application(self, application: Application) -> int:
+    def visit_application(self, application: Application):
         for arg in application.args:
             arg.visit(self)
 
@@ -570,24 +576,28 @@ class ByteCodeProgram(UzaASTVisitor):
                 opcode = OPCODE.TOSTRING
             if bi == bi_to_int:
                 opcode = OPCODE.TOINT
-            op = Op(opcode, span=application.span)
-            return self.emit_op(op)
+            self.emit_op(Op(opcode, span=application.span))
         elif bi:
             opcode = OPCODE.CALL_NATIVE
-            op = Op(opcode, constant=application.func_id.name, span=application.span)
-            return self.emit_op(op)
+            self.emit_op(
+                Op(opcode, constant=application.func_id.name, span=application.span)
+            )
+        else:
+            opcode = OPCODE.LCONST
+            self.emit_op(
+                Op(opcode, constant=application.func_id.name, span=application.span)
+            )
+            self.emit_op(Op(OPCODE.CALL, span=application.span))
 
-        opcode = OPCODE.LCONST
-        op = Op(opcode, constant=application.func_id.name, span=application.span)
-        self.emit_op(op)
-        return self.emit_op(Op(OPCODE.CALL, span=application.span))
+        if application.pop_value:
+            self.emit_pop(application.span)
 
     def visit_method_app(self, method: MethodApplication):
-        return method.method.visit(self)
+        method.method.visit(self)
 
-    def visit_return(self, ret: Return) -> int:
+    def visit_return(self, ret: Return):
         ret.value.visit(self)
-        return self.emit_op(Op(OPCODE.RETURN, span=ret.span))
+        self.emit_op(Op(OPCODE.RETURN, span=ret.span))
 
     def visit_break(self, that: Break):
         brk = Op(OPCODE.JUMP, that.span, jump_offset=-1)
@@ -602,7 +612,7 @@ class ByteCodeProgram(UzaASTVisitor):
         cnt.jump_offset = self.__written - cp
         self.emit_op(cnt)
 
-    def __and(self, and_app: InfixApplication) -> int:
+    def __and(self, and_app: InfixApplication):
         and_app.lhs.visit(self)
         short_circuit_op = Op(OPCODE.JUMP_IF_FALSE, and_app.span, jump_offset=0)
         self.emit_op(short_circuit_op)
@@ -610,9 +620,8 @@ class ByteCodeProgram(UzaASTVisitor):
         self.emit_op(Op(OPCODE.POP, and_app.span))
         and_app.rhs.visit(self)
         short_circuit_op.jump_offset = self.__written - jump_point
-        return self.__written
 
-    def __or(self, or_app: InfixApplication) -> int:
+    def __or(self, or_app: InfixApplication):
         or_app.lhs.visit(self)
         short_circuit_op = Op(OPCODE.JUMP_IF_TRUE, or_app.span, jump_offset=0)
         self.emit_op(short_circuit_op)
@@ -620,18 +629,20 @@ class ByteCodeProgram(UzaASTVisitor):
         self.emit_op(Op(OPCODE.POP, or_app.span))
         or_app.rhs.visit(self)
         short_circuit_op.jump_offset = self.__written - jump_point
-        return -1
 
-    def visit_prefix_application(self, application: PrefixApplication) -> int:
+    def visit_prefix_application(self, application: PrefixApplication):
         application.expr.visit(self)
         if application.func_id.name == "not":
-            return self.emit_op(Op(OPCODE.NOT, application.span))
+            self.emit_op(Op(OPCODE.NOT, application.span))
         elif application.func_id.name == "-":
-            return self.emit_op(Op(OPCODE.NEG, application.span))
+            self.emit_op(Op(OPCODE.NEG, application.span))
         else:
             raise Exception(f"Can't handle : {application}")
 
-    def visit_infix_application(self, application: InfixApplication) -> int:
+        if application.pop_value:
+            self.emit_pop(application.span)
+
+    def visit_infix_application(self, application: InfixApplication):
         function = get_builtin(application.func_id)
         opc = ""
         if function == bi_add:
@@ -665,23 +676,21 @@ class ByteCodeProgram(UzaASTVisitor):
 
         application.lhs.visit(self)
         application.rhs.visit(self)
-        return self.emit_op(Op(opc, application.span))
+        self.emit_op(Op(opc, application.span))
 
-    def __build_lines(self, lines: list[Node]) -> int:
+    def __build_lines(self, lines: list[Node]):
         """
         Generates the bytecode for a sequence of nodes (lines of uza code).
         """
         for node in lines:
             node.visit(self)
-        return self.__written
 
     def visit_expression_list(self, expr_list: ExpressionList):
-        return self.__build_lines(expr_list.lines)
+        self.__build_lines(expr_list.lines)
 
-    def visit_block(self, block: Block) -> int:
+    def visit_block(self, block: Block):
         with self.__local_vars.new_block(is_loop=False):
             self.__build_lines(block.lines)
-        return self.__written
 
     def __make_loop_breaks_jump_here(self, loop: Loop) -> None:
         """
@@ -697,7 +706,7 @@ class ByteCodeProgram(UzaASTVisitor):
         """
         loop.continue_point = self.__written
 
-    def visit_for_loop(self, fl: ForLoop) -> int:
+    def visit_for_loop(self, fl: ForLoop):
         with self.__local_vars.new_block():
             cur_loop = self.__local_vars._get_current_frame().current_loop()
 
@@ -729,9 +738,7 @@ class ByteCodeProgram(UzaASTVisitor):
 
             self.__make_loop_breaks_jump_here(cur_loop)
 
-        return self.__written
-
-    def visit_while_loop(self, wl: WhileLoop) -> int:
+    def visit_while_loop(self, wl: WhileLoop):
         with self.__local_vars.new_block():
             cur_loop = self.__local_vars._get_current_frame().current_loop()
 
@@ -757,12 +764,10 @@ class ByteCodeProgram(UzaASTVisitor):
 
             self.__make_loop_breaks_jump_here(cur_loop)
 
-        return self.__written
-
     def __build_chunk(self):
         self.__build_lines(self.program.syntax_tree.lines)
         self.__chunk.locals_count = self.__local_vars.get_num_locals()
-        return self.emit_op(Op(OPCODE.EXITVM, Span(0, 0, "META")))
+        self.emit_op(Op(OPCODE.EXITVM, Span(0, 0, "META")))
 
 
 class ByteCodeProgramSerializer:

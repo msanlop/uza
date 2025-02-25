@@ -26,6 +26,7 @@ void native_println(void) {
   fflush(stdout);
   DEBUG_PRINT(BRIGHT_RED "`" RESET NEWLINE);
 #endif
+  push(VAL_NIL);
 }
 
 void native_print(void) {
@@ -42,6 +43,7 @@ void native_print(void) {
   fflush(stdout);
   DEBUG_PRINT(BRIGHT_RED "`" RESET NEWLINE);
 #endif
+  push(VAL_NIL);
 }
 
 void native_list_construct(void) {
@@ -54,6 +56,7 @@ void native_list_append(void) {
   Value list = PEEK_AT(1);
   value_array_write(&AS_LIST(list)->list, val);
   POP_COUNT(2);
+  push(VAL_NIL);
 }
 
 void native_len(void) {
@@ -130,6 +133,7 @@ void native_set(void) {
     exit(1);
   }
   POP_COUNT(3);
+  push(VAL_NIL);
 }
 
 void native_substring(void) {
@@ -200,6 +204,7 @@ void native_sort(void) {
     qsort(AS_LIST(list)->list.values, AS_LIST(list)->list.count, sizeof(Value),
           asc_cmp);
   }
+  push(VAL_NIL);
 }
 
 void native_time_ns() {

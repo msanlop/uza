@@ -115,6 +115,9 @@ class Application(Node):
     span: Span = field(compare=False)
     generic_arg: Type
 
+    pop_value: bool = field(init=False, default=False)
+    "Wether the vm should pop the return value off the stack (if unused)"
+
     def __init__(self, func_id: Identifier, *args, generic_arg: Type = None) -> None:
         self.func_id = func_id
         self.args = list(args)
@@ -140,6 +143,9 @@ class InfixApplication(Node):
     rhs: Node
     span: Span = field(init=False, compare=False)
 
+    pop_value: bool = field(init=False, default=False)
+    "Wether the vm should pop the return value off the stack (if unused)"
+
     def __post_init__(self) -> None:
         self.span = self.lhs.span + self.rhs.span
 
@@ -157,6 +163,9 @@ class PrefixApplication(Node):
     expr: Node
     func_id: Identifier
     span: Span = field(compare=False, init=False)
+
+    pop_value: bool = field(init=False, default=False)
+    "Wether the vm should pop the return value off the stack (if unused)"
 
     def __post_init__(self) -> None:
         self.span = self.func_id.span + self.expr.span
@@ -179,11 +188,18 @@ class MethodApplication(Node):
 
     span: Span = field(compare=False, init=False)
 
+    pop_value: bool = field(init=False, default=False)
+    "Wether the vm should pop the return value off the stack (if unused)"
+
     def __post_init__(self) -> None:
         self.span = self.accessed.span + self.method.span
 
     def visit(self, that):
         return that.visit_method_app(self)
+
+
+App = Application | PrefixApplication | MethodApplication | InfixApplication
+"Application AST Nodes"
 
 
 @dataclass
