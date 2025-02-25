@@ -1,11 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include "native.h"
 #include "value.h"
 #include "vm.h"
 
 #ifdef _WIN32
+#include <windows.h>
 static LARGE_INTEGER frequency = {.QuadPart = -1LL};
 #endif
 
@@ -43,6 +45,11 @@ void native_print(void) {
   fflush(stdout);
   DEBUG_PRINT(BRIGHT_RED "`" RESET NEWLINE);
 #endif
+  push(VAL_NIL);
+}
+
+void native_flush(void) {
+  fflush(stdout);
   push(VAL_NIL);
 }
 
@@ -129,7 +136,7 @@ void native_set(void) {
 
     AS_LIST(val)->list.values[i] = new_val;
   } else {
-    PRINT_ERR("Called get on invalid value.");
+    PRINT_ERR("Called set on invalid value.");
     exit(1);
   }
   POP_COUNT(3);
@@ -264,9 +271,24 @@ void native_rand_int() {
   push(VAL_INT(val));
 }
 
+void native_sleep(void) {
+  Value a = pop();
+  int milliseconds = a.as.integer;
+#ifdef WIN32
+  Sleep(milliseconds);
+#else
+  struct timespec ts;
+  ts.tv_sec = milliseconds / 1000;
+  ts.tv_nsec = (milliseconds % 1000) * 1000000;
+  nanosleep(&ts, NULL);
+#endif
+  push(VAL_NIL);
+}
+
 const NativeFunction native_builtins[] = {
     {"print", sizeof("print") - 1, {(native_function)native_print}, 1},
     {"println", sizeof("println") - 1, {(native_function)native_println}, 1},
+    {"flush", sizeof("flush") - 1, {(native_function)native_flush}, 0},
     {"List", sizeof("List") - 1, {(native_function)native_list_construct}, 0},
     {"append", sizeof("append") - 1, {(native_function)native_list_append}, 2},
     {"len", sizeof("len") - 1, {(native_function)native_len}, 1},
@@ -281,6 +303,7 @@ const NativeFunction native_builtins[] = {
     {"timeMs", sizeof("timeMs") - 1, {(native_function)native_time_ms}, 0},
     {"abs", sizeof("abs") - 1, {(native_function)native_abs}, 1},
     {"randInt", sizeof("randInt") - 1, {(native_function)native_rand_int}, 1},
+    {"sleep", sizeof("sleep") - 1, {(native_function)native_sleep}, 1},
 };
 
 const NativeFunction *const native_functions_get(size_t *out_count) {
