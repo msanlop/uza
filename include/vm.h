@@ -8,8 +8,8 @@
 #include "value.h"
 #include <stdio.h>
 
-#define STACK_MAX ((1 << 22) / sizeof(Value)) // 4MiB
-#define FRAMES_MAX (1000)
+#define STACK_MAX ((1 << 20) / sizeof(Value)) // 1MiB
+#define FRAMES_MAX (100)
 
 #define CHECK_STACK_OVERFLOW                                                   \
   do {                                                                         \
