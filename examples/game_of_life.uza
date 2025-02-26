@@ -4,6 +4,14 @@
 const TARGET_FRAME_TIME = 40
 const LIMIT_FRAME = true // unset if using -i flag, or big canvas dimension
 
+
+// if set to true, the output string is built and printed all at once rather than
+// printed char by char. This will probably be smoother in general, although costly
+// with with 1 allocation per pexel (no StringBuilder...).
+// If the platform buffer stdout prints and the terminal emulator is fast enough,
+// then setting to false will allow better performance.
+const PREFER_SMOOTHER_OUTPUT = true
+
 // STARTING SPAWN ODDS
 const SPAWN_ODDS = 20 // (SPAWN_ODDS / 100) %
 
@@ -81,6 +89,7 @@ func updateCells(cells: List<bool>, counts: List<int>) => void {
     }
 }
 
+// print cells to stdout
 func drawCells(cells: List<bool>) => void {
     print(TERMINAL_CLEAR + TERMINAL_MOVE_HOME)
     var alive = 0
@@ -95,6 +104,22 @@ func drawCells(cells: List<bool>) => void {
     println("\n" + alive.toString() + " cells alive")
 }
 
+// build and return output
+func getDrawCellsOutput(cells: List<bool>) => string {
+    var out = (TERMINAL_CLEAR + TERMINAL_MOVE_HOME)
+    var alive = 0
+    for var c = 0; c < (MAX_X * MAX_Y); c += 1 {
+        if (c % MAX_X) == 0 then out += ("\n")
+        if cells.get(c) then {
+            alive += 1
+            out += ("#")
+        }
+        else out += (" ")
+    }
+    out += f"\n{alive.toString()} cells alive\n"
+    return out
+}
+
 
 func main() => void {
     var cells = List<bool>()
@@ -103,7 +128,8 @@ func main() => void {
     for var c = 0; c < (MAX_X * MAX_Y); c += 1 {
         NEIGHBOURS.append(0)
     }
-    drawCells(cells)
+    if PREFER_SMOOTHER_OUTPUT then print(getDrawCellsOutput(cells))
+    else drawCells(cells)
 
     var iter = 0
     const MAX_ITER = 10_000
@@ -114,16 +140,19 @@ func main() => void {
         countNeighbours(cells, NEIGHBOURS)
         updateCells(cells, NEIGHBOURS)
 
-        drawCells(cells)
-        println("frametime: " + prevFrame.toString() + "ms")
-        iter += 1
-        print(f"tick #{iter.toString()}")
+        var out = ""
+        if PREFER_SMOOTHER_OUTPUT then out = getDrawCellsOutput(cells)
+        else drawCells(cells)
+        out += f"frametime: {prevFrame.toString()}ms\n"
+        out += f"tick #{iter.toString()}\n"
+        print(out)
         flush()
 
         if (LIMIT_FRAME) then
             while (timeMs() - frameStart) - 1 <= TARGET_FRAME_TIME do sleep(3)
 
         prevFrame = timeMs() - frameStart
+        iter += 1
     }
 }
 
