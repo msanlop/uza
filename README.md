@@ -193,8 +193,11 @@ const n: int = randInt(1000) // random value between 0 and N (excluded)
 sleep(1000) // sleep thread for N ms
 ```
 ---
+https://github.com/user-attachments/assets/88df8be4-6310-4c58-9edf-4bcea188dad4
 
+Output of `examples/game_of_life.uza`, an implementation of [Conway's Game of Life](https://en.wikipedia.org/wiki/Conway's_Game_of_Life).  
 More examples are available in the `examples` directory.
+
 # Usage
 Compile and execute.
 ```bash
