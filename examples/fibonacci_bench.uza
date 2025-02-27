@@ -1,0 +1,70 @@
+const N = 35
+
+func fib(n : int) => int {
+    if n <= 1 then return n
+    return fib(n-1) + fib(n-2)
+}
+
+func fibNTimes(n: int) => float {
+    var tot: int = 0
+    for var i = 0; i < n; i += 1{
+        const start = timeMs()
+        const res = fib(N)
+        println(res == 9227465)
+        const delta = timeMs() - start
+        tot += delta
+        println(delta.toString() + "ms")
+    }
+    return tot.toFloat() / n
+}
+
+const runs = 10
+const mean = fibNTimes(runs)
+println(f"average: {mean.toString()}")
+
+
+// CLOX
+//
+// fun fib(n) {
+//   if (n < 2) return n;
+//   return fib(n - 2) + fib(n - 1);
+// }
+//
+// fun fibNTimes(n) {
+//   var tot = 0;
+//   for (var i = 0; i < n; i = i + 1) {
+//     var start = clock();
+//     print fib(35) == 9227465;
+//     var delta = clock() - start;
+//     print delta;
+//     tot = tot + delta;
+//   }
+//   return tot / n;
+// }
+//
+// var mean = fibNTimes(10);
+// print "average : ";
+// print mean;
+
+
+// PYTHON
+//
+// import time
+//
+// def fib(n):
+//     if n < 2:
+//         return n
+//     return fib(n-2) + fib(n-1)
+//
+// def fibNTimes(n):
+//     tot = 0
+//     for i in range(n):
+//         start = time.perf_counter()
+//         res = fib(35)
+//         print(res == 9227465)
+//         delta = time.perf_counter() - start
+//         print(delta)
+//         tot += delta
+//     return tot / n
+//
+// print(f"average: {fibNTimes(10)}")

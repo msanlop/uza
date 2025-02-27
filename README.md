@@ -1,8 +1,9 @@
 # Uza
-Uza is a simple statically typed programming language, that takes inspiration from Scala and Python.
-This repo features an uza compiler/interpreter written in Python in the `uzac` directory, as well as a custom Virtual Machine written in C in the `vm` directory.
+Uza is a small statically typed programming language.
+This repo features an uza compiler/interpreter written in Python in the `uzac` directory. It also features a garbage collected virtual machine, based on the second part of Bob Nystrom's [Crafting Interpreters](https://craftinginterpreters.com/), in the `vm` directory.
 
-Here is fibonacci in uza:
+
+Here is an example of an uza program:
 ```go
 func fib(n : int) => int {
     if n <= 1 then return n
@@ -10,48 +11,217 @@ func fib(n : int) => int {
 }
 
 const n = 30
-println(f"fib({toString(n)}) = {toString(fib(n))}")
+println("The 30th fibonacci number is " + fib(30).toString())
 ```
 
-# Overview
-Uza has 5 primitive types:
+# Language Tour
+
+## Variables
+
+Variables use the `var` keyword and take an optional type:
 ```go
-nil      // null/None type
-42       // int, 64 bit
-3.14     // float, double precision
-true     // bool
-"hello"  // string
+var count: int = 42
+var str = "hello world" // 'string' type inferred
 ```
 
-There is also a `List` type and `func[_func_name_]` function type.
-
-The typechecker has partial type inference.
-Functions signatures must be type annotated and generic type variable declarations must be annotated too — for example `const foo = List()` => `const foo: List<int> = List()`.
+Constants are declared using `const` and cannot be reassigned:
 ```go
-const foo = "hello world"
-println(foo * 2)
+const G = 10.0
 
-// at 'println(foo * 2)'
-//             ^^^Expected int but found string
+G = 9.81 // FAILS: UzaTypeError: cannot reassign const variable 'G'
 ```
 
-There are no implicit conversions in uza.
-
+## Blocks
+Blocks statements allow for creation of a new scope.
 ```go
-func halve(n: float) => float {
-    return n / 2
+var i = 0
+{
+  var i = 42
+  const foo = "unused"
+  println(i) // 42
 }
-const foo = 1
-
-println(halve(foo))
-// at 'println(halve(foo))'
-//                   ^^^^ Error: Expected type 'float' but found 'int'
-
-println(halve(toFloat(foo))) // 0.5
+println(i) // 0
+println(foo) // UzaNameError: variable `foo` not defined in this scope
 ```
 
+## Functions
+Functions are defined using `func` and must be typed:
+
+```go
+func add(a: int, b: int) => int {
+    return a + b
+}
+```
+
+Functions that have a void return type always return `nil`:
+
+```go
+func printMessage() => void {
+    print("Hello, World!")
+}
+
+print(printMessage)//Hello, World!nil
+```
+
+## Lists
+Lists are dynamic arrays and can take a generic type. A List instead can be
+constructed with `List<type>()`.
+
+```go
+var numbers: List<int> = List<int>()
+numbers.append(1)
+numbers.append(42)
+
+println(numbers.len()) // 2
+println(numbers) // [1, 42]
+
+numbers.set(0, 97)
+println(numbers) // [97, 42]
+
+const DESCENDING = false
+numbers.sort(DESCENDING)
+println(numbers) // [42, 97]
+```
+
+---
+
+## Control Flow
+
+### Conditionals
+
+```go
+if x > 10 {
+  println("Large")
+}
+else {
+  println("Small")
+}
+```
+
+`If` statements can also take a single expression/statement instead of a
+block by using the `then` keyword:
+```go
+const x = 7
+
+if x > 10 then println("Large")
+else if x > 5 then println("Medium") // Medium
+else println("Small")
+
+// identical to:
+if x > 10 then
+  println("Large")
+else if x > 5 then
+  println("Medium") // Medium
+else
+  println("Small")
+```
+
+### Loops
+
+For loops are take in three optional statements:
+- A initializer, that is run before the first iteration.
+- A conditional, that is checked every iteration.
+- And a statement that is run after each iteration.
+
+```go
+for var i = 0; i < 3; i += 1 {
+    println(i)
+}
+```
+
+While loops only take a conditional that evaluates to a `boolean`:
+```scala
+var count = 0
+while count < 10 {
+  count += 1
+}
+```
+
+Like `if` statments, `while` and `for` loops can take in a block, or a single
+expression or statment using the `do` keyword:
+
+```go
+println("pair numbers in [0, 10]: ")
+for var i = 0; i <= 10; i += 2 do println(i)
+```
+---
+
+## String Handling
+
+### String Concatenation
+
+```go
+var message = "Hello, " + "World!"
+```
+
+### Substrings
+```go
+const str = "aldskfjldjaflj Hello, world!"
+
+var i = 0
+while str.get(i) != " " do i += 1
+
+println(str.substring(i + 1, str.len())) // Hello world!
+```
+
+### f-strings
+String interpolations with a syntax similar to Python:
+```go
+const name = "Jane"
+const age = 33
+println(f"{name} is {age.toString()} years old.")
+```
+
+Note that there are no implicit conversion in uza.
+While the `print` and `println` functions have overload for primitive types, string interpolation values
+must first be converted to a string.
+
+## Utils
+Other useful functions:
+```go
+const foo: float = abs(3.14)
+
+print("hi")
+flush() // flush stdout
+
+const t: int = timeNs() // nanoseconds counter
+
+const ms: int = timeMs() // milliseconds counter
+
+const n: int = randInt(1000) // random value between 0 and N (excluded)
+
+sleep(1000) // sleep thread for N ms
+```
+---
 
 More examples are available in the `examples` directory.
+# Usage
+Compile and execute.
+```bash
+uza source.uza
+```
+
+Compile and execute from stdin.
+```bash
+echo 'println("hello world!")' | uza
+```
+
+Compile to bytecode. Execute bytecode without compilation step.
+```bash
+uza source.uza -c // Wrote X bytes to code.uzb
+uza code.uzb
+```
+
+Interpret without VM installed (slow execution)
+```bash
+uza source.uza -i
+```
+
+For more options:
+```bash
+uza --help
+```
+
 
 # Installation and Build
 > [!NOTE]
@@ -144,11 +314,11 @@ pytest
 ```
 
 ## TODO
-- Generics
+- Structs
 - Closures, lambda functions
-- Structs, methods
+- Generics and overloading for user functions
 - Iterators
 - Maps
 - Modules, stdlib
-- JIT, convert the interpreter to RPython and see how well it performs
+- JIT, add jitting to the VM or try using RPython
 - it never ends...

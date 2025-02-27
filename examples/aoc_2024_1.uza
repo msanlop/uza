@@ -6,19 +6,19 @@ const input_str = "3   4
 3   9
 3   3"
 
-const list_left: List<int> = List()
-const list_right: List<int> = List()
+const list_left = List<int>()
+const list_right = List<int>()
 
 func parse_lines(input: string) => List<string> {
     var start: int = 0
     var end: int = 0
-    const lines: List<string> = List()
-    const input_len = len(input)
+    const lines: List<string> = List<string>()
+    const input_len = input.len()
     while end < input_len {
-        while ((end < input_len) and (get(input, end) != "\n")) {
+        while ((end < input_len) and (input.get(end) != "\n")) {
             end+=1
         }
-        append(lines, substring(input, start, end))
+        lines.append(input.substring(start, end))
         start = end + 1
         end += 1
     }
@@ -28,46 +28,40 @@ func parse_lines(input: string) => List<string> {
 func parse_two_ints(line: string, l: List<int>, r: List<int>) => void {
     var start = 0
     var end = 0
-    while (end < len(line)) and get(line, end) != " " {
-        end += 1
-    }
-    append(l, toInt(substring(line, start, end)))
+    while (end < line.len()) and line.get(end) != " " do end += 1
+    l.append(line.substring(start, end).toInt())
 
-    while (end < len(line)) and get(line, end) == " " do end += 1 //clear gap
+    while (end < line.len()) and line.get(end) == " " do end += 1 //clear gap
     start = end
-    const line_len = len(line)
-    while (end<line_len) and (get(line, end) != "\n") {
-        end += 1
-    }
-    append(r, toInt(substring(line, start, end)))
+    const line_len = line.len()
+    while (end<line_len) and (line.get(end) != "\n") do end += 1
+    r.append(line.substring(start, end).toInt())
 
 }
 
 const lines = parse_lines(input_str)
-for var i = 0; i < len(lines); i+=1
-    do parse_two_ints(get(lines, i), list_left, list_right)
+for var i = 0; i < lines.len(); i+=1
+    do parse_two_ints(lines.get(i), list_left, list_right)
 sort(list_left, false)
 sort(list_right, false)
 
 // SUM DIFFERENCES
 var sum = 0
-for var i = 0; i < len(list_left); i+=1 {
-    const diff = get(list_left, i) - get(list_right, i)
-    var abs_diff = diff
-    if diff < 0 then abs_diff = -diff
-    sum += abs_diff
+for var i = 0; i < list_left.len(); i+=1 {
+    const diff = list_left.get(i) - list_right.get(i)
+    sum += abs(diff)
 }
 print("Sum of differences is: ")
 println(sum)
 
 //DISGUSTING SIMILARITY SCORE
 sum = 0
-const pair_count = len(list_left)
+const pair_count = list_left.len()
 var right_start = 0 // don't compare values we know are smaller
 for var i = 0; i < pair_count; i+=1 {
-    const curr = get(list_left, i)
+    const curr = list_left.get(i)
     for var j = right_start; (j < pair_count); j+=1 {
-        const right_num = get(list_right, j)
+        const right_num = list_right.get(j)
         if curr == right_num then {
             sum += right_num
         }
