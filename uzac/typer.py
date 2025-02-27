@@ -327,7 +327,7 @@ class Applies(Constraint):
                 # if does not match, try updating subsitution if possible (type_a
                 # is Symbolic) or fail fatally
                 solved = False
-                if not a.is_symbolic():
+                if not type_a.is_symbolic():
                     type_str = str(self.b)
                     err = UzaTypeError(
                         span,
@@ -337,16 +337,6 @@ class Applies(Constraint):
                     self._errs.append(err)
                     fatal = True
                     continue
-                sub_type = substitution.get_type_of(a)
-                if sub_type is not None and (not sub_type.is_symbolic()):
-                    type_str = str(self.b)
-                    err = UzaTypeError(
-                        span,
-                        f"""Expected {type_b} but found {type_a}
-                            for function type: {in_color(type_str, ANSIColor.GREEN)}""",
-                    )
-                    self._errs.append(err)
-                    fatal = True
                 option = option + (a, b)
 
         if self.b.return_type.is_generic_arg():
@@ -409,7 +399,7 @@ class OneOf(Constraint):
             self._errs += c.errors()
         err = UzaTypeError(
             self.span,
-            in_bold("No function overeload found")
+            in_bold("No function overload found")
             + "\n (possible function signatures are shown in green)",
         )
         self._errs.append(err)
