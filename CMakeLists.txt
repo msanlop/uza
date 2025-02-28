@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(project VERSION 0.0.1)
+project(uza VERSION 0.0.1)
 set(CMAKE_C_STANDARD 99)
 
 # windows
