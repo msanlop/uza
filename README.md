@@ -146,6 +146,36 @@ for var i = 0; i <= 10; i += 2 do println(i)
 ```
 ---
 
+## Unit Conversions
+
+### `toInt` and `toFloat`
+```go
+const i: int = 1
+const f: float = i + 0.5 // implicit conversion of i to float
+println(f) // 1.5
+
+
+const str = "1.6"
+const bigger = str.toFloat()
+println(bigger > f) // true
+
+//truncate int
+println(bigger.toInt() < f) // true
+```
+### `toString`
+```go
+const number = 42
+println(number.toString() + "24") // 4224
+```
+
+### Scientific notation
+```go
+const str = "1.5E9"
+const scientific = str.toFloat()
+println(scientific)                          // 1500000000.000
+println(scientific.toInt() == 1_500_000_000) // true
+```
+
 ## String Handling
 
 ### String Concatenation
@@ -172,7 +202,6 @@ const age = 33
 println(f"{name} is {age.toString()} years old.")
 ```
 
-Note that there are no implicit conversion in uza.
 While the `print` and `println` functions have overload for primitive types, string interpolation values
 must first be converted to a string.
 
@@ -195,7 +224,7 @@ sleep(1000) // sleep thread for N ms
 ---
 https://github.com/user-attachments/assets/88df8be4-6310-4c58-9edf-4bcea188dad4
 
-Output of `examples/game_of_life.uza`, an implementation of [Conway's Game of Life](https://en.wikipedia.org/wiki/Conway's_Game_of_Life).  
+Output of `examples/game_of_life.uza`, an implementation of [Conway's Game of Life](https://en.wikipedia.org/wiki/Conway's_Game_of_Life).
 More examples are available in the `examples` directory.
 
 # Usage

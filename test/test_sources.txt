@@ -658,3 +658,34 @@ out of whileloop
 3
 BREAKING
 out of forloop
+
+#test conversions
+const i: int = 1
+const f: float = i + 0.5 // implicit conversion of i to float
+//println(f) // 1.5
+
+
+const str = "1.6"
+const bigger = str.toFloat()
+println(bigger > f) // true
+
+//truncate int
+println(bigger.toInt() < f) // true
+#expected
+true
+true
+
+#test toString
+const number = 42
+println(number.toString() + "24") // 4224
+#expected
+4224
+
+#test scientific_notation_toFloat
+const str = "1.5E9"
+const scientific = str.toFloat()
+println(scientific.toInt())                          // 1500000000
+println(scientific.toInt() == 1_500_000_000) // true
+#expected
+1500000000
+true

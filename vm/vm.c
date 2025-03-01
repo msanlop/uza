@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <errno.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -39,6 +40,24 @@
     } else {                                                                   \
       (lhs).as.integer = (lhs).as.integer op(rhs).as.integer;                  \
     }                                                                          \
+    push(lhs);                                                                 \
+  } while (false);
+
+#define BOOLEAN_BINARY_OP(op)                                                  \
+  do {                                                                         \
+    Value rhs = pop();                                                         \
+    Value lhs = pop();                                                         \
+    if (IS_DOUBLE(lhs) || IS_DOUBLE(rhs)) {                                    \
+      if (IS_INTEGER(lhs)) {                                                   \
+        I2D(lhs);                                                              \
+      } else if (IS_INTEGER(rhs)) {                                            \
+        I2D(rhs);                                                              \
+      }                                                                        \
+      lhs.as.boolean = (lhs).as.fp op(rhs).as.fp;                              \
+    } else {                                                                   \
+      lhs.as.boolean = (lhs).as.integer op(rhs).as.integer;                    \
+    }                                                                          \
+    lhs.type = TYPE_BOOL;                                                      \
     push(lhs);                                                                 \
   } while (false);
 
@@ -298,27 +317,27 @@ int interpret(void) {
       }
     } break;
     case OP_EQ: {
-      BINARY_OP(==);
+      BOOLEAN_BINARY_OP(==);
       SET_STACK_VALUE_TO_BOOL;
     } break;
     case OP_NE: {
-      BINARY_OP(!=);
+      BOOLEAN_BINARY_OP(!=);
       SET_STACK_VALUE_TO_BOOL;
     } break;
     case OP_LT: {
-      BINARY_OP(<);
+      BOOLEAN_BINARY_OP(<);
       SET_STACK_VALUE_TO_BOOL;
     } break;
     case OP_LE: {
-      BINARY_OP(<=);
+      BOOLEAN_BINARY_OP(<=);
       SET_STACK_VALUE_TO_BOOL;
     } break;
     case OP_GT: {
-      BINARY_OP(>);
+      BOOLEAN_BINARY_OP(>);
       SET_STACK_VALUE_TO_BOOL;
     } break;
     case OP_GE: {
-      BINARY_OP(>=);
+      BOOLEAN_BINARY_OP(>=);
       SET_STACK_VALUE_TO_BOOL;
     } break;
     case OP_NOT: {
@@ -351,14 +370,30 @@ int interpret(void) {
       if (IS_DOUBLE(PEEK(vm))) {
         break;
       }
-      if (IS_STRING(PEEK(vm))) {
-        PRINT_ERR_ARGS("at %s:%d not implemented string to float : %d\n\n",
-                       __FILE__, __LINE__, instruction);
-        return 1;
-      }
-
       Value *val = &PEEK(vm);
-      if (IS_INTEGER(*val)) {
+      if (IS_STRING(*val)) {
+        ObjectString *str = AS_STRING(*val);
+        errno = 0;
+        char *endptr = NULL;
+        double res = strtod(str->chars, &endptr);
+        if (endptr == str->chars) {
+          PRINT_ERR("Could not parse float for: ");
+          PRINT_VALUE(*val, stderr);
+          fprintf(stderr, NEWLINE);
+          return 1;
+        } else if (errno == ERANGE) {
+          PRINT_ERR("Float out of range for: ");
+          PRINT_VALUE(*val, stderr);
+          fprintf(stderr, NEWLINE);
+          return 1;
+        } else if (*endptr != '\0') {
+          PRINT_ERR("Could only partially parse float for: ");
+          PRINT_VALUE(*val, stderr);
+          fprintf(stderr, NEWLINE);
+          return 1;
+        }
+        push(VAL_FLOAT(res));
+      } else if (IS_INTEGER(*val)) {
         val->as.fp = (double)val->as.integer;
         val->type = TYPE_DOUBLE;
       }
