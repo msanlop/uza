@@ -1,4 +1,4 @@
-name: Build
+name: Build and distribute (PyPI)
 
 on:
     push:
@@ -56,7 +56,7 @@ jobs:
         run: mkdir -p dist
 
       - name: Flatten wheelhouse into dist for nest step
-        run: mv wheelhouse/*/*.whl dist/
+        run: mv wheelhouse/*.whl dist/
 
       - name: Publish package distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
@@ -72,13 +72,14 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: dist
+          merge-multiple: true
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
-          files: dist/*
+          files: dist/*.whl
           body: "Automated release of version ${{ github.ref_name }}"
           draft: false
           prerelease: true
