@@ -73,19 +73,13 @@
 
 extern bool stop_interpreting;
 VM vm = {0};
-bool enable_garbage_collection = false;
 
 inline void vm_stack_reset(void) { stack_top_set(vm.stack); }
 
-void vm_init(program_bytes_t *program) {
-  vm = (VM){0};
-  vm.nextGC = 1024 * 1024;
-  enable_garbage_collection = false;
-
-  initTable(&vm.strings);
-  initTable(&vm.globals);
-  read_program(program);
-
+// Dynamically load all native funcs, TODO: could be done lazily
+// MUST BE CALLED AFTER LOADING THE PROGRAM (stack/constants corruption
+// otherwise sometimes)
+static void vm_load_global_funcs(void) {
   size_t count;
   const NativeFunction *natives = native_functions_get(&count);
   for (size_t i = 0; i < count; i++) {
@@ -99,20 +93,36 @@ void vm_init(program_bytes_t *program) {
     func_obj->name = func_name;
     tableSet(&vm.globals, func_name, VAL_OBJ(func_obj));
   }
+}
 
+// Init the global Frame
+void vm_init_global_scope(void) {
   vm.depth = 0;
   Frame *global_frame = &vm.frame_stacks[vm.depth];
   global_frame->function = object_function_allocate();
-  global_frame->function->chunk = vm.chunks[0];
+  global_frame->function->chunk =
+      vm.chunks[0]; // first chunk should always be global scope
   global_frame->function->name =
       object_string_allocate(&vm.strings, "__global__", sizeof("__global__"));
   global_frame->ip = global_frame->function->chunk->code;
   global_frame->locals_count = global_frame->function->chunk->local_count;
-  global_frame->is_block = false;
   global_frame->locals = vm.stack;
+  stack_top_set(vm.stack_top + global_frame->locals_count);
+}
+
+void vm_init(program_bytes_t *program) {
+  vm = (VM){0};
+  vm.nextGC = GC_DEFAULT_THRESHOLD;
+  vm.enable_GC = false;
+
+  initTable(&vm.strings);
+  initTable(&vm.globals);
+  read_program(program);
+
+  vm_load_global_funcs();
 
   vm_stack_reset();
-  stack_top_set(vm.stack_top + global_frame->locals_count);
+  vm_init_global_scope();
 }
 
 void vm_free(void) {
@@ -124,7 +134,7 @@ void vm_free(void) {
 }
 
 int interpret(void) {
-  enable_garbage_collection = true;
+  vm.enable_GC = true;
 
   // update these two when calling/returning
   Frame *frame = &vm.frame_stacks[vm.depth];
@@ -191,7 +201,6 @@ int interpret(void) {
       curr->locals_count = func->chunk->local_count;
       curr->locals = vm.stack_top - func->arity; // args are in the stack
       curr->ip = func->chunk->code;
-      curr->is_block = false;
       stack_top_set(&curr->locals[curr->locals_count]);
 
       chunk = func->chunk;

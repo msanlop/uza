@@ -11,6 +11,8 @@
 #define STACK_MAX ((1 << 20) / sizeof(Value)) // 1MiB
 #define FRAMES_MAX (100)
 
+#define GC_DEFAULT_THRESHOLD (1024 * 1024);
+
 #define CHECK_STACK_OVERFLOW                                                   \
   do {                                                                         \
     if (vm.stack_top >= &vm.stack[STACK_MAX]) {                                \
@@ -24,7 +26,6 @@ typedef struct {
   size_t locals_count;
   Value *locals;
   uint8_t *ip;
-  bool is_block; // _return_ statements pop block frames
 } Frame;
 
 typedef struct {
@@ -35,15 +36,16 @@ typedef struct {
   Value stack[STACK_MAX];
   Value *stack_top;
   uint16_t depth;
-  // TODO: see about type, so far only hold locals
-  Frame frame_stacks[FRAMES_MAX]; // points to the spot after last local
+  Frame frame_stacks[FRAMES_MAX];
   Table strings;
   Table globals;
+
   int gray_count;
   int gray_capacity;
   Obj **gray_stack;
   size_t bytesAllocated;
-  size_t nextGC;
+  size_t nextGC;  // allocated bytes threshold for GC to collect
+  bool enable_GC; // whether GC should run or not
 } VM;
 
 #define PEEK(vm) (*(vm.stack_top - 1))
@@ -56,7 +58,6 @@ typedef struct {
   } while (0);
 
 extern VM vm;
-extern bool enable_garbage_collection;
 
 static inline
 #if defined(MSVC)

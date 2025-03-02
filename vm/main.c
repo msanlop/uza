@@ -28,7 +28,7 @@ static void sigint_handler(int sig) {
 __declspec(dllexport)
 #endif
 int run_vm(int byte_count, char* code) {
-  program_bytes_t program = {byte_count, code};
+  program_bytes_t program = {byte_count, (uint8_t *)code};
 
 #if defined(_WIN32) || defined(WIN32)
   if (!SetConsoleCtrlHandler(CtrlHandler, TRUE)) {

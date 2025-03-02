@@ -22,8 +22,11 @@ typedef struct {
   const char *const name;
   const size_t name_len;
   const native_function function;
-  const size_t arity;
+  const size_t arity; // unused so far
 } NativeFunction;
+
+#define NEW_NATIVE_FUNCTION(name, func_name, arity)                            \
+  {name, sizeof(name) - 1, (native_function)func_name, arity}
 
 const NativeFunction *const native_functions_get(size_t *out_count);
 

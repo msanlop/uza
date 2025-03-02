@@ -8,8 +8,6 @@
 #include "debug.h"
 #endif
 
-extern bool enable_garbage_collection;
-
 void *reallocate(void *ptr, size_t old_size, size_t new_size) {
   vm.bytesAllocated += new_size - old_size;
   if (new_size > old_size) {
@@ -133,7 +131,7 @@ void sweep() {
       DEBUG_PRINT("freeing object: ");
       PRINT_VALUE(VAL_OBJ(object), stderr);
       DEBUG_PRINT(NEWLINE);
-#endif DEBUG_LOG_GC
+#endif // DEBUG_LOG_GC
 
       Obj *unreached = object;
       object = object->next;
@@ -149,7 +147,7 @@ void sweep() {
 }
 
 void collectGarbage() {
-  if (!enable_garbage_collection)
+  if (!vm.enable_GC)
     return;
 #ifdef DEBUG_LOG_GC
   DEBUG_PRINT(BRIGHT_YELLOW "-- GC BEGIN --\n" RESET);

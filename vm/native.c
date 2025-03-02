@@ -1,3 +1,4 @@
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -121,8 +122,6 @@ void native_get(void) {
 }
 
 void native_set(void) {
-  Value res = VAL_NIL;
-
   Value new_val = PEEK_AT(0);
   Value index = PEEK_AT(1);
   int i = index.as.integer;
@@ -254,9 +253,9 @@ void native_time_ms() {
 void native_abs() {
   Value a = pop();
   if (IS_INTEGER(a)) {
-    push(VAL_INT(abs(a.as.integer)));
+    push(VAL_INT(llabs(a.as.integer)));
   } else {
-    push(VAL_FLOAT(abs(a.as.fp)));
+    push(VAL_FLOAT(fabs(a.as.fp)));
   }
 }
 
@@ -286,24 +285,21 @@ void native_sleep(void) {
 }
 
 const NativeFunction native_builtins[] = {
-    {"print", sizeof("print") - 1, {(native_function)native_print}, 1},
-    {"println", sizeof("println") - 1, {(native_function)native_println}, 1},
-    {"flush", sizeof("flush") - 1, {(native_function)native_flush}, 0},
-    {"List", sizeof("List") - 1, {(native_function)native_list_construct}, 0},
-    {"append", sizeof("append") - 1, {(native_function)native_list_append}, 2},
-    {"len", sizeof("len") - 1, {(native_function)native_len}, 1},
-    {"get", sizeof("get") - 1, {(native_function)native_get}, 2},
-    {"set", sizeof("set") - 1, {(native_function)native_set}, 3},
-    {"substring",
-     sizeof("substring") - 1,
-     {(native_function)native_substring},
-     3},
-    {"sort", sizeof("sort") - 1, {(native_function)native_sort}, 1},
-    {"timeNs", sizeof("timeNs") - 1, {(native_function)native_time_ns}, 0},
-    {"timeMs", sizeof("timeMs") - 1, {(native_function)native_time_ms}, 0},
-    {"abs", sizeof("abs") - 1, {(native_function)native_abs}, 1},
-    {"randInt", sizeof("randInt") - 1, {(native_function)native_rand_int}, 1},
-    {"sleep", sizeof("sleep") - 1, {(native_function)native_sleep}, 1},
+    NEW_NATIVE_FUNCTION("print", native_print, 1),
+    NEW_NATIVE_FUNCTION("println", native_println, 1),
+    NEW_NATIVE_FUNCTION("flush", native_flush, 0),
+    NEW_NATIVE_FUNCTION("List", native_list_construct, 0),
+    NEW_NATIVE_FUNCTION("append", native_list_append, 2),
+    NEW_NATIVE_FUNCTION("len", native_len, 1),
+    NEW_NATIVE_FUNCTION("get", native_get, 2),
+    NEW_NATIVE_FUNCTION("set", native_set, 3),
+    NEW_NATIVE_FUNCTION("substring", native_substring, 3),
+    NEW_NATIVE_FUNCTION("sort", native_sort, 1),
+    NEW_NATIVE_FUNCTION("timeNs", native_time_ns, 0),
+    NEW_NATIVE_FUNCTION("timeMs", native_time_ms, 0),
+    NEW_NATIVE_FUNCTION("abs", native_abs, 1),
+    NEW_NATIVE_FUNCTION("randInt", native_rand_int, 1),
+    NEW_NATIVE_FUNCTION("sleep", native_sleep, 1),
 };
 
 const NativeFunction *const native_functions_get(size_t *out_count) {

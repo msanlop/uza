@@ -1,6 +1,8 @@
-#include "serialize.h"
+#include <assert.h>
+
 #include "debug.h"
 #include "memory.h"
+#include "serialize.h"
 #include "string.h"
 #include "value.h"
 
@@ -72,7 +74,6 @@ void load_chunk(size_t chunk_idx, program_bytes_t *program) {
   chunk->code = program->bytes;
   DEBUG_PRINT("chunk count is %d\n", ops_count);
   chunk->count = ops_count;
-  uint8_t *lines_start = (program->bytes + ops_length);
   program->bytes += ops_length;
   program->count -= ops_length;
 
