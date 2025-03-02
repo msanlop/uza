@@ -1,4 +1,4 @@
-name: CI
+name: Test, lint and format
 
 on:
   push:
