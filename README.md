@@ -279,6 +279,10 @@ uza --help
 > Uza is a personal learning project and not meant for production use.
 > Unless you like a challenge :^)
 
+> [!WARNING]
+> There are no official prebuilt binaries for Linux and Windows on ARM64 or ARMv7. You will need to build from source for these architectures.
+
+
 
 The main way to install uza is through `pip`, Python's package manager.
 Installing in a `venv` removes the need to edit the PATH but requires the `venv` to be active to use uza.
