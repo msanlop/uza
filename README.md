@@ -373,7 +373,7 @@ pytest
 This microbenchmark should be taken with a grain of salt. It's not a good representation of the overall speed of each language and interpreter. The only reason I include this is because I like comparing performance and looking at charts :).
 
 This benchmark runs a recursive fibonacci function to compute the 35th fibonacci number. The benchmark code can be found in `examples/fibonacci_bench.uza`.
-The following interpreters were tested:
+The following interpreters were tested on a base Apple M4:
 - **uza (pypy)**: A tree-walk uza interpreter running on PyPy, a JIT implementation of Python. (Running `uza` with the `-i` flag)
 - **uza**: `Uza` running the bytecode VM in the `vm` directory
 - **clox**: [A `Lox` bytecode interpreter](https://github.com/munificent/craftinginterpreters). The VM implementation is similar to the VM in this repo
