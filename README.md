@@ -1,3 +1,20 @@
+Table of contents
+---
+
+<!--ts-->
+   * [Introduction](#uza)
+   * [Language Tour](#language-tour)
+   * [Usage](#usage)
+   * [Installation-and-build](#installation-and-build)
+      * [Venv install](#venv-install)
+      * [Global install](#global-pip-install)
+      * [Build from source](#build-from-source)
+          * [Testing](#testing)
+   * [Benchmark](#benchmark)
+   * [TODO](#todo)
+<!--te-->
+
+
 # Uza
 Uza is a small statically typed programming language.
 This repo features an uza compiler/interpreter written in Python in the `uzac` directory. It also features a garbage collected virtual machine, based on the second part of Bob Nystrom's [Crafting Interpreters](https://craftinginterpreters.com/), in the `vm` directory.
@@ -90,12 +107,17 @@ println(numbers) // [42, 97]
 ### Conditionals
 
 ```go
+const x = 15
 if x > 10 {
-  println("Large")
+  println("Large") // Large
 }
 else {
   println("Small")
 }
+
+println(2 > 1 and true) // true
+
+println(not (false or true)) // false
 ```
 
 `If` statements can also take a single expression/statement instead of a
@@ -195,15 +217,12 @@ println(str.substring(i + 1, str.len())) // Hello world!
 ```
 
 ### f-strings
-String interpolations with a syntax similar to Python:
+String interpolations, with a syntax similar to Python:
 ```go
 const name = "Jane"
 const age = 33
 println(f"{name} is {age.toString()} years old.")
 ```
-
-While the `print` and `println` functions have overload for primitive types, string interpolation values
-must first be converted to a string.
 
 ## Utils
 Other useful functions:
@@ -345,7 +364,32 @@ pip install -r requirements.txt
 pytest
 ```
 
-## TODO
+# Benchmark
+
+This microbenchmark should be taken with a grain of salt. It's not a good representation of the overall speed of each language and interpreter. The only reason I include this is because I like comparing performance and looking at charts :).
+
+This benchmark runs a recursive fibonacci function to compute the 35th fibonacci number. The benchmark code can be found in `examples/fibonacci_bench.uza`.
+The following interpreters were tested:
+- **uza (pypy)**: A tree-walk uza interpreter running on PyPy, a JIT implementation of Python. (Running `uza` with the `-i` flag)
+- **uza**: `Uza` running the bytecode VM in the `vm` directory
+- **clox**: [A `Lox` bytecode interpreter](https://github.com/munificent/craftinginterpreters). The VM implementation is similar to the VM in this repo
+- **python3.12**: The reference Python implementation
+- **pypy3.10**: JIT implementation of Python
+
+![A chart showing different languages speeds on a fibonacci benchark, including very slow uza with pypy](./res/fib_bench_0.png)
+
+The chart above shows just how slow the tree-walk approach is. Running a tree-walk interpreter of uza, inside pypy is orders of magnitude slower than running a C bytecode interpreter, or running a JIT with pypy. Running the same benchmark with a tree-walk interpreter inside of CPython instead of PyPy would probably take minutes!
+
+![A chart showing different languages speeds on a fibonacci benchark](./res/fib_bench_1.png)
+
+Taking a closer look at other values, we notice similar performance for the bytecode interpreters.
+We might the uza would perform better than Lox and Python, since it is staically typed, but the current VM implementation is still very close to the `clox` one. There are still quite a few runtime type checks, which could be avoided by emiting more specialized opcodes. For example, instead of having a single `OP_ADD` for additions, the compiler could emit `OP_IADD`, `OP_FADD`, and `OP_STRCONCAT` to separately handle integer, float and string additions respectively. Implicit integer conversions when adding integers to floats would also have to be handled at compile-time instead of runtime by emitting `OP_ITOF` for example — analogous to the JVM's `i2f` instruction — as the current `OP_TOINT` does runtime checks for the base type.
+The compiler also does zero optimisations on the AST, so that's anothing thing to explore.
+
+PyPy's JIT shows an incredible, almost 10x improvement over CPython in this benchmark. Note that in real-world cases, the [average speedup is closer to 2.9x](https://speed.pypy.org/). It'll be interesting to see how the new CPython JIT will fare in comparaison to PyPy in the coming versions.
+
+
+# TODO
 - Structs
 - Closures, lambda functions
 - Generics and overloading for user functions
