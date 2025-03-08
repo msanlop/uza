@@ -166,7 +166,28 @@ expression or statment using the `do` keyword:
 println("pair numbers in [0, 10]: ")
 for var i = 0; i <= 10; i += 2 do println(i)
 ```
----
+
+#### `break` and `continue`
+A `break` statement exits the current loop:
+
+```go
+for var i = 0; i < 1_000_000_000; i += 1 {
+  if i > 0 then break
+  println(i)
+}
+// prints:
+// 0
+```
+
+The `continue` statement skips the current loop iteration:
+
+```go
+println("pair numbers in [0, 10]: ")
+for var i = 0; i <= 10; i += 1 {
+  if i % 2 != 0 then continue
+  println(i)
+}
+```
 
 ## Unit Conversions
 
