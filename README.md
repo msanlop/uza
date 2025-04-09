@@ -280,7 +280,7 @@ echo 'println("hello world!")' | uza
 
 Compile to bytecode. Execute bytecode without compilation step.
 ```bash
-uza source.uza -c // Wrote X bytes to code.uzb
+uza code.uza -c // Wrote X bytes to code.uzb
 uza code.uzb
 ```
 
