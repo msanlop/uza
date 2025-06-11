@@ -81,11 +81,11 @@ print(printMessage)//Hello, World!nil
 ```
 
 ## Lists
-Lists are dynamic arrays and can take a generic type. A List instead can be
+Lists are dynamic arrays with a generic type. A List instead is
 constructed with `List<type>()`.
 
 ```go
-var numbers: List<int> = List<int>()
+var numbers: List<int> = List<int>() // var numbers = List<int>() # to infer type
 numbers.append(1)
 numbers.append(42)
 
@@ -364,7 +364,7 @@ python3 -m uzac --help
 
 ## Build from source
 > [!NOTE]
-> The python compiler also has a tree-walk interpret, using the `-i` flag, for which there is no need to compile the VM. To interpret uza in python, prefer using a python interpreter with a JIT such as `pypy3` for much better performance.
+> The python compiler also has a tree-walk interpreter, using the `-i` flag, for which there is no need to compile the VM. To interpret uza in python, prefer using a python interpreter with a JIT such as `pypy3` for much better performance.
 
 ```bash
 git clone git@github.com:msanlop/uza.git
@@ -408,7 +408,7 @@ The chart above shows just how slow the tree-walk approach is. Running a tree-wa
 ![A chart showing different languages speeds on a fibonacci benchark](./res/fib_bench_1.png)
 
 Taking a closer look at other values, we notice similar performance for the bytecode interpreters.
-We might the uza would perform better than Lox and Python, since it is staically typed, but the current VM implementation is still very close to the `clox` one. There are still quite a few runtime type checks, which could be avoided by emiting more specialized opcodes. For example, instead of having a single `OP_ADD` for additions, the compiler could emit `OP_IADD`, `OP_FADD`, and `OP_STRCONCAT` to separately handle integer, float and string additions respectively. Implicit integer conversions when adding integers to floats would also have to be handled at compile-time instead of runtime by emitting `OP_ITOF` for example — analogous to the JVM's `i2f` instruction — as the current `OP_TOINT` does runtime checks for the base type.
+One might expect that uza would perform better than Lox and Python, since it is staically typed, but the current VM implementation is still very close to the `clox` one. There are still quite a few runtime type checks, which could be avoided by emiting more specialized opcodes. For example, instead of having a single `OP_ADD` for additions, the compiler could emit `OP_IADD`, `OP_FADD`, and `OP_STRCONCAT` to separately handle integer, float and string additions respectively. Implicit integer conversions when adding integers to floats would also have to be handled at compile-time instead of runtime by emitting `OP_ITOF` for example — analogous to the JVM's `i2f` instruction — as the current `OP_TOINT` does runtime checks for the base type.
 The compiler also does zero optimisations on the AST, so that's anothing thing to explore.
 
 PyPy's JIT shows an incredible, almost 10x improvement over CPython in this benchmark. Note that in real-world cases, the [average speedup is closer to 2.9x](https://speed.pypy.org/). It'll be interesting to see how the new CPython JIT will fare in comparaison to PyPy in the coming versions.
