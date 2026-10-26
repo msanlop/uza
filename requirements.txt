@@ -1,5 +1,5 @@
 astroid==3.3.8
-certifi==2024.12.14
+certifi==2026.10.19
 cfgv==3.4.0
 charset-normalizer==3.4.1
 dill==0.3.9
